@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta
+            name="description"
+            content="Gramstat mainnet statistics: chain activity, validators and indexed actions."
+        />
+        <title>Gramstat · Mainnet</title>
+        <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="./style.css" />
+        <script type="module" src="./app.mjs"></script>
+    </head>
+    <body>
+        <a class="skip-link" href="#gram-and-ton">Skip to charts</a>
+        <div class="dashboard">
+            <header class="masthead">
+                <div class="identity">
+                    <h1>GRAMSTAT</h1>
+                    <span class="network">MAINNET</span>
+                </div>
+                <div class="snapshot">
+                    <span id="snapshot-period">Loading…</span><span class="snapshot-caption">INDEXED MAINNET DATA</span>
+                </div>
+            </header>
+
+            <div class="toolbar">
+                <nav class="section-nav" aria-label="Sections">
+                    <a class="active" href="#gram-and-ton" aria-current="location">Gram and TON</a>
+                    <a href="#wallets">Wallets</a>
+                    <a href="#validators">Validators</a>
+                    <a href="#activity">Activity</a>
+                </nav>
+                <div class="toolbar-right">
+                    <div class="range-switch" role="group" aria-label="Days ending at selected date">
+                        <button type="button" data-days="7" aria-pressed="false">7D</button>
+                        <button type="button" data-days="14" aria-pressed="false">14D</button>
+                        <button type="button" data-days="30" aria-pressed="true" class="active">30D</button>
+                    </div>
+                </div>
+            </div>
+
+            <form id="range-form" class="date-range">
+                <label>From <input id="from" type="date" required min="2019-01-01" /></label>
+                <label>Through <input id="to" type="date" required min="2019-01-01" /></label>
+                <button id="apply" type="submit">Apply</button>
+                <button id="pilot" type="button">Verified week</button>
+                <button id="latest" type="button">Latest 7 days</button>
+            </form>
+            <p id="source-status" class="source-status">Loading source coverage…</p>
+            <p class="source-status">
+                UTC. Missing history stays empty. Boundary days of the weekly replay are marked partial. Validator
+                charts use round start times.
+            </p>
+            <div id="warning" class="warning" role="status" hidden>
+                <span id="warning-text"></span><button id="retry" type="button">Retry</button>
+            </div>
+            <p id="chart-help" class="sr-only">
+                Focus a chart to inspect its readings. Use the left and right arrow keys to change dates, Home and End
+                to jump, and Escape to dismiss. Tap a chart to inspect it on a touchscreen.
+            </p>
+            <p id="period-status" class="sr-only" aria-live="polite"></p>
+
+            <main>
+                <section id="gram-and-ton" class="analytics-section" aria-labelledby="gram-title">
+                    <div class="section-heading">
+                        <h2 id="gram-title">Gram and TON</h2>
+                        <span class="section-date" data-period-label></span>
+                    </div>
+                    <div id="gram-charts" class="chart-grid"></div>
+                </section>
+                <section id="wallets" class="analytics-section" aria-labelledby="wallets-title">
+                    <div class="section-heading">
+                        <h2 id="wallets-title">Wallets</h2>
+                        <span class="section-date" data-period-label></span>
+                    </div>
+                    <div id="wallet-charts" class="chart-grid"></div>
+                </section>
+                <section id="validators" class="analytics-section" aria-labelledby="validators-title">
+                    <div class="section-heading">
+                        <h2 id="validators-title">Validators</h2>
+                        <span class="section-date" data-period-label></span>
+                    </div>
+                    <div id="validator-charts" class="chart-grid"></div>
+                    <details class="geo-panel">
+                        <summary>Validator locations · clustered by coordinates</summary>
+                        <label
+                            >Round
+                            <select id="geo-round" disabled></select
+                        ></label>
+                        <div id="geo-locations"></div>
+                    </details>
+                </section>
+                <section id="activity" class="analytics-section" aria-labelledby="activity-title">
+                    <div class="section-heading">
+                        <h2 id="activity-title">Activity</h2>
+                        <span class="section-date" data-period-label></span>
+                    </div>
+                    <div id="activity-charts" class="chart-grid"></div>
+                </section>
+            </main>
+            <noscript><p class="warning">Enable JavaScript to view the charts.</p></noscript>
+            <footer>
+                <div class="footer-meta">GRAMSTAT <span>MAINNET · UTC</span></div>
+                <p class="footer-quote" tabindex="0">
+                    <span class="quote-translation" lang="en">
+                        “Without statistics, we wouldn’t even suspect how well we’re doing.” — Office Romance (1977).
+                    </span>
+                    <span class="quote-original" lang="ru">
+                        «Если бы не было статистики, мы бы даже не подозревали о том, как хорошо мы работаем» —
+                        «Служебный роман» (1977 г.).
+                    </span>
+                </p>
+            </footer>
+        </div>
+    </body>
+</html>

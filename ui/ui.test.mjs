@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { CATALOGUE, periodDates } from './catalogue.mjs';
+import { buildRows, formatDate } from './charts.mjs';
+import { decimal, readObservedMetrics } from './data.mjs';
+
+const fixture = () => ({
+    schemaVersion: 2,
+    network: 'mainnet',
+    period: { from: '2026-10-21', to: '2026-10-28' },
+    chain: [
+        {
+            day: '2026-10-22',
+            supply_nanoton: '5258373238061259412',
+            fees_nanoton: null,
+            transactions: '7',
+            is_partial: 0,
+        },
+    ],
+    daily: [{ day: '2026-10-22', metric: 'jetton_transfers', value: '0' }],
+    stars: [{ day: '2026-10-22', stars_total: null, known_stars_total: '1234', unknown_purchases: '1' }],
+    rounds: [
+        {
+            utime_since: 1792540800,
+            utime_until: 1792606336,
+            total: 380,
+            countries: null,
+            located: null,
+            data_through: 1792606336,
+        },
+    ],
+});
+
+test('no live chart uses generated data; unsupported metrics stay empty', () => {
+    assert.ok(CATALOGUE.every((c) => c.series.every((s) => !s.demo)));
+    const data = readObservedMetrics(fixture());
+    for (const c of CATALOGUE.filter((c) => c.unavailable)) {
+        assert.ok(data.metrics[c.id].series.every((s) => s.points.length === 0));
+    }
+    assert.equal(data.metrics.jetton_transfers.series[0].points[0][1], 0);
+    assert.deepEqual(data.metrics.fees.series[0].points[0], ['2026-10-22', null]);
+    const rows = buildRows(data.dates, data.metrics.supply.series);
+    assert.equal(rows[0].values[0], null);
+    assert.equal(rows[1].values[0], 5258373238.061259);
+    assert.equal(data.metrics.supply.series[0].exact['2026-10-22'], '5258373238.061259412');
+});
+
+test('unknown totals and geo remain unknown, without falling back to subtotals', () => {
+    const data = readObservedMetrics(fixture());
+    assert.equal(data.metrics.stars_quantity.series[0].points[0][1], null);
+    assert.equal(data.metrics.stars_known.series[0].points[0][1], 1234);
+    assert.equal(data.metrics.countries.series[0].points[0][1], null);
+    assert.equal(data.metrics.located.series[0].points[0][1], null);
+    assert.equal(data.roundDates[0], '2026-10-21T00:00:00.000Z');
+    assert.equal(CATALOGUE.find((c) => c.id === 'validator_count').kind, 'step');
+});
+
+test('date intervals cross months and years, with exclusive upper bounds', () => {
+    assert.deepEqual(periodDates('2026-12-31', '2027-01-02'), ['2026-12-31', '2027-01-01']);
+    assert.throws(() => periodDates('2026-02-30', '2026-03-04'));
+    assert.throws(() => periodDates('2026-01-01', '2026-12-31'));
+    assert.match(formatDate('2026-11-07'), /Nov/);
+    assert.equal(decimal(null, 9), null);
+    assert.equal(decimal('0', 9), '0.000000000');
+    assert.equal(decimal('1e9', 9), null);
+    assert.throws(() => readObservedMetrics({ ...fixture(), schemaVersion: 1 }));
+});

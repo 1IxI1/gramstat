@@ -1,0 +1,8 @@
+/build/
+/node_modules/
+/.cocoindex_code/
+.env
+.env.*
+*.log
+*.test
+.DS_Store
