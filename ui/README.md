@@ -1,8 +1,7 @@
 # Gramstat UI
 
 Dependency-free browser UI for the read-only Go `gramstat-api`. nginx serves UI
-and `/api/` from one origin on private port **2007**. The intended public hostname
-is `https://stats.ton.org` behind HAProxy; the external route is configured separately.
+and `/api/` from one origin on private port **2007**.
 
 API and deployment documentation:
 [`docs/api.md`](../docs/api.md).
@@ -24,11 +23,9 @@ API and deployment documentation:
   separately and does not replace a NULL full total.
 
 The page reads `/api/v1/coverage`, `/api/v1/dashboard` and `/api/v1/locations`.
-Visible pages refresh every five minutes. A bare Python static server is no longer
-sufficient; run the API and proxy `/api/` as shown in its nginx example.
+Visible pages refresh every five minutes. Serve the UI and proxy `/api/` as shown
+in the nginx example.
 
-Historical September research artifacts are archived in
-[jetton-bomb](https://github.com/1IxI1/jetton-bomb/tree/main/docs/gramstat-september).
 `ui.test.mjs` checks the live API adapter.
 
 ```

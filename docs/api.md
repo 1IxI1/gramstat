@@ -1,9 +1,7 @@
 # Gramstat read-only API
 
-`cmd/gramstat-api` is a long-running HTTP reader in this independent Gramstat
-application, separate from the indexer's hourly `gramstat-aggregate` job.
-It serves prepared ClickHouse data. It has no
-PostgreSQL/SS/RPC credentials, aggregation trigger, write route or SQL endpoint.
+`cmd/gramstat-api` serves prepared ClickHouse statistics over HTTP for the
+Gramstat dashboard.
 
 ## HTTP contract
 
@@ -38,26 +36,21 @@ gramstat.validator_rounds
 gramstat.validator_geo_rounds
 ```
 
-The latter four are maintained by the indexer's hourly aggregate job. `chain_daily` is a
-compact preparation of a **separately audited bounded replay**; it is not yet
-refreshed automatically. `--print-schema` in the aggregator includes its DDL.
-The writer owns [prepare-chain.sql](https://github.com/1IxI1/ton-indexer/blob/gramstat/ton-index-go/cmd/gramstat-aggregate/deploy/prepare-chain.sql).
-Run it
-with a separate writer role and typed parameters `raw`, `metrics`, `from`, `to`,
-`mc_from`, `mc_to`, `source`. It deduplicates raw blocks/snapshots with FINAL;
-fees/minted/burned remain NULL if any corresponding block field is missing.
-It replaces complete daily rows, never adds to an earlier aggregate.
+`chain_daily` contains daily transactions, fees, issuance, burning and supply.
+`daily_metrics` contains action counts and amounts; `telegram_stars_daily` provides
+Stars purchase totals. The validator tables contain round-level rosters and
+geographical observations.
 
-Initial published chain coverage is **21–27 October 2026**, using the verified
-detector-filter replay. The first/last day are conservatively partial because
-shard generation timestamps can straddle the including-MC bounds. The newest
-parent-cache performance replay is not used. Original source rows are unchanged.
+Each source can have different coverage and update times. Use `/api/v1/coverage`
+and the timestamps and partial flags on individual records. Bounded chain datasets
+can have partial edge days because shard generation timestamps can straddle the
+including-MC bounds. Missing monetary inputs remain NULL.
 Supply is the last available sampled full-state snapshot of the day; its own
 timestamp is returned. It is not an exact midnight measurement.
 
-Accounts, wallet activations/DAU/MAU and global token counts are not published from
-this partial-history replay. Annual inflation, stake/returns and validator
-attribution need their own prepared series. UI cards explain missing prerequisites.
+Absolute account and token counts require complete historical coverage; wallet
+activity also depends on prior wallet deployments. Unavailable metrics display
+their missing prerequisites in the UI.
 
 ## Deployment
 
@@ -88,12 +81,10 @@ snapshots, provenance and repository files are not served. Copy only `index.html
 `app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
 
-The intended public endpoint is **https://stats.ton.org** through HAProxy. That
-external route and TLS are a later deployment step. No frontend URL rewrite is
-needed: all API requests are same-origin. Configure trusted proxy IPs explicitly
-before enabling real-IP forwarding/rate limiting behind HAProxy; never trust
-client-supplied X-Forwarded-For globally. Private hostnames/addresses and secrets
-belong only in deployment configuration, not these public examples.
+For HTTPS deployment through HAProxy, terminate TLS at the proxy and forward
+requests to the private nginx listener. All frontend API requests are same-origin.
+Configure trusted proxy IPs explicitly before enabling real-IP forwarding and
+rate limiting; never trust client-supplied X-Forwarded-For globally.
 
 The API caches complete successful responses for five minutes, coalesces same-key
 misses, allows four source loads concurrently and retains at most 32 entries of
@@ -111,8 +102,7 @@ make vet
 
 The SQL integration test uses isolated ClickHouse-local consumer fixtures and
 executes every read query: exact money, NULL fees, partial flags and rejecting
-stale geo joins. Preparation SQL and its tests belong to the writer repository.
-HTTP tests cover input limits,
-cache coalescing, rejected writes and safe errors. Before exposing an installation,
+stale geo joins. HTTP tests cover input limits, cache coalescing, rejected writes
+and safe errors. Before exposing an installation,
 check read access and denial of writes for its actual ClickHouse role, API payloads,
 static allowlist, headers and the UI in a browser.
