@@ -58,7 +58,8 @@ test('unknown totals and geo remain unknown, without falling back to subtotals',
 test('date intervals cross months and years, with exclusive upper bounds', () => {
     assert.deepEqual(periodDates('2026-12-31', '2027-01-02'), ['2026-12-31', '2027-01-01']);
     assert.throws(() => periodDates('2026-02-30', '2026-03-04'));
-    assert.throws(() => periodDates('2026-01-01', '2026-12-31'));
+    assert.equal(periodDates('2026-01-01', '2026-12-31').length, 364);
+    assert.throws(() => periodDates('2019-01-01', '2030-01-01'));
     assert.match(formatDate('2026-11-07'), /Nov/);
     assert.equal(decimal(null, 9), null);
     assert.equal(decimal('0', 9), '0.000000000');

@@ -207,7 +207,7 @@ function render() {
         state.value.textContent = formatSummary(value, definition.unit);
         state.detail.textContent = latest ? formatDate(latest.date) : '';
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : wideRange ? 'Zoom to 93 days or less for daily and validator charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -280,7 +280,7 @@ async function load() {
     // Do not retain another date range behind a failed reload.
     try {
         const range = selection();
-        const dailyRange = wideRange ? { from: range.from, to: new Date(Date.parse(range.from) + 86400000).toISOString().slice(0,10) } : range;
+        const dailyRange = range;
         const empty = { schemaVersion: 2, network: 'mainnet', period: dailyRange, chain: [], daily: [], stars: [], rounds: [] };
         readings = readObservedMetrics({
             schemaVersion: 2,
@@ -297,7 +297,9 @@ async function load() {
         const inflationParams = new URLSearchParams(supplyParams);
         inflationParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('inflation').chart.surface.clientWidth)))));
         const [data, sources, supply, inflation] = await Promise.all([
-            wideRange ? Promise.resolve(empty) : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
+            wideRange
+                ? getJSON(`/api/v1/chain?${new URLSearchParams(range)}`, request.signal).then((data) => ({ ...empty, ...data }))
+                : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
             getJSON('/api/v1/coverage', request.signal).catch(() => null),
             getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
             getJSON(`/api/v1/inflation?${inflationParams}`, request.signal).catch((e) => ({ error: e.message })),

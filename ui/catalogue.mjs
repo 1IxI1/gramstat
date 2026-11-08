@@ -133,11 +133,11 @@ export function periodDates(from, to) {
     if (
         !Number.isInteger(count) ||
         count < 1 ||
-        count > 93 ||
+        count > 3660 ||
         new Date(start).toISOString().slice(0, 10) !== from ||
         new Date(end).toISOString().slice(0, 10) !== to
     ) {
-        throw new Error('Choose a UTC interval of 1–93 days.');
+        throw new Error('Choose a UTC interval of 1–3660 days.');
     }
     return Array.from({ length: count }, (_, i) => new Date(start + i * 86400000).toISOString().slice(0, 10));
 }

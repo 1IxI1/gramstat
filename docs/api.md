@@ -10,6 +10,9 @@ Gramstat dashboard.
   source. These bounds do not certify gap-free ingestion.
 - `GET /api/v1/dashboard?from=2026-10-21&to=2026-10-28`: UTC `[from,to)`, 1–93 days.
   `chain`, `daily`, `stars`, `rounds` arrays in a `schemaVersion: 2` response.
+- `GET /api/v1/chain?from=2019-11-15&to=2026-11-01`: UTC `[from,to)`, up to
+  3660 days. Returns `chain` and `period`, with one prepared row per day for fees,
+  issuance, burning and transactions. Daily values are not downsampled.
 - `GET /api/v1/locations?round=<utime_since>`: selected round's coordinate points,
   coverage, cutoff and update timestamp. No raw IP, ADNL or internal record IDs.
 - `GET /api/v1/supply?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:

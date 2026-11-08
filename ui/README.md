@@ -13,7 +13,9 @@ API and deployment documentation:
   previous/next period and zoom out. Its end second is inclusive; API `to` is exclusive.
 - Drag horizontally on a chart to select a range. Supply loads a pixel-budgeted
   series from `/api/v1/supply`, down to individual MCs. Daily/validator charts use
-  whole UTC days up to 93 days; Supply and annual inflation also support wider ranges.
+  whole UTC days. Fees, issuance, burning and transactions retain daily points
+  across the indexed history via `/api/v1/chain`. Activity and validator datasets
+  support up to 93 days; Supply and annual inflation also support wider ranges.
 - Supply, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.

@@ -59,6 +59,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "coverage"
 	case "/api/v1/dashboard":
 		name = "dashboard"
+	case "/api/v1/chain":
+		name = "chain"
 	case "/api/v1/locations":
 		name = "locations"
 	case "/api/v1/supply":
@@ -97,7 +99,7 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || (name == "dashboard" && k != "from" && k != "to") || ((name == "supply" || name == "inflation") && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || ((name == "dashboard" || name == "chain") && k != "from" && k != "to") || ((name == "supply" || name == "inflation") && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
 	}
@@ -126,11 +128,15 @@ func validate(name string, q url.Values, now time.Time) error {
 		}
 		q.Set("round", strconv.FormatUint(n, 10))
 	}
-	if name == "dashboard" {
+	if name == "dashboard" || name == "chain" {
+		maxDays := MaxDays
+		if name == "chain" {
+			maxDays = 3660
+		}
 		from, e1 := time.Parse(time.DateOnly, q.Get("from"))
 		to, e2 := time.Parse(time.DateOnly, q.Get("to"))
-		if e1 != nil || e2 != nil || !from.Before(to) || from.Year() < 2019 || to.After(now.Truncate(24*time.Hour).Add(24*time.Hour)) || to.Sub(from) > MaxDays*24*time.Hour {
-			return fmt.Errorf("use UTC from/to dates, exclusive to, between 1 and 93 days, no future days")
+		if e1 != nil || e2 != nil || !from.Before(to) || from.Year() < 2019 || to.After(now.Truncate(24*time.Hour).Add(24*time.Hour)) || to.Sub(from) > time.Duration(maxDays)*24*time.Hour {
+			return fmt.Errorf("use UTC from/to dates, exclusive to, between 1 and %d days, no future days", maxDays)
 		}
 	}
 	return nil
@@ -194,6 +200,9 @@ func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, e
 		return s.loadSupply(ctx, q)
 	}
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "servedAt": time.Now().UTC().Format(time.RFC3339)}
+	if name == "chain" {
+		result["period"] = map[string]string{"from": q.Get("from"), "to": q.Get("to")}
+	}
 	if name == "dashboard" {
 		result["period"] = map[string]string{"from": q.Get("from"), "to": q.Get("to")}
 		// Compact, precomputed tables only. The complete response is cached together.
