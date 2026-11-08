@@ -47,7 +47,6 @@ export const CATALOGUE = [
         annotations: [BURN_START, SUBSECOND_START],
         kind: 'bar',
         zero: true,
-        note: 'Total protocol burning. A fees / blackhole split is not available.',
     }),
     chart('accounts', 'Accounts', 'gram', '', {
         layout: 'wide',
