@@ -20,7 +20,7 @@ const BURN_START = Object.freeze({
 // Config #30 enables the new consensus on both chains in this key block.
 const SUBSECOND_START = Object.freeze({
     id: 'subsecond-start', utime: 1775718744, mc: 59238081,
-    label: '2.5 → 0.4s blocks', color: '#32875a',
+    label: '2.5 → 0.4s blocks', color: '#9063b5',
 });
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
