@@ -54,7 +54,10 @@ export const CATALOGUE = [
         unavailable:
             'Absolute account counts require a verified opening state and continuous account deltas. This series has not been prepared yet.',
     }),
-    chart('transactions', 'Transactions per day', 'gram', '', { kind: 'bar', zero: true }),
+    chart('transactions', 'Transactions per day', 'gram', '', {
+        kind: 'bar', zero: true,
+        description: 'Both masterchain (-1) and basechain (0) transactions.',
+    }),
     ...[
         ['activated_wallets', 'Activated wallets'],
         ['activations', 'Activations per day'],
