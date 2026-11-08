@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
-import { buildRows, formatDate } from './charts.mjs';
-import { decimal, readObservedMetrics, latestChainRange, supplySeries } from './data.mjs';
+import { buildRows, formatDate, domain } from './charts.mjs';
+import { decimal, readObservedMetrics, latestChainRange, supplySeries, inflationSeries } from './data.mjs';
 
 const fixture = () => ({
     schemaVersion: 2,
@@ -97,4 +97,19 @@ test('burn-start annotations share the exact on-chain boundary', () => {
         assert.equal(event.mc,30410593);
         assert.equal(new Date(event.utime*1000).toISOString(),'2023-06-17T06:33:26.000Z');
     }
+});
+
+test('annualized inflation preserves negative rates, exact inputs and unknown windows', () => {
+    const series=inflationSeries({schemaVersion:2,windowSeconds:86400,points:[
+        {utime:1792627200,window_from:1792540800,annualized_percent:'-0.123456789012',minted_24h_nanoton:'9007199254740993',burned_24h_nanoton:'9007199254741993',supply_nanoton:'5000000000000000001',supply_mc:123},
+        {utime:1792630800,window_from:1792544400,annualized_percent:null,minted_24h_nanoton:null,burned_24h_nanoton:'1',supply_nanoton:null,supply_mc:124},
+    ]});
+    const rows=buildRows(series.points.map((p)=>p[0]),[series]);
+    assert.equal(rows[0].values[0],-0.123456789012);
+    assert.equal(rows[1].values[0],null);
+    assert.match(series.details[rows[0].date],/9007199\.254740993 TON/);
+    assert.match(series.details[rows[0].date],/5000000000\.000000001 TON/);
+    const [min,max]=domain(CATALOGUE.find((c)=>c.id==='inflation'),rows);
+    assert.ok(min<rows[0].values[0] && max>rows[0].values[0]);
+    assert.throws(()=>inflationSeries({schemaVersion:2,windowSeconds:3600,points:[]}));
 });

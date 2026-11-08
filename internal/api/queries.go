@@ -17,6 +17,16 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"inflation_rollup": `SELECT toUInt32(point.1) AS utime,toString(point.2) AS annualized_percent,
+toUInt32(point.3) AS window_from,toString(point.4) AS minted_24h_nanoton,
+toString(point.5) AS burned_24h_nanoton,toString(point.6) AS supply_nanoton,
+point.7 AS supply_utime,point.8 AS supply_mc
+FROM (SELECT intDiv(toUInt64(point_at),{step:UInt32}) AS bucket,
+argMax(tuple(point_at,annualized_percent,window_from,minted_24h_nanoton,burned_24h_nanoton,
+supply_nanoton,supply_utime,supply_mc),point_at) AS point
+FROM gramstat.inflation_hourly FINAL
+WHERE point_at >= toDateTime({from_ts:UInt32},'UTC') AND point_at < toDateTime({to_ts:UInt32},'UTC')
+GROUP BY bucket) ORDER BY utime`,
 	"supply_count": `SELECT toUInt32(count()) AS count FROM mainnet_gramstat_full.blocks FINAL
 WHERE workchain=-1 AND shard=-9223372036854775808 AND seqno BETWEEN {first_mc:UInt32} AND {last_mc:UInt32}
 AND gen_utime >= {from_ts:UInt32} AND gen_utime < {to_ts:UInt32}`,
@@ -97,7 +107,10 @@ formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NUL
 FROM gramstat.validator_rounds FINAL
 UNION ALL SELECT 'supply',toString(toDate(minOrNull(first_utime),'UTC')),toString(toDate(maxOrNull(last_utime),'UTC')),
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
-FROM gramstat.supply_hourly FINAL`,
+FROM gramstat.supply_hourly FINAL
+UNION ALL SELECT 'inflation',toString(toDate(minOrNull(point_at),'UTC')),toString(toDate(maxOrNull(point_at),'UTC')),
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),toUInt32(minOrNull(point_at)),toUInt32(maxOrNull(point_at))
+FROM gramstat.inflation_hourly FINAL`,
 }
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {

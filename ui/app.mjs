@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries } from './data.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -11,6 +11,8 @@ let controller;
 let coverage = [];
 let supplyData;
 let supplyError = '';
+let inflationData;
+let inflationError = '';
 let activeRange;
 let wideRange = false;
 const recentRanges = [];
@@ -153,7 +155,7 @@ function syncExpandedChart() {
         state.expand.focus({ preventScroll: true });
     } else previous?.expand.focus({ preventScroll: true });
     // Supply's point budget follows its new plot width.
-    if (readings && (id === 'supply' || previous?.definition.id === 'supply')) load();
+    if (readings && ([id, previous?.definition.id].some((name) => name === 'supply' || name === 'inflation'))) load();
 }
 
 expandedDialog.addEventListener('cancel', (event) => {
@@ -188,11 +190,13 @@ function render() {
     for (const state of cards.values()) {
         const { definition } = state;
         const isSupply = definition.id === 'supply';
-        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : readings.metrics[definition.id]?.series || [];
-        const dates = isSupply ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
-        const shownDates = dates.length ? dates : isSupply && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
+        const isInflation = definition.id === 'inflation';
+        const temporal = isSupply || isInflation;
+        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : readings.metrics[definition.id]?.series || [];
+        const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
+        const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
-        const latest = isSupply ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
+        const latest = temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
         );
         const value = latest
@@ -203,7 +207,7 @@ function render() {
         state.value.textContent = formatSummary(value, definition.unit);
         state.detail.textContent = latest ? formatDate(latest.date) : '';
         state.status.textContent =
-            (isSupply ? supplyError : wideRange ? 'Zoom to 93 days or less for daily and validator charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : wideRange ? 'Zoom to 93 days or less for daily and validator charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -218,7 +222,7 @@ function render() {
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, time: isSupply,
+        state.chart.update({ ...definition, series, loading, time: temporal,
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),
         }, shownDates);
@@ -265,6 +269,8 @@ async function load() {
     loading = true;
     supplyData = undefined;
     supplyError = '';
+    inflationData = undefined;
+    inflationError = '';
     $('apply').disabled = true;
     warning('');
     geoRequest++;
@@ -288,15 +294,20 @@ async function load() {
         render();
         const budget = Math.max(100, Math.min(1200, Math.round(cards.get('supply').chart.surface.clientWidth)));
         const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: String(budget) });
-        const [data, sources, supply] = await Promise.all([
+        const inflationParams = new URLSearchParams(supplyParams);
+        inflationParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('inflation').chart.surface.clientWidth)))));
+        const [data, sources, supply, inflation] = await Promise.all([
             wideRange ? Promise.resolve(empty) : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
             getJSON('/api/v1/coverage', request.signal).catch(() => null),
             getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
+            getJSON(`/api/v1/inflation?${inflationParams}`, request.signal).catch((e) => ({ error: e.message })),
         ]);
         if (id !== requestId) return;
         if (sources) coverage = sources.coverage;
         if (supply.error) supplyError = `Supply unavailable: ${supply.error}`;
         else supplyData = supply;
+        if (inflation.error) inflationError = `Inflation unavailable: ${inflation.error}`;
+        else inflationData = inflation;
         readings = readObservedMetrics(data);
         const params = new URLSearchParams(location.search);
         params.set('from', $('from').value);

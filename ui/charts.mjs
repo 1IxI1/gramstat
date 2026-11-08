@@ -87,7 +87,7 @@ function niceCeiling(value) {
     return step * power;
 }
 
-function domain(config, rows) {
+export function domain(config, rows) {
     if (config.share) return [0, 100];
     const stacked = config.kind.startsWith('stacked');
     const values = rows.flatMap((row) =>
@@ -98,7 +98,7 @@ function domain(config, rows) {
     const maximum = Math.max(...values);
     if (config.zero) return [0, niceCeiling(((maximum || 1) * 1.08) / 2) * 2];
     const padding = (maximum - minimum || Math.abs(maximum) * 0.02 || 1) * 0.18;
-    let lower = Math.max(0, minimum - padding);
+    let lower = config.signed ? minimum - padding : Math.max(0, minimum - padding);
     let upper = maximum + padding;
     if (config.integer) {
         lower = Math.max(0, Math.floor(lower));

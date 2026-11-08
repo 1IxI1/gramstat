@@ -20,6 +20,26 @@ func supplyInterval(seconds int64, maxPoints int) int64 {
 	return ((needed + 86399) / 86400) * 86400
 }
 
+func (s *Server) loadInflation(ctx context.Context, q url.Values) ([]byte, error) {
+	from, _ := time.Parse(time.RFC3339, q.Get("from"))
+	to, _ := time.Parse(time.RFC3339, q.Get("to"))
+	budget, _ := strconv.Atoi(q.Get("maxPoints"))
+	step := max(int64(3600), supplyInterval(to.Unix()-from.Unix(), budget))
+	p := url.Values{"from_ts": {strconv.FormatInt(from.Unix(), 10)}, "to_ts": {strconv.FormatInt(to.Unix(), 10)}, "step": {strconv.FormatInt(step, 10)}}
+	points, err := s.reader.Read(ctx, "inflation_rollup", p)
+	if err != nil {
+		return nil, err
+	}
+	var rows []json.RawMessage
+	if err = json.Unmarshal(points, &rows); err != nil {
+		return nil, err
+	}
+	if len(rows) > budget {
+		return nil, fmt.Errorf("inflation point budget exceeded")
+	}
+	return json.Marshal(map[string]any{"schemaVersion": 2, "network": "mainnet", "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "intervalSeconds": step, "windowSeconds": 86400, "annualizationDays": 365, "points": points, "servedAt": time.Now().UTC().Format(time.RFC3339)})
+}
+
 func (s *Server) loadSupply(ctx context.Context, q url.Values) ([]byte, error) {
 	from, _ := time.Parse(time.RFC3339, q.Get("from"))
 	to, _ := time.Parse(time.RFC3339, q.Get("to"))

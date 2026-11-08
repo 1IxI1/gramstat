@@ -33,6 +33,19 @@ export function supplySeries(data) {
     return s;
 }
 
+export function inflationSeries(data) {
+    if (data?.schemaVersion !== 2 || data.windowSeconds !== 86400 || !Array.isArray(data.points)) throw new Error('Unsupported inflation response.');
+    const s = { id: 'total', label: 'Annual inflation', color: colorAt(0), points: [], exact: {}, details: {} };
+    for (const p of data.points) {
+        const date = new Date(p.utime * 1000).toISOString();
+        const exact = typeof p.annualized_percent === 'string' && /^-?\d+(\.\d+)?$/.test(p.annualized_percent) ? p.annualized_percent : null;
+        s.points.push([date, exact === null ? null : Number(exact)]);
+        s.exact[date] = exact;
+        s.details[date] = `24h window: ${new Date(p.window_from * 1000).toISOString()} — ${date}. Minted: ${decimal(p.minted_24h_nanoton,9) ?? 'unknown'} TON. Burned: ${decimal(p.burned_24h_nanoton,9) ?? 'unknown'} TON. Supply: ${decimal(p.supply_nanoton,9) ?? 'unknown'} TON (MC ${p.supply_mc}).`;
+    }
+    return s;
+}
+
 export function readObservedMetrics(data) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');

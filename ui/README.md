@@ -13,7 +13,7 @@ API and deployment documentation:
   previous/next period and zoom out. Its end second is inclusive; API `to` is exclusive.
 - Drag horizontally on a chart to select a range. Supply loads a pixel-budgeted
   series from `/api/v1/supply`, down to individual MCs. Daily/validator charts use
-  whole UTC days up to 93 days; wider ranges show Supply and an explanatory message.
+  whole UTC days up to 93 days; Supply and annual inflation also support wider ranges.
 - Supply, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.
@@ -31,6 +31,10 @@ API and deployment documentation:
   the corresponding chart view.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
+- Annual inflation uses `/api/v1/inflation`: hourly estimates of net supply growth
+  annualized from the preceding 24 complete UTC hours. The 24-hour window stays
+  fixed when zooming. Negative estimates are supported; incomplete windows and
+  unknown/zero supply stay NULL. Supply and inflation support ranges beyond 93 days.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.

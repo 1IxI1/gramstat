@@ -20,6 +20,14 @@ Gramstat dashboard.
   Short windows (at most 48 hours) use bounded MC reads and an opening burn
   checkpoint; larger windows select last observations from hourly checkpoints.
   The actual time/MC of each observation is retained, including NULL final values.
+- `GET /api/v1/inflation?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:
+  the same timestamp and point-budget contract. Reads prepared hourly observations
+  of `(minted_24h - burned_24h) / supply × 365 × 100` percent. The calculation
+  window is always 86400 seconds; downsampling never changes it. Returns
+  `annualized_percent` as a signed decimal string (NULL when unknown), exact input
+  nanoTON strings, `window_from`, `supply_utime`, and `supply_mc`. Points are stamped
+  at closed UTC-hour boundaries; supply is the last MC observation before that
+  boundary. Responses include `windowSeconds: 86400` and `annualizationDays: 365`.
 
 GET and HEAD only. Unknown/repeated parameters, invalid dates and future days are
 rejected before querying the source. Read failures return a generic 503; SQL and
@@ -39,6 +47,7 @@ The API reads these prepared tables:
 ```
 gramstat.chain_daily_full
 gramstat.supply_hourly
+gramstat.inflation_hourly
 gramstat.daily_metrics
 gramstat.telegram_stars_daily
 gramstat.validator_rounds

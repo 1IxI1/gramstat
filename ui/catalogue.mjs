@@ -31,7 +31,8 @@ export const CATALOGUE = [
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
         annotations: [BURN_START, SUBSECOND_START],
-        unavailable: 'Two verified supply boundaries one year apart are required.',
+        signed: true,
+        description: 'Estimated annual supply growth if issuance and burning continue at their average rates over the preceding 24 hours. Calculated hourly: (minted − burned) over 24h ÷ total supply × 365 × 100%.',
     }),
     chart('fees', 'Fees per day', 'gram', 'TON', { kind: 'bar', zero: true }),
     chart('minted', 'Gram minted per day', 'gram', 'GRAM', { kind: 'bar', zero: true }),

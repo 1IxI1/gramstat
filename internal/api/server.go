@@ -63,6 +63,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "locations"
 	case "/api/v1/supply":
 		name = "supply"
+	case "/api/v1/inflation":
+		name = "inflation"
 	default:
 		problem(w, 404, "not found")
 		return
@@ -95,11 +97,11 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || (name == "dashboard" && k != "from" && k != "to") || (name == "supply" && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || (name == "dashboard" && k != "from" && k != "to") || ((name == "supply" || name == "inflation") && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
 	}
-	if name == "supply" {
+	if name == "supply" || name == "inflation" {
 		from, e1 := time.Parse(time.RFC3339, q.Get("from"))
 		to, e2 := time.Parse(time.RFC3339, q.Get("to"))
 		if e1 != nil || e2 != nil || !from.Before(to) || from.Year() < 2019 || to.After(now.Truncate(24*time.Hour).Add(24*time.Hour)) || to.Sub(from) > 10*366*24*time.Hour || from.Nanosecond() != 0 || to.Nanosecond() != 0 {
@@ -185,6 +187,9 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 }
 
 func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, error) {
+	if name == "inflation" {
+		return s.loadInflation(ctx, q)
+	}
 	if name == "supply" {
 		return s.loadSupply(ctx, q)
 	}
