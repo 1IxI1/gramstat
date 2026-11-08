@@ -81,6 +81,16 @@ test('zero-based chart axes leave headroom without doubling the peak', () => {
     assert.deepEqual(domain(transactions, [{ values: [null], total: null }]), [0, 1]);
 });
 
+test('missing validator rounds remain gaps rather than carrying counts forward', () => {
+    const f = fixture();
+    f.rounds.push({ ...f.rounds[0], utime_since: 1792700000, utime_until: 1792760000, total: 400 });
+    const data = readObservedMetrics(f);
+    const rows = buildRows(data.roundDates, data.metrics.validator_count.series);
+    assert.deepEqual(rows.map((r) => r.values[0]), [380, null, 400]);
+    assert.equal(data.roundDates[1], new Date(f.rounds[0].utime_until * 1000).toISOString());
+    assert.equal(Object.keys(data.roundDetails).length, 2);
+});
+
 test('date intervals cross months and years, with exclusive upper bounds', () => {
     assert.deepEqual(periodDates('2026-12-31', '2027-01-02'), ['2026-12-31', '2027-01-01']);
     assert.throws(() => periodDates('2026-02-30', '2026-03-04'));

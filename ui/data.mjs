@@ -168,7 +168,13 @@ export function readObservedMetrics(data) {
         ])
             put(id, 'total', r.day, r[field], 0, detail);
     }
+    let previousRoundUntil;
     for (const r of data.rounds) {
+        if (previousRoundUntil != null && previousRoundUntil < r.utime_since) {
+            const gap = new Date(previousRoundUntil * 1000).toISOString();
+            roundDates.push(gap);
+            for (const id of ['validator_count', 'countries', 'located']) put(id, 'total', gap, null);
+        }
         const date = new Date(r.utime_since * 1000).toISOString();
         const until = new Date(r.utime_until * 1000).toISOString();
         roundDates.push(date);
@@ -177,6 +183,7 @@ export function readObservedMetrics(data) {
         put('validator_count', 'total', date, String(r.total), 0, detail);
         put('countries', 'total', date, r.countries === null ? null : String(r.countries), 0, detail);
         put('located', 'total', date, r.located === null ? null : String(r.located), 0, detail);
+        previousRoundUntil = r.utime_until;
     }
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
 }
