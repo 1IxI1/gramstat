@@ -37,11 +37,6 @@ for (const definition of CATALOGUE) {
 
 function render() {
     if (!readings) return;
-    document.querySelectorAll('[data-days]').forEach((button) => {
-        const active = Number(button.dataset.days) === readings.dates.length;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', String(active));
-    });
     for (const state of cards.values()) {
         const { definition } = state;
         const series = readings.metrics[definition.id]?.series || [];
@@ -217,13 +212,6 @@ $('range-form').addEventListener('submit', (e) => {
 });
 $('retry').addEventListener('click', load);
 $('geo-round').addEventListener('change', loadLocations);
-document.querySelectorAll('[data-days]').forEach((button) =>
-    button.addEventListener('click', () => {
-        const end = Date.parse(`${$('to').value}T00:00:00Z`);
-        $('from').value = new Date(end - (Number(button.dataset.days) - 1) * 86400000).toISOString().slice(0, 10);
-        load();
-    }),
-);
 $('latest').addEventListener('click', () => {
     $('to').value = new Date().toISOString().slice(0, 10);
     $('from').value = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
@@ -238,15 +226,6 @@ $('pilot').addEventListener('click', () => {
     }
 });
 const params = new URLSearchParams(location.search);
-document.querySelectorAll('.section-nav a').forEach((link) => {
-    link.addEventListener('click', () => {
-        document.querySelectorAll('.section-nav a').forEach((other) => {
-            other.classList.toggle('active', other === link);
-            if (other === link) other.setAttribute('aria-current', 'location');
-            else other.removeAttribute('aria-current');
-        });
-    });
-});
 $('from').value = params.get('from') || '2026-10-21';
 $('to').value = params.get('to') || '2026-10-27';
 $('to').max = $('from').max = new Date().toISOString().slice(0, 10);

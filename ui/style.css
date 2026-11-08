@@ -17,7 +17,7 @@
 }
 html {
     scroll-behavior: smooth;
-    scroll-padding-top: 86px;
+    scroll-padding-top: 16px;
 }
 body {
     margin: 0;
@@ -111,58 +111,6 @@ h1 {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: 0.075em;
-}
-.toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    min-height: 64px;
-    background: #fffffffa;
-    border-bottom: 1px solid var(--line);
-}
-.section-nav,
-.range-switch {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-}
-.section-nav a,
-.range-switch button {
-    padding: 22px 0 20px;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    text-decoration: none;
-    background: none;
-    color: #7b878d;
-    font-size: 11px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-.section-nav a:hover,
-.range-switch button:hover {
-    color: #27343b;
-}
-.section-nav .active,
-.range-switch .active {
-    border-bottom-color: #354a57;
-    color: #27343b;
-}
-.toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 32px;
-}
-.range-switch {
-    gap: 19px;
-}
-.range-switch button {
-    min-width: 24px;
-    font-size: 10px;
-    font-weight: 600;
 }
 .demo-key {
     color: #849096;
@@ -514,17 +462,8 @@ footer {
     .chart-card.wide {
         grid-column: span 2;
     }
-    .toolbar-right {
-        gap: 22px;
-    }
-    .section-nav {
-        gap: 20px;
-    }
 }
 @media (max-width: 640px) {
-    html {
-        scroll-padding-top: 108px;
-    }
     .dashboard {
         padding: 20px 18px 18px;
     }
@@ -534,26 +473,6 @@ footer {
     }
     h1 {
         font-size: 18px;
-    }
-    .toolbar {
-        flex-wrap: wrap;
-        gap: 0;
-        padding-top: 2px;
-    }
-    .section-nav {
-        flex: 1 0 100%;
-        gap: 25px;
-    }
-    .section-nav a {
-        padding: 15px 0 13px;
-        font-size: 11px;
-    }
-    .toolbar-right {
-        flex: 1;
-        justify-content: space-between;
-    }
-    .range-switch button {
-        padding: 12px 0 10px;
     }
     .demo-key {
         font-size: 9px;
