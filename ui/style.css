@@ -244,16 +244,17 @@ h2 {
     right: 8px;
     z-index: 4;
     flex-shrink: 0;
-    border: 1px solid var(--line);
+    border: 0;
     border-radius: 4px;
-    background: white;
+    background: transparent;
     color: #53626b;
     font-size: 20px;
     line-height: 1;
     min-width: 32px;
     min-height: 30px;
 }
-.chart-expand:hover { background: var(--plot); }
+.chart-expand:hover { color: #27343b; }
+.expanded-chart .chart-expand { position: static; }
 body.chart-expanded { overflow: hidden; }
 .expanded-chart {
     width: calc(100vw - 48px);

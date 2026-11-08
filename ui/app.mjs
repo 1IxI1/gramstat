@@ -105,7 +105,7 @@ for (const definition of CATALOGUE) {
     card.append(heading, readout, surface, legend, status);
     $(`${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
-    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand });
+    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand, heading });
 }
 
 const expandedDialog = element('dialog', 'expanded-chart');
@@ -132,6 +132,7 @@ function syncExpandedChart() {
     if (previous) {
         expandedDialog.close();
         chartPlaceholder.replaceWith(previous.card);
+        previous.chart.surface.append(previous.expand);
         previous.expand.textContent = '⛶';
         previous.expand.setAttribute('aria-label', `Expand ${previous.definition.title}`);
         previous.expand.title = 'Expand chart';
@@ -143,6 +144,7 @@ function syncExpandedChart() {
         chartPlaceholder = document.createComment(`chart-${id}`);
         state.card.before(chartPlaceholder);
         expandedDialog.append(state.card);
+        state.heading.append(state.expand);
         expandedDialog.setAttribute('aria-labelledby', `title-${id}`);
         state.expand.textContent = '×';
         state.expand.setAttribute('aria-label', `Close ${state.definition.title}`);
