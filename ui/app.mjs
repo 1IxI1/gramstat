@@ -93,12 +93,13 @@ for (const definition of CATALOGUE) {
     expand.setAttribute('aria-haspopup', 'dialog');
     expand.title = 'Expand chart';
     expand.onclick = () => navigateChart(expandedId === definition.id ? null : definition.id);
-    heading.append(title, expand);
+    heading.append(title);
     const readout = element('div', 'readout');
     const value = element('span', 'readout-value', '—');
     const detail = element('span', 'readout-detail');
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
     const surface = element('div', 'chart-surface');
+    surface.append(expand);
     const legend = element('div', 'chart-legend');
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);

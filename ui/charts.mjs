@@ -148,6 +148,7 @@ export class TimeChart {
             if (event.pointerType !== 'touch') this.showAtPointer(event);
         };
         this.onDown = (event) => {
+            if (event.target.closest('button')) return;
             if (event.button === 0 && event.pointerType === 'mouse' && this.config.onRange) {
                 const p = this.pointerPosition(event);
                 const rect = node('rect', { x: p, y: this.geometry.top, width: 0, height: this.geometry.bottom - this.geometry.top, class: 'range-selection' });
