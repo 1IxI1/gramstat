@@ -23,7 +23,7 @@ const SUBSECOND_START = Object.freeze({
     label: '2.5 → 0.4s blocks', color: '#9063b5',
 });
 export const CATALOGUE = [
-    chart('supply', 'Total supply', 'gram', 'TON', {
+    chart('supply', 'Total supply', 'gram', 'GRAM', {
         description: 'Total supply is the sum of account balances and funds in transit, including collected fees not yet credited to validators. Protocol-burned funds are excluded (e.g. the 50% of transaction fees burned by the protocol). Transfers to 0:00…00 remain included (though they’re inaccessible); funds burned at −1:ff…ff are excluded.',
         annotations: [BURN_START, SUBSECOND_START],
         layout: 'wide',
@@ -34,9 +34,15 @@ export const CATALOGUE = [
         signed: true,
         description: 'Estimated annual supply growth if issuance and burning continue at their average rates over the preceding 24 hours. Calculated hourly: (minted − burned) over 24h ÷ total supply × 365 × 100%.',
     }),
-    chart('fees', 'Fees per day', 'gram', 'TON', { kind: 'bar', zero: true }),
-    chart('minted', 'Gram minted per day', 'gram', 'GRAM', { kind: 'bar', zero: true }),
-    chart('burned', 'Gram burned per day', 'gram', 'GRAM', {
+    chart('fees', 'Daily fees', 'gram', 'GRAM', {
+        kind: 'bar', zero: true,
+        description: 'Total fees collected from transaction (compute, action etc.) fees and message import fees each UTC day.',
+    }),
+    chart('minted', 'Daily issuance', 'gram', 'GRAM', {
+        kind: 'bar', zero: true,
+        description: 'New GRAM issued as block rewards each UTC day.',
+    }),
+    chart('burned', 'Daily burn', 'gram', 'GRAM', {
         annotations: [BURN_START, SUBSECOND_START],
         kind: 'bar',
         zero: true,
@@ -54,7 +60,7 @@ export const CATALOGUE = [
         ['active_wallets_daily', 'Active wallets · daily'],
         ['active_wallets_monthly', 'Active wallets · 30 days'],
     ].map(([id, title]) => chart(id, title, 'wallet', '', { layout: 'half', unavailable: walletReason })),
-    chart('stake', 'Staked TON', 'validator', 'TON', {
+    chart('stake', 'Staked GRAM', 'validator', 'GRAM', {
         layout: 'wide',
         unavailable: 'Round-level stake series have not been prepared for this API yet.',
     }),
@@ -98,7 +104,7 @@ export const CATALOGUE = [
     }),
     chart('ton_dns_mints', '.ton DNS mints', 'activity', '', { kind: 'bar', zero: true }),
     chart('liquid_staking_deposits', 'Liquid staking deposits', 'activity', '', { kind: 'bar', zero: true }),
-    chart('lst_amount', 'Liquid staking deposited', 'activity', 'TON', {
+    chart('lst_amount', 'Liquid staking deposited', 'activity', 'GRAM', {
         kind: 'stacked-bar',
         zero: true,
         layout: 'wide',

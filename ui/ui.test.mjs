@@ -107,8 +107,8 @@ test('annualized inflation preserves negative rates, exact inputs and unknown wi
     const rows=buildRows(series.points.map((p)=>p[0]),[series]);
     assert.equal(rows[0].values[0],-0.123456789012);
     assert.equal(rows[1].values[0],null);
-    assert.match(series.details[rows[0].date],/9007199\.254740993 TON/);
-    assert.match(series.details[rows[0].date],/5000000000\.000000001 TON/);
+    assert.match(series.details[rows[0].date],/9007199\.254740993 GRAM/);
+    assert.match(series.details[rows[0].date],/5000000000\.000000001 GRAM/);
     const [min,max]=domain(CATALOGUE.find((c)=>c.id==='inflation'),rows);
     assert.ok(min<rows[0].values[0] && max>rows[0].values[0]);
     assert.throws(()=>inflationSeries({schemaVersion:2,windowSeconds:3600,points:[]}));

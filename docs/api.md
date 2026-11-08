@@ -25,7 +25,7 @@ Gramstat dashboard.
   of `(minted_24h - burned_24h) / supply × 365 × 100` percent. The calculation
   window is always 86400 seconds; downsampling never changes it. Returns
   `annualized_percent` as a signed decimal string (NULL when unknown), exact input
-  nanoTON strings, `window_from`, `supply_utime`, and `supply_mc`. Points are stamped
+  nanoGRAM strings, `window_from`, `supply_utime`, and `supply_mc`. Points are stamped
   at closed UTC-hour boundaries; supply is the last MC observation before that
   boundary. Responses include `windowSeconds: 86400` and `annualizationDays: 365`.
 
