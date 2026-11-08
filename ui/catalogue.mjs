@@ -61,7 +61,7 @@ export const CATALOGUE = [
         ],
         description: [
             'Active: a wallet or smart contract is deployed and can process transactions.',
-            'Uninitialized: an account exists, but no wallet or contract code is deployed.',
+            'Uninitialized: account got money, but no wallet or contract code is deployed.',
             'Frozen: a previously deployed account is paused due to unpaid storage fees.',
             'Masterchain included. Deleted accounts are excluded.',
         ].join('\n'),
