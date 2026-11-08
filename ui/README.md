@@ -30,7 +30,8 @@ API and deployment documentation:
   Escape or the close button restores the dashboard. The URL keeps the selected
   time range and adds `chart=<catalogue id>` (for example `chart=supply`), so the
   expanded view can be shared or opened directly. Browser Back/Forward restores
-  the corresponding chart view.
+  both the selected interval and the corresponding chart view. Range changes
+  create history entries immediately; background refreshes do not rewrite them.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
 - Annual inflation uses `/api/v1/inflation`: hourly estimates of net supply growth

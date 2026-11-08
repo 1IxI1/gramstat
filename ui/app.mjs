@@ -64,6 +64,15 @@ function setRange(from, to, remember = true) {
     if (to <= from) return;
     $('from').value = inputTime(from);
     $('to').value = inputTime(to - 1000);
+    const url = new URL(location.href);
+    url.searchParams.set('from', $('from').value);
+    url.searchParams.set('to', $('to').value);
+    if (url.href !== location.href) {
+        // Initial coverage selection defines the current view; user selections
+        // create history entries immediately, independently of fetch completion.
+        if (activeRange) history.pushState(null, '', url);
+        else history.replaceState(null, '', url);
+    }
     $('time-picker').open = false;
     if (remember) {
         if (!recentRanges.some((r) => r.from === from && r.to === to)) recentRanges.unshift({ from, to });
@@ -126,7 +135,7 @@ function navigateChart(id) {
     syncExpandedChart();
 }
 
-function syncExpandedChart() {
+function syncExpandedChart(reload = true) {
     const requested = new URLSearchParams(location.search).get('chart');
     const id = cards.has(requested) ? requested : null;
     if (id === expandedId) return;
@@ -155,7 +164,7 @@ function syncExpandedChart() {
         state.expand.focus({ preventScroll: true });
     } else previous?.expand.focus({ preventScroll: true });
     // Supply's point budget follows its new plot width.
-    if (readings && ([id, previous?.definition.id].some((name) => name === 'supply' || name === 'inflation'))) load();
+    if (reload && readings && ([id, previous?.definition.id].some((name) => name === 'supply' || name === 'inflation'))) load();
 }
 
 expandedDialog.addEventListener('cancel', (event) => {
@@ -180,7 +189,7 @@ window.addEventListener('popstate', () => {
     if (from && to && (from !== $('from').value || to !== $('to').value)) {
         $('from').value = from.length === 10 ? `${from}T00:00:00` : from;
         $('to').value = to.length === 10 ? `${to}T23:59:59` : to;
-        syncExpandedChart();
+        syncExpandedChart(false);
         load();
     } else syncExpandedChart();
 });
@@ -311,10 +320,6 @@ async function load() {
         if (inflation.error) inflationError = `Inflation unavailable: ${inflation.error}`;
         else inflationData = inflation;
         readings = readObservedMetrics(data);
-        const params = new URLSearchParams(location.search);
-        params.set('from', $('from').value);
-        params.set('to', $('to').value);
-        history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`);
         renderRounds();
     } catch (e) {
         if (id === requestId)
