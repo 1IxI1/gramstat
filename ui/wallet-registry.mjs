@@ -81,13 +81,19 @@ export function createWalletRegistry(element) {
         dialog,
         description(definition) {
             const p = element('p', 'chart-description');
-            const start = definition.description.indexOf(definition.registryTerm);
-            const button = element('button', 'wallet-registry-link', definition.registryTerm);
-            button.type = 'button';
-            button.setAttribute('aria-haspopup', 'dialog');
-            button.setAttribute('aria-controls', dialog.id);
-            button.onclick = () => { dialog.showModal(); close.focus(); };
-            p.append(definition.description.slice(0, start), button, definition.description.slice(start + definition.registryTerm.length));
+            let cursor = 0;
+            for (const term of definition.registryTerms ?? [definition.registryTerm]) {
+                const start = definition.description.indexOf(term, cursor);
+                if (start < 0) continue;
+                const button = element('button', 'wallet-registry-link', term);
+                button.type = 'button';
+                button.setAttribute('aria-haspopup', 'dialog');
+                button.setAttribute('aria-controls', dialog.id);
+                button.onclick = () => { dialog.showModal(); close.focus(); };
+                p.append(definition.description.slice(cursor, start), button);
+                cursor = start + term.length;
+            }
+            p.append(definition.description.slice(cursor));
             return p;
         },
     };
