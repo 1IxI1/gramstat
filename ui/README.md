@@ -38,6 +38,9 @@ API and deployment documentation:
   annualized from the preceding 24 complete UTC hours. The 24-hour window stays
   fixed when zooming. Negative estimates are supported; incomplete windows and
   unknown/zero supply stay NULL. Supply and inflation support ranges beyond 93 days.
+- Accounts uses `/api/v1/accounts`: a stepped total of active, uninitialized and
+  frozen accounts, with the component counts in the tooltip. It supports full
+  history and per-MC zoom, including the verified initial system accounts.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.

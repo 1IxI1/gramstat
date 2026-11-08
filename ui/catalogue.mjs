@@ -51,8 +51,8 @@ export const CATALOGUE = [
     }),
     chart('accounts', 'Accounts', 'gram', '', {
         layout: 'wide',
-        unavailable:
-            'Absolute account counts require a verified opening state and continuous account deltas. This series has not been prepared yet.',
+        kind: 'step', integer: true,
+        description: 'Existing accounts across all workchains: active, uninitialized and frozen. Includes wallets and other contracts; deleted accounts are excluded.',
     }),
     chart('transactions', 'Transactions per day', 'gram', '', {
         kind: 'bar', zero: true,

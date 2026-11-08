@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries } from './data.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -13,6 +13,8 @@ let supplyData;
 let supplyError = '';
 let inflationData;
 let inflationError = '';
+let accountsData;
+let accountsError = '';
 let activeRange;
 let wideRange = false;
 const recentRanges = [];
@@ -164,7 +166,7 @@ function syncExpandedChart(reload = true) {
         state.expand.focus({ preventScroll: true });
     } else previous?.expand.focus({ preventScroll: true });
     // Supply's point budget follows its new plot width.
-    if (reload && readings && ([id, previous?.definition.id].some((name) => name === 'supply' || name === 'inflation'))) load();
+    if (reload && readings && ([id, previous?.definition.id].some((name) => ['supply', 'inflation', 'accounts'].includes(name)))) load();
 }
 
 expandedDialog.addEventListener('cancel', (event) => {
@@ -200,8 +202,9 @@ function render() {
         const { definition } = state;
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
-        const temporal = isSupply || isInflation;
-        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : readings.metrics[definition.id]?.series || [];
+        const isAccounts = definition.id === 'accounts';
+        const temporal = isSupply || isInflation || isAccounts;
+        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? [accountsSeries(accountsData)] : []) : readings.metrics[definition.id]?.series || [];
         const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
@@ -214,9 +217,9 @@ function render() {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || definition.round }) : '';
+        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.round }) : '';
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -280,6 +283,8 @@ async function load() {
     supplyError = '';
     inflationData = undefined;
     inflationError = '';
+    accountsData = undefined;
+    accountsError = '';
     $('apply').disabled = true;
     warning('');
     geoRequest++;
@@ -305,13 +310,18 @@ async function load() {
         const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: String(budget) });
         const inflationParams = new URLSearchParams(supplyParams);
         inflationParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('inflation').chart.surface.clientWidth)))));
-        const [data, sources, supply, inflation] = await Promise.all([
+        const accountsParams = new URLSearchParams(supplyParams);
+        accountsParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('accounts').chart.surface.clientWidth)))));
+        const coverageRequest = getJSON('/api/v1/coverage', request.signal).catch(() => null);
+        const [data, sources, supply, inflation, accounts] = await Promise.all([
             wideRange
                 ? getJSON(`/api/v1/chain?${new URLSearchParams(range)}`, request.signal).then((data) => ({ ...empty, ...data }))
                 : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
-            getJSON('/api/v1/coverage', request.signal).catch(() => null),
+            coverageRequest,
             getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
             getJSON(`/api/v1/inflation?${inflationParams}`, request.signal).catch((e) => ({ error: e.message })),
+            // Keep cold dashboard loads within the API's four-reader limit.
+            coverageRequest.then(() => getJSON(`/api/v1/accounts?${accountsParams}`, request.signal)).catch((e) => ({ error: e.message })),
         ]);
         if (id !== requestId) return;
         if (sources) coverage = sources.coverage;
@@ -319,6 +329,8 @@ async function load() {
         else supplyData = supply;
         if (inflation.error) inflationError = `Inflation unavailable: ${inflation.error}`;
         else inflationData = inflation;
+        if (accounts.error) accountsError = `Accounts unavailable: ${accounts.error}`;
+        else accountsData = accounts;
         readings = readObservedMetrics(data);
         renderRounds();
     } catch (e) {

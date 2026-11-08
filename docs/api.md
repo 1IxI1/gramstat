@@ -31,6 +31,13 @@ Gramstat dashboard.
   nanoGRAM strings, `window_from`, `supply_utime`, and `supply_mc`. Points are stamped
   at closed UTC-hour boundaries; supply is the last MC observation before that
   boundary. Responses include `windowSeconds: 86400` and `annualizationDays: 365`.
+- `GET /api/v1/accounts?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:
+  the same timestamp/point-budget contract. Each point includes `utime`, `mc_seqno`,
+  and exact integer strings `total`, `active`, `uninit`, `frozen`. Counts include
+  all existing accounts, not just wallets. Deleted accounts are excluded. Hourly
+  checkpoints contain a verified opening-state baseline plus all preceding deltas;
+  short intervals use bounded per-MC delta reads. Missing coverage produces an
+  error or no observations, not a zero opening balance.
 
 GET and HEAD only. Unknown/repeated parameters, invalid dates and future days are
 rejected before querying the source. Read failures return a generic 503; SQL and
@@ -51,6 +58,7 @@ The API reads these prepared tables:
 gramstat.chain_daily_full
 gramstat.supply_hourly
 gramstat.inflation_hourly
+gramstat.accounts_hourly
 gramstat.daily_metrics
 gramstat.telegram_stars_daily
 gramstat.validator_rounds
@@ -94,7 +102,7 @@ GRAMSTAT_CH_PASSWORD=<server-managed secret>
 ```
 
 Use a separate ClickHouse user restricted to the application host, with `readonly=1`
-and SELECT on the tables above plus indexed `blocks`. Set its profile limits to match the fixed
+and SELECT on the tables above plus indexed `blocks` and `account_deltas`. Set its profile limits to match the fixed
 query settings: `max_execution_time=10`, `max_threads=2`,
 `max_memory_usage=268435456`, `max_result_rows=20000`,
 `max_result_bytes=4194304`, `result_overflow_mode='throw'`,

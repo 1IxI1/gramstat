@@ -17,6 +17,10 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"accounts_bounds": accountsBoundsSQL,
+	"accounts_count":  accountsCountSQL,
+	"accounts_raw":    accountsRawSQL,
+	"accounts_rollup": accountsRollupSQL,
 	"inflation_rollup": `SELECT toUInt32(point.1) AS utime,toString(point.2) AS annualized_percent,
 toUInt32(point.3) AS window_from,toString(point.4) AS minted_24h_nanoton,
 toString(point.5) AS burned_24h_nanoton,toString(point.6) AS supply_nanoton,
@@ -110,7 +114,10 @@ formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(
 FROM gramstat.supply_hourly FINAL
 UNION ALL SELECT 'inflation',toString(toDate(minOrNull(point_at),'UTC')),toString(toDate(maxOrNull(point_at),'UTC')),
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),toUInt32(minOrNull(point_at)),toUInt32(maxOrNull(point_at))
-FROM gramstat.inflation_hourly FINAL`,
+FROM gramstat.inflation_hourly FINAL
+UNION ALL SELECT 'accounts',toString(toDate(minOrNull(first_utime),'UTC')),toString(toDate(maxOrNull(last_utime),'UTC')),
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
+FROM gramstat.accounts_hourly FINAL`,
 }
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {

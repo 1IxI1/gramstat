@@ -1,6 +1,12 @@
 -- Consumer-side fixture for isolated tests, not a production schema migration.
 -- Writers own the production tables; keep the queried columns/types compatible.
 CREATE DATABASE gramstat;
+CREATE TABLE gramstat.accounts_hourly (
+    hour DateTime('UTC'), first_mc UInt32, last_mc UInt32, first_utime UInt32, last_utime UInt32,
+    opening_uninit UInt64, opening_active UInt64, opening_frozen UInt64,
+    uninit UInt64, active UInt64, frozen UInt64, mc_count UInt32,
+    source_mc_to UInt32, baseline_id String, calculated_at DateTime64(6,'UTC')
+) ENGINE=ReplacingMergeTree(calculated_at) ORDER BY hour;
 CREATE TABLE gramstat.inflation_hourly (
     point_at DateTime('UTC'), window_from DateTime('UTC'),
     minted_24h_nanoton Nullable(Decimal(38,0)), burned_24h_nanoton Nullable(Decimal(38,0)),
