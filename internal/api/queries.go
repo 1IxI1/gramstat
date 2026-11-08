@@ -22,7 +22,7 @@ toString(fees_nanoton) AS fees_nanoton, toString(minted_nanoton) AS minted_nanot
 toString(burned_nanoton) AS burned_nanoton, toString(supply_nanoton) AS supply_nanoton,
 supply_utime, is_partial, source_mc_from, source_mc_to, source_id,
 formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at
-FROM gramstat.chain_daily FINAL WHERE day >= {from:Date} AND day < {to:Date} ORDER BY day`,
+FROM gramstat.chain_daily_full FINAL WHERE day >= {from:Date} AND day < {to:Date} ORDER BY day`,
 	"daily": `SELECT metric, day, toString(value) AS value, toString(amount_nanoton) AS amount_nanoton,
 breakdown, is_partial, source_mc_seqno,
 formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
@@ -54,7 +54,7 @@ WHERE g.utime_since = {round:UInt32}`,
 	"coverage": `SELECT 'chain' AS source, toString(minOrNull(day)) AS first_day,
 toString(maxOrNull(day)) AS last_day,
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS updated_at
-FROM gramstat.chain_daily FINAL
+FROM gramstat.chain_daily_full FINAL
 UNION ALL SELECT 'actions', toString(minOrNull(day)), toString(maxOrNull(day)),
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC')
 FROM gramstat.daily_metrics FINAL

@@ -17,7 +17,7 @@ export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
         layout: 'wide',
         fill: true,
-        note: 'Last available full-state snapshot each UTC day. Sampled every 150 masterchain blocks.',
+        note: 'Last masterchain balance each UTC day, corrected for cumulative burning before protocol v17. Missing stored balances remain unknown.',
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
         unavailable: 'Two verified supply boundaries one year apart are required.',
@@ -32,7 +32,7 @@ export const CATALOGUE = [
     chart('accounts', 'Accounts', 'gram', '', {
         layout: 'wide',
         unavailable:
-            'Absolute account counts require continuous deltas from MC 1. The weekly replay only supplies changes.',
+            'Absolute account counts require a verified opening state and continuous account deltas. This series has not been prepared yet.',
     }),
     chart('transactions', 'Transactions per day', 'gram', '', { kind: 'bar', zero: true }),
     ...[

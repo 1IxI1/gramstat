@@ -1,5 +1,5 @@
 import { CATALOGUE, periodDates } from './catalogue.mjs';
-import { readObservedMetrics } from './data.mjs';
+import { readObservedMetrics, latestChainRange } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@ for (const definition of CATALOGUE) {
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
     $(`${definition.section}-charts`).append(card);
-    const chart = new TimeChart(surface, { ...definition, series: [], loading }, ['2026-10-21']);
+    const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
     cards.set(definition.id, { definition, value, detail, legend, status, chart });
 }
 
@@ -210,29 +210,44 @@ $('range-form').addEventListener('submit', (e) => {
     e.preventDefault();
     load();
 });
-$('retry').addEventListener('click', load);
+$('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
 $('geo-round').addEventListener('change', loadLocations);
-$('latest').addEventListener('click', () => {
-    $('to').value = new Date().toISOString().slice(0, 10);
-    $('from').value = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-    load();
-});
-$('pilot').addEventListener('click', () => {
-    const chain = coverage.find((s) => s.source === 'chain');
-    if (chain?.first_day && chain?.last_day) {
-        $('from').value = chain.first_day;
-        $('to').value = chain.last_day;
-        load();
+$('latest').addEventListener('click', loadLatest);
+async function loadLatest() {
+    const id = ++requestId;
+    controller?.abort();
+    loading = true;
+    $('latest').disabled = $('apply').disabled = true;
+    warning('');
+    try {
+        const sources = await getJSON('/api/v1/coverage', AbortSignal.timeout(20000));
+        if (id !== requestId) return;
+        coverage = sources.coverage;
+        const range = latestChainRange(coverage);
+        if (!range) throw new Error('No prepared chain history is available yet.');
+        $('from').value = range.from;
+        $('to').value = range.to;
+        await load();
+    } catch (e) {
+        if (id === requestId) warning(`Data could not be loaded. ${e.message}`);
+    } finally {
+        $('latest').disabled = false;
+        if (id === requestId) {
+            loading = false;
+            $('apply').disabled = false;
+        }
     }
-});
+}
 const params = new URLSearchParams(location.search);
-$('from').value = params.get('from') || '2026-10-21';
-$('to').value = params.get('to') || '2026-10-27';
 $('to').max = $('from').max = new Date().toISOString().slice(0, 10);
-load();
+if (params.has('from') && params.has('to')) {
+    $('from').value = params.get('from');
+    $('to').value = params.get('to');
+    load();
+} else loadLatest();
 setInterval(
     () => {
-        if (!loading && !document.hidden) load();
+        if (!loading && !document.hidden) readings ? load() : loadLatest();
     },
     5 * 60 * 1000,
 );

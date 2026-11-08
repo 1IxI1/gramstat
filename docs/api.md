@@ -29,14 +29,14 @@ timestamps are preserved rather than assigned to UTC daily buckets.
 The API role needs SELECT only on these tables:
 
 ```
-gramstat.chain_daily
+gramstat.chain_daily_full
 gramstat.daily_metrics
 gramstat.telegram_stars_daily
 gramstat.validator_rounds
 gramstat.validator_geo_rounds
 ```
 
-`chain_daily` contains daily transactions, fees, issuance, burning and supply.
+`chain_daily_full` contains daily transactions, fees, issuance, burning and supply.
 `daily_metrics` contains action counts and amounts; `telegram_stars_daily` provides
 Stars purchase totals. The validator tables contain round-level rosters and
 geographical observations.
@@ -45,8 +45,11 @@ Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
 can have partial edge days because shard generation timestamps can straddle the
 including-MC bounds. Missing monetary inputs remain NULL.
-Supply is the last available sampled full-state snapshot of the day; its own
-timestamp is returned. It is not an exact midnight measurement.
+Supply uses the last masterchain block of each UTC day; its own timestamp is
+returned. Before mainnet MC 103190382, the value is the stored global balance
+minus cumulative masterchain burning through that block. From that block onward,
+the stored balance already accounts for burning. Missing balances or an incomplete
+required burn prefix remain NULL; the last non-NULL balance is not used as a fallback.
 
 Absolute account and token counts require complete historical coverage; wallet
 activity also depends on prior wallet deployments. Unavailable metrics display

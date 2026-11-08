@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
 import { buildRows, formatDate } from './charts.mjs';
-import { decimal, readObservedMetrics } from './data.mjs';
+import { decimal, readObservedMetrics, latestChainRange } from './data.mjs';
 
 const fixture = () => ({
     schemaVersion: 2,
@@ -64,4 +64,15 @@ test('date intervals cross months and years, with exclusive upper bounds', () =>
     assert.equal(decimal('0', 9), '0.000000000');
     assert.equal(decimal('1e9', 9), null);
     assert.throws(() => readObservedMetrics({ ...fixture(), schemaVersion: 1 }));
+});
+
+test('default range follows chain indexing rather than newer independent sources', () => {
+    assert.deepEqual(latestChainRange([
+        { source: 'actions', first_day: '2026-10-21', last_day: '2026-11-08' },
+        { source: 'chain', first_day: '2019-11-15', last_day: '2024-01-03' },
+    ]), { from: '2023-12-28', to: '2024-01-03' });
+    assert.deepEqual(latestChainRange([{ source: 'chain', first_day: '2019-11-15', last_day: '2019-11-16' }]),
+        { from: '2019-11-15', to: '2019-11-16' });
+    assert.equal(latestChainRange([]), null);
+    assert.equal(latestChainRange([{ source: 'chain', first_day: null, last_day: null }]), null);
 });

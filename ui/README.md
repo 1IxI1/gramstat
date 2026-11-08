@@ -8,10 +8,10 @@ API and deployment documentation:
 
 ## Data
 
-- Default range: the verified **21–27 October 2026** replay. Date controls use UTC;
+- Default range: the latest seven indexed chain days from `/api/v1/coverage`. Date controls use UTC;
   the visible end date is inclusive and API `to` is exclusive. Maximum: 93 days.
-- Chain charts: prepared `gramstat.chain_daily` (supply, transactions, fees,
-  issuance, burning). Edge days are partial. This fixed week is not live history.
+- Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
+  fees, issuance, burning). Days near the indexing boundary are partial.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.

@@ -8,6 +8,16 @@ export function decimal(value, scale = 0) {
     return scale ? `${digits.slice(0, -scale)}.${digits.slice(-scale)}` : digits;
 }
 
+// Inclusive date controls follow the indexed chain, rather than today's wall clock.
+export function latestChainRange(coverage) {
+    const chain = coverage.find((s) => s.source === 'chain');
+    if (!chain?.first_day || !chain?.last_day) return null;
+    const end = Date.parse(`${chain.last_day}T00:00:00Z`);
+    const start = Date.parse(`${chain.first_day}T00:00:00Z`);
+    if (!Number.isFinite(end) || !Number.isFinite(start) || start > end) return null;
+    return { from: new Date(Math.max(start, end - 6 * 86400000)).toISOString().slice(0, 10), to: chain.last_day };
+}
+
 export function readObservedMetrics(data) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');
@@ -31,7 +41,7 @@ export function readObservedMetrics(data) {
     };
     for (const r of data.chain) {
         if (!dailyIDs.has(r.day)) continue;
-        const detail = `${r.is_partial ? 'Partial boundary day. ' : ''}Verified weekly replay · ${r.source_id}. Prepared ${r.calculated_at}.`;
+        const detail = `${r.is_partial ? 'Partial boundary day. ' : ''}Indexed chain · ${r.source_id}. Prepared ${r.calculated_at}.`;
         for (const [id, field, scale] of [
             ['supply', 'supply_nanoton', 9],
             ['fees', 'fees_nanoton', 9],

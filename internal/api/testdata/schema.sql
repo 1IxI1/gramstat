@@ -1,7 +1,7 @@
 -- Consumer-side fixture for isolated tests, not a production schema migration.
 -- Writers own the production tables; keep the queried columns/types compatible.
 CREATE DATABASE gramstat;
-CREATE TABLE gramstat.chain_daily (
+CREATE TABLE gramstat.chain_daily_full (
     day Date, transactions UInt64,
     fees_nanoton Nullable(Decimal(38,0)), minted_nanoton Nullable(Decimal(38,0)),
     burned_nanoton Nullable(Decimal(38,0)), supply_nanoton Nullable(Decimal(38,0)),

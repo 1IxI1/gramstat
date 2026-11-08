@@ -24,12 +24,11 @@
                 <label>From <input id="from" type="date" required min="2019-01-01" /></label>
                 <label>Through <input id="to" type="date" required min="2019-01-01" /></label>
                 <button id="apply" type="submit">Apply</button>
-                <button id="pilot" type="button">Verified week</button>
-                <button id="latest" type="button">Latest 7 days</button>
+                <button id="latest" type="button">Latest indexed 7 days</button>
             </form>
             <p id="source-status" class="source-status">Loading source coverage…</p>
             <p class="source-status">
-                UTC. Missing history stays empty. Boundary days of the weekly replay are marked partial. Validator
+                UTC. Missing history stays empty. Days near the indexing boundary are marked partial. Validator
                 charts use round start times.
             </p>
             <div id="warning" class="warning" role="status" hidden>
