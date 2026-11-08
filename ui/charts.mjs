@@ -207,11 +207,11 @@ export class TimeChart {
 
     draw() {
         const width = this.surface.clientWidth || 480;
-        const height = this.surface.clientHeight || 195;
-        const left = 57;
-        const right = width - 15;
-        const top = 19;
-        const bottom = height - 29;
+        const height = this.surface.clientHeight || 273;
+        const left = 80;
+        const right = width - 24;
+        const top = 27;
+        const bottom = height - 41;
         const [minimum, maximum] = domain(this.config, this.rows);
         const timestamps = this.rows.map((r) => Date.parse(r.date));
         const span = timestamps.at(-1) - timestamps[0];
@@ -244,7 +244,7 @@ export class TimeChart {
             this.svg.append(
                 node(
                     'text',
-                    { x: x(index), y: height - 9, 'text-anchor': 'middle', class: 'axis-label' },
+                    { x: x(index), y: height - 13, 'text-anchor': 'middle', class: 'axis-label' },
                     new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
                         new Date(this.rows[index].date),
                     ),
