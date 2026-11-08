@@ -215,7 +215,7 @@ function render() {
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const temporal = isSupply || isInflation || isAccounts;
-        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? [accountsSeries(accountsData)] : []) : readings.metrics[definition.id]?.series || [];
+        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
         const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);

@@ -413,10 +413,10 @@ export class TimeChart {
                     x(row.index),
                     y(seriesIndex === 0 ? 0 : sumReadings(row.values.slice(0, seriesIndex))),
                 ]);
-                const line = upper.map((point, i) => `${i ? 'L' : 'M'}${point.join(',')}`).join(' ');
+                const line = upper.map((point, i) => i && this.config.step ? `H${point[0]}V${point[1]}` : `${i ? 'L' : 'M'}${point.join(',')}`).join(' ');
                 const base = lower
                     .reverse()
-                    .map((point) => `L${point.join(',')}`)
+                    .map((point, i) => i && this.config.step ? `V${point[1]}H${point[0]}` : `L${point.join(',')}`)
                     .join(' ');
                 this.svg.append(node('path', { d: `${line} ${base} Z`, fill: item.color, 'fill-opacity': 0.24 }));
                 this.svg.append(

@@ -8,10 +8,12 @@ test('Accounts preserve zeros, deletions and same-second state transitions', () 
         {utime:1573862400,mc_seqno:3,total:'8',active:'7',uninit:'1',frozen:'0'},
         {utime:1573862400,mc_seqno:4,total:'7',active:'7',uninit:'0',frozen:'0'},
     ]});
-    const rows=buildRows(series.points.map((p)=>p[0]),[series]);
-    assert.equal(rows[0].values[0],8);
-    assert.equal(rows[1].values[0],7);
-    assert.match(series.detailsByIndex[0],/Uninitialized: 1/);
-    assert.match(series.detailsByIndex[1],/Uninitialized: 0/);
-    assert.match(series.detailsByIndex[1],/MC 4/);
+    const rows=buildRows(series[0].points.map((p)=>p[0]),series);
+    assert.deepEqual(rows[0].values,[7,1,0]);
+    assert.deepEqual(rows[1].values,[7,0,0]);
+    assert.equal(rows[0].total,8);
+    assert.equal(rows[1].total,7);
+    assert.equal(series[1].exactByIndex[0],'1');
+    assert.equal(series[1].exactByIndex[1],'0');
+    assert.match(series[0].detailsByIndex[1],/MC 4/);
 });

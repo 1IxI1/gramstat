@@ -78,16 +78,18 @@ export function inflationSeries(data) {
 
 export function accountsSeries(data) {
     if (data?.schemaVersion !== 2 || !Array.isArray(data.points)) throw new Error('Unsupported Accounts response.');
-    const s = { id: 'total', label: 'Accounts', color: colorAt(0), ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] };
+    const series = CATALOGUE.find((c) => c.id === 'accounts').series.map((s) => ({ ...s, ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] }));
     for (const p of data.points) {
         const date = new Date(p.utime * 1000).toISOString();
-        const exact = decimal(p.total);
-        const detail = `Active: ${decimal(p.active) ?? 'unknown'}. Uninitialized: ${decimal(p.uninit) ?? 'unknown'}. Frozen: ${decimal(p.frozen) ?? 'unknown'}. MC ${p.mc_seqno}`;
-        s.points.push([date, exact === null ? null : Number(exact)]);
-        s.exact[date] = exact; s.details[date] = detail;
-        s.exactByIndex.push(exact); s.detailsByIndex.push(detail);
+        for (const s of series) {
+            const exact = decimal(p[s.id]);
+            const detail = `MC ${p.mc_seqno}`;
+            s.points.push([date, exact === null ? null : Number(exact)]);
+            s.exact[date] = exact; s.details[date] = detail;
+            s.exactByIndex.push(exact); s.detailsByIndex.push(detail);
+        }
     }
-    return s;
+    return series;
 }
 
 export function readObservedMetrics(data) {
