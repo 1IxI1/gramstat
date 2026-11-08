@@ -205,6 +205,7 @@ function render() {
         state.status.textContent =
             (isSupply ? supplyError : wideRange ? 'Zoom to 93 days or less for daily and validator charts.' : '') ||
             definition.unavailable ||
+            definition.description ||
             (latest
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date]
                 : 'No covered observations in this interval.');

@@ -19,6 +19,7 @@ const BURN_START = Object.freeze({
 });
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
+        description: 'Total supply is the sum of account balances and funds in transit, including collected fees not yet credited to validators. Protocol-burned funds are excluded (e.g. the 50% of transaction fees burned by the protocol). Transfers to 0:00…00 remain included (though they’re inaccessible); funds burned at −1:ff…ff are excluded.',
         annotations: [BURN_START],
         layout: 'wide',
         fill: true,
