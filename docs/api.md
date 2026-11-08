@@ -125,9 +125,8 @@ query settings: `max_execution_time=10`, `max_threads=2`,
 `max_rows_to_read=2000000`, `read_overflow_mode='throw'`,
 `join_use_nulls=1`, `output_format_json_quote_64bit_integers=1`,
 `max_concurrent_queries_for_user=4`. No INSERT/DDL or raw-database grants.
-The fixed prepared-wallet activity query allows at most 6,000,000 rows read to
-cover ten years of day-first storage (neighboring minute rows share granules).
-Its result, memory, execution-time and concurrency limits stay the same.
+Wallet counts have an interval-first projection so daily queries do not scan
+the neighboring minute/hour rows across the full history.
 
 The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,

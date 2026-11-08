@@ -141,11 +141,6 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 		"max_rows_to_read": {"2000000"}, "read_overflow_mode": {"throw"},
 		"join_use_nulls": {"1"}, "output_format_json_quote_64bit_integers": {"1"},
 	}
-	if name == "wallet_activity" {
-		// Up to ten years of 1,465 small prepared rows/day; the day-first
-		// index can read neighboring minute rows when selecting daily counts.
-		p.Set("max_rows_to_read", "6000000")
-	}
 	for k, v := range params {
 		p["param_"+k] = v
 	}
