@@ -92,6 +92,7 @@ a {
 .chart-status {
     min-height: 3em;
 }
+#chart-accounts .chart-status { white-space: pre-line; }
 .geo-panel {
     margin-top: 24px;
     font-size: 17px;

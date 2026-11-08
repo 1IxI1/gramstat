@@ -59,7 +59,12 @@ export const CATALOGUE = [
             { ...series('uninit', 'Uninitialized'), color: '#d9b83f' },
             { ...series('active', 'Active'), color: '#5c9980' },
         ],
-        description: 'Active: a wallet or smart contract is deployed and can process transactions. Uninitialized: an account exists, but no wallet or contract code is deployed. Frozen: a previously deployed account is paused due to unpaid storage fees. Masterchain included. Deleted accounts are excluded.',
+        description: [
+            'Active: a wallet or smart contract is deployed and can process transactions.',
+            'Uninitialized: an account exists, but no wallet or contract code is deployed.',
+            'Frozen: a previously deployed account is paused due to unpaid storage fees.',
+            'Masterchain included. Deleted accounts are excluded.',
+        ].join('\n'),
     }),
     chart('transactions', 'Transactions per day', 'gram', '', {
         averageUnit: 'tx/day',
