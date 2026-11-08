@@ -22,7 +22,6 @@ export const CATALOGUE = [
         annotations: [BURN_START],
         layout: 'wide',
         fill: true,
-        note: 'Exact masterchain observations at an automatic interval, corrected for cumulative burning before protocol v17. Drag to zoom; missing balances remain unknown.',
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
         annotations: [BURN_START],
