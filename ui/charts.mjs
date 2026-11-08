@@ -16,14 +16,15 @@ export function formatSummary(value, unit = '') {
         : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 }
 
-export function formatDate(date) {
+export function formatDate(date, { seconds = false } = {}) {
+    if (!date || !Number.isFinite(new Date(date).getTime())) return 'unknown';
     return new Intl.DateTimeFormat('en-GB', {
         timeZone: 'UTC',
         day: 'numeric',
         month: 'short',
         year: 'numeric',
-        ...(date.length > 10 ? { hour: '2-digit', minute: '2-digit' } : {}),
-    }).format(new Date(date));
+        ...(date.length > 10 ? { hour: '2-digit', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}) } : {}),
+    }).format(new Date(date)).replace(', ', ' ');
 }
 
 export function sumReadings(values) {
@@ -307,7 +308,7 @@ export class TimeChart {
             if (at < markerStart || at >= markerEnd || markerEnd <= markerStart) continue;
             const mx = left + (at - markerStart) / (markerEnd - markerStart) * (right - left);
             const marker = node('g', { 'data-event': event.id, class: 'event-marker' });
-            marker.append(node('title', {}, `${event.label} · ${new Date(at).toISOString()} · MC ${event.mc}`));
+            marker.append(node('title', {}, `${event.label} · ${formatDate(new Date(at).toISOString(), { seconds: true })} UTC · MC ${event.mc}`));
             marker.append(node('line', { x1: mx, x2: mx, y1: top, y2: bottom, stroke: event.color, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }));
             marker.append(node('text', { x: mx + (mx > (left + right) / 2 ? -6 : 6), y: top + 14,
                 fill: event.color, 'text-anchor': mx > (left + right) / 2 ? 'end' : 'start', class: 'event-marker-label' }, event.label));
@@ -467,7 +468,7 @@ export class TimeChart {
             }
         });
 
-        this.tooltip.replaceChildren(html('strong', 'tooltip-date', formatDate(row.date)));
+        this.tooltip.replaceChildren(html('strong', 'tooltip-date', formatDate(row.date, { seconds: this.config.id === 'supply' || this.config.round })));
         this.config.series.forEach((item, seriesIndex) => {
             const entry = html('div', 'tooltip-row');
             const label = html('span', 'tooltip-label');

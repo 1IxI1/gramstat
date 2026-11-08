@@ -214,13 +214,13 @@ function render() {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        state.detail.textContent = latest ? formatDate(latest.date) : '';
+        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || definition.round }) : '';
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
-                ? series.find((s) => s.details?.[latest.date])?.details[latest.date]
+                ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
                 : 'No covered observations in this interval.');
         state.legend.replaceChildren();
         if (series.length > 1)
@@ -241,7 +241,7 @@ function render() {
     document.querySelectorAll('[data-period-label]').forEach((n) => (n.textContent = label));
     $('source-status').textContent = coverage
         .map(
-            (s) => `${s.source}: ${s.first_day ?? 'none'}–${s.last_day ?? 'none'} · updated ${s.updated_at ?? 'never'}`,
+            (s) => `${s.source}: ${s.first_day ?? 'none'}–${s.last_day ?? 'none'} · updated ${s.updated_at ? formatDate(s.updated_at) : 'never'}`,
         )
         .join(' | ');
 }
@@ -372,7 +372,7 @@ async function loadLocations() {
         const caption = element(
             'p',
             '',
-            `${snapshot.located}/${snapshot.total} located · ${snapshot.unknown} unknown · updated ${snapshot.calculated_at}`,
+            `${snapshot.located}/${snapshot.total} located · ${snapshot.unknown} unknown · updated ${formatDate(snapshot.calculated_at)}`,
         );
         const table = element('table', 'locations-table');
         const head = element('tr');

@@ -1,4 +1,5 @@
 import { CATALOGUE, colorAt, periodDates } from './catalogue.mjs';
+import { formatDate } from './charts.mjs';
 
 // Exact strings remain in the response and tooltips. Conversion to Number is
 // restricted to display coordinates; null and missing rows never become zero.
@@ -26,7 +27,7 @@ export function supplySeries(data) {
         const exact = decimal(p.supply_nanoton, 9);
         s.points.push([date, exact === null ? null : Number(exact)]);
         s.exact[date] = exact;
-        s.details[date] = `MC ${p.mc_seqno} · ${date} · ${data.intervalSeconds ? `interval ${data.intervalSeconds}s` : 'every MC'}`;
+        s.details[date] = `MC ${p.mc_seqno} · ${data.intervalSeconds ? `interval ${data.intervalSeconds}s` : 'every MC'}`;
         s.exactByIndex.push(exact);
         s.detailsByIndex.push(s.details[date]);
     }
@@ -41,7 +42,7 @@ export function inflationSeries(data) {
         const exact = typeof p.annualized_percent === 'string' && /^-?\d+(\.\d+)?$/.test(p.annualized_percent) ? p.annualized_percent : null;
         s.points.push([date, exact === null ? null : Number(exact)]);
         s.exact[date] = exact;
-        s.details[date] = `24h window: ${new Date(p.window_from * 1000).toISOString()} — ${date}. Minted: ${decimal(p.minted_24h_nanoton,9) ?? 'unknown'} GRAM. Burned: ${decimal(p.burned_24h_nanoton,9) ?? 'unknown'} GRAM. Supply: ${decimal(p.supply_nanoton,9) ?? 'unknown'} GRAM (MC ${p.supply_mc}).`;
+        s.details[date] = `24h window: ${formatDate(new Date(p.window_from * 1000).toISOString())} — ${formatDate(date)}. Minted: ${decimal(p.minted_24h_nanoton,9) ?? 'unknown'} GRAM. Burned: ${decimal(p.burned_24h_nanoton,9) ?? 'unknown'} GRAM. Supply: ${decimal(p.supply_nanoton,9) ?? 'unknown'} GRAM (MC ${p.supply_mc}).`;
     }
     return s;
 }
@@ -69,7 +70,7 @@ export function readObservedMetrics(data) {
     };
     for (const r of data.chain) {
         if (!dailyIDs.has(r.day)) continue;
-        const detail = `${r.is_partial ? 'Partial boundary day. ' : ''}Indexed chain · ${r.source_id}. Prepared ${r.calculated_at}.`;
+        const detail = r.is_partial ? 'Partial day.' : '';
         for (const [id, field, scale] of [
             ['supply', 'supply_nanoton', 9],
             ['fees', 'fees_nanoton', 9],
@@ -83,9 +84,7 @@ export function readObservedMetrics(data) {
                 r.day,
                 r[field],
                 scale,
-                id === 'supply' && r.supply_utime
-                    ? `Snapshot ${new Date(r.supply_utime * 1000).toISOString()}. ${detail}`
-                    : detail,
+                detail,
             );
         }
     }
@@ -102,7 +101,7 @@ export function readObservedMetrics(data) {
     }));
     for (const r of data.daily) {
         if (!dailyIDs.has(r.day)) continue;
-        const detail = `${r.is_partial ? 'Partial day. ' : ''}Indexed actions through ${r.data_through}. Calculated ${r.calculated_at}.`;
+        const detail = r.is_partial ? 'Partial day.' : '';
         put(r.metric, 'total', r.day, r.value, 0, detail);
         for (const type of ['jetton', 'nft'])
             if ([`${type}_senders`, `${type}_receivers`].includes(r.metric))
@@ -114,7 +113,7 @@ export function readObservedMetrics(data) {
     }
     for (const r of data.stars) {
         if (!dailyIDs.has(r.day)) continue;
-        const detail = `${r.is_partial ? 'Partial day. ' : ''}${r.unknown_purchases} purchases with unknown size. Through ${r.data_through}. Calculated ${r.calculated_at}.`;
+        const detail = `${r.is_partial ? 'Partial day. ' : ''}${r.unknown_purchases} purchases with unknown size.`;
         for (const [id, field] of [
             ['stars_quantity', 'stars_total'],
             ['stars_known', 'known_stars_total'],
@@ -126,7 +125,7 @@ export function readObservedMetrics(data) {
         const date = new Date(r.utime_since * 1000).toISOString();
         const until = new Date(r.utime_until * 1000).toISOString();
         roundDates.push(date);
-        const detail = `Round until ${until}. Count through ${new Date(r.data_through * 1000).toISOString()}. Locations ${r.located ?? '?'}/${r.total}; ${r.geo_status ?? 'unavailable'}. Geo updated ${r.geo_calculated_at ?? 'never'}.`;
+        const detail = `Round until ${formatDate(until, { seconds: true })}. Count through ${formatDate(new Date(r.data_through * 1000).toISOString())}. Locations ${r.located ?? '?'}/${r.total}; ${r.geo_status ?? 'unavailable'}. Geo updated ${r.geo_calculated_at ? formatDate(r.geo_calculated_at) : 'never'}.`;
         roundDetails[date] = { ...r, detail };
         put('validator_count', 'total', date, String(r.total), 0, detail);
         put('countries', 'total', date, r.countries === null ? null : String(r.countries), 0, detail);
