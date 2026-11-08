@@ -17,21 +17,26 @@ const BURN_START = Object.freeze({
     id: 'protocol-burning-start', utime: 1686983606, mc: 30410593,
     label: '50% fees burn start', color: '#32875a',
 });
+// Config #30 enables the new consensus on both chains in this key block.
+const SUBSECOND_START = Object.freeze({
+    id: 'subsecond-start', utime: 1775718744, mc: 59238081,
+    label: '2.5 → 0.4s blocks', color: '#32875a',
+});
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
         description: 'Total supply is the sum of account balances and funds in transit, including collected fees not yet credited to validators. Protocol-burned funds are excluded (e.g. the 50% of transaction fees burned by the protocol). Transfers to 0:00…00 remain included (though they’re inaccessible); funds burned at −1:ff…ff are excluded.',
-        annotations: [BURN_START],
+        annotations: [BURN_START, SUBSECOND_START],
         layout: 'wide',
         fill: true,
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
-        annotations: [BURN_START],
+        annotations: [BURN_START, SUBSECOND_START],
         unavailable: 'Two verified supply boundaries one year apart are required.',
     }),
     chart('fees', 'Fees per day', 'gram', 'TON', { kind: 'bar', zero: true }),
     chart('minted', 'Gram minted per day', 'gram', 'GRAM', { kind: 'bar', zero: true }),
     chart('burned', 'Gram burned per day', 'gram', 'GRAM', {
-        annotations: [BURN_START],
+        annotations: [BURN_START, SUBSECOND_START],
         kind: 'bar',
         zero: true,
         note: 'Total protocol burning. A fees / blackhole split is not available.',

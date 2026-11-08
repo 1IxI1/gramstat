@@ -17,6 +17,13 @@ API and deployment documentation:
 - Supply, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.
+- The same charts mark **2.5 → 0.4s blocks** at 2026-04-09 07:12:24 UTC,
+  MC 59238081: the key block enabling the new consensus on both chains in config
+  #30. This marks configuration activation, not a claim of a fixed interval for
+  every following block. Sources: [TON Docs](https://docs.ton.org/subsecond),
+  config #30 [before](https://toncenter.com/api/v2/getConfigParam?config_id=30&seqno=59238080)
+  and [after](https://toncenter.com/api/v2/getConfigParam?config_id=30&seqno=59238081),
+  [activation header](https://toncenter.com/api/v2/getBlockHeader?workchain=-1&shard=-9223372036854775808&seqno=59238081).
 - Each chart has an expand button. Expanded charts fill most of the viewport;
   Escape or the close button restores the dashboard. The URL keeps the selected
   time range and adds `chart=<catalogue id>` (for example `chart=supply`), so the
