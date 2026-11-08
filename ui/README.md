@@ -17,6 +17,11 @@ API and deployment documentation:
 - Supply, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.
+- Each chart has an expand button. Expanded charts fill most of the viewport;
+  Escape or the close button restores the dashboard. The URL keeps the selected
+  time range and adds `chart=<catalogue id>` (for example `chart=supply`), so the
+  expanded view can be shared or opened directly. Browser Back/Forward restores
+  the corresponding chart view.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.

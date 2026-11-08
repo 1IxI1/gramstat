@@ -85,7 +85,15 @@ for (const definition of CATALOGUE) {
     const card = element('article', `chart-card ${definition.layout || ''}`);
     card.id = `chart-${definition.id}`;
     const heading = element('div', 'chart-heading');
-    heading.append(element('h3', '', definition.title));
+    const title = element('h3', '', definition.title);
+    title.id = `title-${definition.id}`;
+    const expand = element('button', 'chart-expand', '⛶');
+    expand.type = 'button';
+    expand.setAttribute('aria-label', `Expand ${definition.title}`);
+    expand.setAttribute('aria-haspopup', 'dialog');
+    expand.title = 'Expand chart';
+    expand.onclick = () => navigateChart(expandedId === definition.id ? null : definition.id);
+    heading.append(title, expand);
     const readout = element('div', 'readout');
     const value = element('span', 'readout-value', '—');
     const detail = element('span', 'readout-detail');
@@ -96,8 +104,81 @@ for (const definition of CATALOGUE) {
     card.append(heading, readout, surface, legend, status);
     $(`${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
-    cards.set(definition.id, { definition, value, detail, legend, status, chart });
+    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand });
 }
+
+const expandedDialog = element('dialog', 'expanded-chart');
+const expandedPeriod = element('div', 'section-date expanded-period');
+expandedPeriod.setAttribute('data-period-label', '');
+expandedDialog.append(expandedPeriod);
+document.body.append(expandedDialog);
+let expandedId = null;
+let chartPlaceholder;
+
+function navigateChart(id) {
+    const url = new URL(location.href);
+    if (id) url.searchParams.set('chart', id);
+    else url.searchParams.delete('chart');
+    history.pushState(null, '', url);
+    syncExpandedChart();
+}
+
+function syncExpandedChart() {
+    const requested = new URLSearchParams(location.search).get('chart');
+    const id = cards.has(requested) ? requested : null;
+    if (id === expandedId) return;
+    const previous = cards.get(expandedId);
+    if (previous) {
+        expandedDialog.close();
+        chartPlaceholder.replaceWith(previous.card);
+        previous.expand.textContent = '⛶';
+        previous.expand.setAttribute('aria-label', `Expand ${previous.definition.title}`);
+        previous.expand.title = 'Expand chart';
+    }
+    expandedId = id;
+    document.body.classList.toggle('chart-expanded', Boolean(id));
+    if (id) {
+        const state = cards.get(id);
+        chartPlaceholder = document.createComment(`chart-${id}`);
+        state.card.before(chartPlaceholder);
+        expandedDialog.append(state.card);
+        expandedDialog.setAttribute('aria-labelledby', `title-${id}`);
+        state.expand.textContent = '×';
+        state.expand.setAttribute('aria-label', `Close ${state.definition.title}`);
+        state.expand.title = 'Close chart (Esc)';
+        expandedDialog.showModal();
+        state.expand.focus({ preventScroll: true });
+    } else previous?.expand.focus({ preventScroll: true });
+    // Supply's point budget follows its new plot width.
+    if (readings && (id === 'supply' || previous?.definition.id === 'supply')) load();
+}
+
+expandedDialog.addEventListener('cancel', (event) => {
+    event.preventDefault();
+    navigateChart(null);
+});
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !expandedDialog.open) return;
+    event.preventDefault();
+    event.stopPropagation();
+    navigateChart(null);
+}, true);
+expandedDialog.addEventListener('click', (event) => {
+    if (event.target !== expandedDialog) return;
+    const r = expandedDialog.getBoundingClientRect();
+    if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) navigateChart(null);
+});
+window.addEventListener('popstate', () => {
+    const q = new URLSearchParams(location.search);
+    const from = q.get('from');
+    const to = q.get('to');
+    if (from && to && (from !== $('from').value || to !== $('to').value)) {
+        $('from').value = from.length === 10 ? `${from}T00:00:00` : from;
+        $('to').value = to.length === 10 ? `${to}T23:59:59` : to;
+        syncExpandedChart();
+        load();
+    } else syncExpandedChart();
+});
 
 function render() {
     if (!readings) return;
@@ -359,6 +440,7 @@ async function loadLatest(seconds = 7 * 86400) {
     }
 }
 const params = new URLSearchParams(location.search);
+syncExpandedChart();
 $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
 if (params.has('from') && params.has('to')) {
     $('from').value = params.get('from').length === 10 ? `${params.get('from')}T00:00:00` : params.get('from');
