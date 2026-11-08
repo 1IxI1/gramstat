@@ -75,7 +75,6 @@ function render() {
         state.chart.update({ ...definition, series, loading }, shownDates);
     }
     const label = `${readings.period.from} — ${readings.dates.at(-1)} UTC`;
-    $('snapshot-period').textContent = label;
     $('period-status').textContent = label;
     document.querySelectorAll('[data-period-label]').forEach((n) => (n.textContent = label));
     $('source-status').textContent = coverage
