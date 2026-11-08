@@ -473,7 +473,7 @@ export class TimeChart {
             }
         });
 
-        this.tooltip.replaceChildren(html('strong', 'tooltip-date', formatDate(row.date, { seconds: this.config.id === 'supply' || this.config.round })));
+        this.tooltip.replaceChildren(html('strong', 'tooltip-date', formatDate(row.date, { seconds: this.config.id === 'supply' || this.config.id === 'activated_wallets' || this.config.round })));
         (this.config.id === 'accounts' ? [...this.config.series].reverse() : this.config.series).forEach((item) => {
             const seriesIndex = this.config.series.indexOf(item);
             const entry = html('div', 'tooltip-row');

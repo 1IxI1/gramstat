@@ -17,10 +17,14 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
-	"accounts_bounds": accountsBoundsSQL,
-	"accounts_count":  accountsCountSQL,
-	"accounts_raw":    accountsRawSQL,
-	"accounts_rollup": accountsRollupSQL,
+	"wallet_days":      walletDaysSQL,
+	"wallet_activity":  walletActivitySQL,
+	"wallet_count":     walletCountSQL,
+	"wallet_activated": walletActivatedSQL,
+	"accounts_bounds":  accountsBoundsSQL,
+	"accounts_count":   accountsCountSQL,
+	"accounts_raw":     accountsRawSQL,
+	"accounts_rollup":  accountsRollupSQL,
 	"inflation_rollup": `SELECT toUInt32(point.1) AS utime,toString(point.2) AS annualized_percent,
 toUInt32(point.3) AS window_from,toString(point.4) AS minted_24h_nanoton,
 toString(point.5) AS burned_24h_nanoton,toString(point.6) AS supply_nanoton,
@@ -136,6 +140,11 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 		"max_result_bytes": {"4194304"}, "result_overflow_mode": {"throw"},
 		"max_rows_to_read": {"2000000"}, "read_overflow_mode": {"throw"},
 		"join_use_nulls": {"1"}, "output_format_json_quote_64bit_integers": {"1"},
+	}
+	if name == "wallet_activity" {
+		// Up to ten years of 1,465 small prepared rows/day; the day-first
+		// index can read neighboring minute rows when selecting daily counts.
+		p.Set("max_rows_to_read", "6000000")
 	}
 	for k, v := range params {
 		p["param_"+k] = v

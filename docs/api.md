@@ -43,6 +43,18 @@ Gramstat dashboard.
   short intervals use bounded per-MC delta reads. Missing coverage produces an
   error or no observations, not a zero opening balance.
 
+- `GET /api/v1/wallets?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:
+  the same timestamp contract. Returns `activated`, `activations`, `active`, each
+  with `points` (`utime`, exact integer-string `value`, and MC for cumulative
+  points) and `intervalSeconds`. Cumulative points obey the budget and preserve
+  same-second MCs at interval 0. Activity selects 60/3600/86400-second UTC buckets;
+  daily activity and daily activations retain all days even beyond the target
+  point budget. Boundary buckets are whole aligned intervals. `coverageDays`
+  identifies prepared days, `registry` identifies the frozen code registry.
+  All series bind to the same published run per day. Unverified preparations are
+  excluded and missing days are gaps. The source epoch is fixed server-side;
+  clients cannot select arbitrary databases, registries or run IDs.
+
 GET and HEAD only. Unknown/repeated parameters, invalid dates and future days are
 rejected before querying the source. Read failures return a generic 503; SQL and
 internal error details stay in server logs. Missing records are empty arrays,
@@ -113,6 +125,9 @@ query settings: `max_execution_time=10`, `max_threads=2`,
 `max_rows_to_read=2000000`, `read_overflow_mode='throw'`,
 `join_use_nulls=1`, `output_format_json_quote_64bit_integers=1`,
 `max_concurrent_queries_for_user=4`. No INSERT/DDL or raw-database grants.
+The fixed prepared-wallet activity query allows at most 6,000,000 rows read to
+cover ten years of day-first storage (neighboring minute rows share granules).
+Its result, memory, execution-time and concurrency limits stay the same.
 
 The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,

@@ -11,8 +11,6 @@ const chart = (id, title, section, unit = '', options = {}) => ({
     series: [series('total', title)],
     ...options,
 });
-const walletReason =
-    'Wallet data is not available for this interval yet.';
 const BURN_START = Object.freeze({
     id: 'protocol-burning-start', utime: 1686983606, mc: 30410593,
     label: '50% fees burn start', color: '#32875a',
@@ -72,15 +70,15 @@ export const CATALOGUE = [
         description: 'Both masterchain (-1) and basechain (0) transactions.',
     }),
     chart('activated_wallets', 'Activated wallets', 'wallet', '', {
-        layout: 'wide', unavailable: walletReason, registryTerm: 'wallet code',
+        layout: 'wide', step: true, integer: true, registryTerm: 'wallet code',
         description: 'Total unique addresses that have been deployed with a recognized wallet code. Each address is counted once, at its first qualifying wallet deployment, even if it previously hosted a different contract. Outgoing messages are not required. Later deletion, freezing, code changes or redeployment do not remove the address from this total.',
     }),
     chart('activations', 'Activations per day', 'wallet', '', {
-        layout: 'half', unavailable: walletReason, registryTerm: 'wallet code',
+        layout: 'half', kind: 'bar', zero: true, integer: true, registryTerm: 'wallet code',
         description: 'Unique addresses first deployed with a recognized wallet code each UTC day, using the deployment transaction’s time. Earlier non-wallet deployments do not exclude an address; repeated wallet deployments are not counted again. Outgoing messages are not required.',
     }),
     chart('active_wallets_daily', 'Active wallets', 'wallet', '', {
-        layout: 'half', unavailable: walletReason, registryTerm: 'wallet', registryTerms: ['wallet', 'wallets'],
+        layout: 'half', kind: 'bar', zero: true, integer: true, registryTerm: 'wallet', registryTerms: ['wallet', 'wallets'],
         description: "Unique addresses that sent at least one non-bounced message during each displayed UTC interval, after or in the same transaction as their first recognized wallet deployment. Internal and external-out messages count, including sends initiated through extensions; incoming messages alone do not count. Once an address has been deployed as a recognized wallet, its later sends still count, even if its code changes or it is deleted and deployed again (because wallets don't allow code changes really). The interval adjusts with zoom: one minute, one hour or one day.",
     }),
     chart('stake', 'Staked GRAM', 'validator', 'GRAM', {

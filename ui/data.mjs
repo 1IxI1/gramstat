@@ -1,5 +1,6 @@
 import { CATALOGUE, colorAt, periodDates } from './catalogue.mjs';
 import { formatDate } from './charts.mjs';
+import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
 
 // Exact strings remain in the response and tooltips. Conversion to Number is
 // restricted to display coordinates; null and missing rows never become zero.
@@ -90,6 +91,36 @@ export function accountsSeries(data) {
         }
     }
     return series;
+}
+
+export function walletSeries(data, id) {
+    if (data?.schemaVersion !== 2 || data.registry !== WALLET_REGISTRY_SHA256 || !Array.isArray(data.coverageDays)) throw new Error('Unsupported wallet response.');
+    const key = { activated_wallets: 'activated', activations: 'activations', active_wallets_daily: 'active' }[id];
+    const dataset = data[key];
+    if (!Array.isArray(dataset?.points)) throw new Error('Incomplete wallet response.');
+    const definition = CATALOGUE.find((c) => c.id === id);
+    const s = { ...definition.series[0], ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] };
+    const rows = [...dataset.points];
+    const start = Math.floor(Date.parse(data.period.from) / 86400000) * 86400;
+    const end = Date.parse(data.period.to) / 1000;
+    const covered = new Set(data.coverageDays);
+    for (let t = start; t < end; t += 86400) {
+        if (!covered.has(new Date(t * 1000).toISOString().slice(0, 10))) {
+            rows.push({ utime: t, value: null }, { utime: Math.min(t + 86399, end - 1), value: null });
+        }
+    }
+    rows.sort((a, b) => a.utime - b.utime || (a.mc_seqno ?? 0) - (b.mc_seqno ?? 0));
+    for (const p of rows) {
+        const date = new Date(p.utime * 1000).toISOString();
+        const exact = decimal(p.value);
+        const detail = exact === null ? 'No covered observations.' : key === 'activated'
+            ? `MC ${p.mc_seqno} · ${dataset.intervalSeconds ? `interval ${dataset.intervalSeconds}s` : 'every MC'}`
+            : `${formatDate(date)} — ${formatDate(new Date((p.utime + dataset.intervalSeconds) * 1000).toISOString())} UTC (end exclusive)`;
+        s.points.push([date, exact === null ? null : Number(exact)]);
+        s.exact[date] = exact; s.details[date] = detail;
+        s.exactByIndex.push(exact); s.detailsByIndex.push(detail);
+    }
+    return s;
 }
 
 export function readObservedMetrics(data) {

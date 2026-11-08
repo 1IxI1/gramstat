@@ -58,7 +58,9 @@ API and deployment documentation:
   [TON Docs: Wallet sources](https://docs.ton.org/llms/contracts/standard/wallets/sources/content.md);
   legacy Highload and V5 beta entries link source history, rather than asserting
   that a particular unverified compiler/revision reproduces their hash.
-  Wallet values remain unavailable until prepared series are connected to the API.
+  `/api/v1/wallets` supplies prepared per-MC cumulative values, daily activations
+  and exact activity counts with an automatic minute/hour/day interval. Missing
+  preparation days remain gaps; the status shows partial coverage during backfill.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.
 - Source update times and coverage are visible. Unknown values remain empty.

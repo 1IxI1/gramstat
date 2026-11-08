@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 
@@ -16,6 +16,8 @@ let inflationData;
 let inflationError = '';
 let accountsData;
 let accountsError = '';
+let walletsData;
+let walletsError = '';
 let validatorsError = '';
 let activeRange;
 let wideRange = false;
@@ -182,7 +184,7 @@ function syncExpandedChart(reload = true) {
         state.expand.focus({ preventScroll: true });
     } else previous?.expand.focus({ preventScroll: true });
     // Supply's point budget follows its new plot width.
-    if (reload && readings && ([id, previous?.definition.id].some((name) => ['supply', 'inflation', 'accounts'].includes(name)))) load();
+    if (reload && readings && ([id, previous?.definition.id].some((name) => ['supply', 'inflation', 'accounts', 'activated_wallets', 'active_wallets_daily'].includes(name)))) load();
 }
 
 expandedDialog.addEventListener('cancel', (event) => {
@@ -219,12 +221,13 @@ function render() {
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
-        const temporal = isSupply || isInflation || isAccounts;
-        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
+        const isWallet = definition.section === 'wallet';
+        const temporal = isSupply || isInflation || isAccounts || isWallet;
+        const series = isWallet ? (walletsData ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
         const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
-        const latest = temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
+        const latest = isWallet ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
         );
         const value = latest
@@ -233,7 +236,7 @@ function render() {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.round }) : '';
+        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.id === 'activated_wallets' || definition.round }) : '';
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && definition.section !== 'wallet' && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
             definition.unavailable ||
@@ -241,6 +244,12 @@ function render() {
             (latest
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
                 : 'No covered observations in this interval.');
+        if (isWallet) {
+            const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;
+            const available = walletsData?.coverageDays.length ?? 0;
+            const interval = definition.id === 'active_wallets_daily' && walletsData ? `Interval: ${{60:'1 minute',3600:'1 hour',86400:'1 day'}[walletsData.active.intervalSeconds]}. ` : '';
+            state.status.textContent = walletsError || (loading ? 'Loading wallet data…' : available ? `${interval}${available < totalDays ? `${available} of ${totalDays} UTC days available; history is being prepared.` : ''}` : 'Wallet history is being prepared for this interval.');
+        }
         state.legend.replaceChildren();
         if (state.average) {
             const avg = dailyAverage(dates, series[0]);
@@ -307,6 +316,8 @@ async function load() {
     inflationError = '';
     accountsData = undefined;
     accountsError = '';
+    walletsData = undefined;
+    walletsError = '';
     validatorsError = '';
     $('apply').disabled = true;
     warning('');
@@ -360,6 +371,13 @@ async function load() {
         else accountsData = accounts;
         readings = readObservedMetrics(data);
         renderRounds();
+        // Start after the other chart reads to respect the four-reader server limit.
+        const walletParams = new URLSearchParams(supplyParams);
+        walletParams.set('maxPoints', String(Math.max(100, Math.min(1200, Math.round(cards.get(expandedId === 'active_wallets_daily' ? 'active_wallets_daily' : 'activated_wallets').chart.surface.clientWidth)))));
+        const wallets = await getJSON(`/api/v1/wallets?${walletParams}`, request.signal).catch((e) => ({ error: e.message }));
+        if (id !== requestId) return;
+        if (wallets.error) walletsError = `Wallets unavailable: ${wallets.error}`;
+        else walletsData = wallets;
     } catch (e) {
         if (id === requestId)
             warning(`Data could not be loaded. ${e.name === 'AbortError' ? 'Request timed out.' : e.message}`);
