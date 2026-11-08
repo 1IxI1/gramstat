@@ -15,7 +15,7 @@ const walletReason =
     'Full deployment history is required to identify first activations and previously deployed wallets.';
 const BURN_START = Object.freeze({
     id: 'protocol-burning-start', utime: 1686983606, mc: 30410593,
-    label: 'Protocol burning starts', color: '#32875a',
+    label: '50% fees burn start', color: '#32875a',
 });
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
