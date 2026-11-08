@@ -244,7 +244,7 @@ function render() {
             state.average.title = loading ? 'Loading daily values.' : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
         }
         if (series.length > 1)
-            for (const s of series) {
+            for (const s of isAccounts ? [...series].reverse() : series) {
                 const item = element('span', 'legend-item');
                 const swatch = element('span', 'swatch');
                 swatch.style.backgroundColor = s.color;

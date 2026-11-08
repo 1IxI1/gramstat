@@ -55,9 +55,9 @@ export const CATALOGUE = [
         layout: 'wide',
         kind: 'stacked-area', step: true, integer: true, zero: true,
         series: [
-            { ...series('active', 'Active'), color: '#5c9980' },
-            { ...series('uninit', 'Uninitialized'), color: '#d9b83f' },
             { ...series('frozen', 'Frozen'), color: '#65b5e5' },
+            { ...series('uninit', 'Uninitialized'), color: '#d9b83f' },
+            { ...series('active', 'Active'), color: '#5c9980' },
         ],
         description: 'Active: a wallet or smart contract is deployed and can process transactions. Uninitialized: an account exists, but no wallet or contract code is deployed. Frozen: a previously deployed account is paused due to unpaid storage fees. Masterchain included. Deleted accounts are excluded.',
     }),
