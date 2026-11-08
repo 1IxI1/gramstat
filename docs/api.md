@@ -118,7 +118,7 @@ The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
 `/api/` proxies the loopback service. Static paths are allowlisted; historical
 snapshots, provenance and repository files are not served. Copy only `index.html`,
-`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `style.css`, `favicon.svg`
+`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wallet-registry.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
 
 For HTTPS deployment through HAProxy, terminate TLS at the proxy and forward

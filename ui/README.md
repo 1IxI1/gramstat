@@ -50,6 +50,15 @@ API and deployment documentation:
   the chart and component counts in the tooltip. It supports full
   history and per-MC zoom, including the verified initial system accounts.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.
+- Wallets has three panels: Activated wallets, Activations per day and Active
+  wallets. Full definitions remain visible below the plots. Inline `wallet code`
+  / `wallet` buttons open the shared registry dialog with 19 hashes (hex and
+  base64), 18 type names and source links. The registry digest is tested against
+  the aggregator's frozen registry. Standard source references follow
+  [TON Docs: Wallet sources](https://docs.ton.org/llms/contracts/standard/wallets/sources/content.md);
+  legacy Highload and V5 beta entries link source history, rather than asserting
+  that a particular unverified compiler/revision reproduces their hash.
+  Wallet values remain unavailable until prepared series are connected to the API.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.
 - Source update times and coverage are visible. Unknown values remain empty.
@@ -70,4 +79,4 @@ node --test ui/*.test.mjs
 ```
 
 Deployment copies only `index.html`, `app.mjs`, `catalogue.mjs`, `charts.mjs`,
-`data.mjs`, `style.css`, `favicon.svg`. Never serve the repository directory as-is.
+`data.mjs`, `wallet-registry.mjs`, `style.css`, `favicon.svg`. Never serve the repository directory as-is.

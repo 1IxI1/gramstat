@@ -1,6 +1,7 @@
 import { CATALOGUE } from './catalogue.mjs';
 import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
+import { createWalletRegistry } from './wallet-registry.mjs';
 
 const $ = (id) => document.getElementById(id);
 const cards = new Map();
@@ -95,6 +96,8 @@ function element(tag, className, text) {
     return node;
 }
 
+const walletRegistry = createWalletRegistry(element);
+
 for (const definition of CATALOGUE) {
     const card = element('article', `chart-card ${definition.layout || ''}`);
     card.id = `chart-${definition.id}`;
@@ -128,6 +131,7 @@ for (const definition of CATALOGUE) {
     const legend = element('div', 'chart-legend');
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
+    if (definition.registryTerm) card.append(walletRegistry.description(definition));
     $(`${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
     cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand, heading, average, averageValue });
@@ -186,7 +190,7 @@ expandedDialog.addEventListener('cancel', (event) => {
     navigateChart(null);
 });
 document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !expandedDialog.open) return;
+    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open) return;
     event.preventDefault();
     event.stopPropagation();
     navigateChart(null);
@@ -231,7 +235,7 @@ function render() {
         state.value.textContent = formatSummary(value, definition.unit);
         state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.round }) : '';
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && definition.section !== 'wallet' && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
