@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
 import { buildRows, formatDate, domain } from './charts.mjs';
-import { decimal, readObservedMetrics, latestChainRange, supplySeries, inflationSeries } from './data.mjs';
+import { decimal, readObservedMetrics, latestChainRange, supplySeries, inflationSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 
 const fixture = () => ({
     schemaVersion: 2,
@@ -29,6 +29,21 @@ const fixture = () => ({
             data_through: 1792606336,
         },
     ],
+});
+
+test('daily averages preserve exact amounts and distinguish zero, missing and partial days', () => {
+    const dates = ['2024-01-01', '2024-01-02', '2024-01-03'];
+    const series = { exact: { [dates[0]]: '9007199254740993.01', [dates[1]]: '0', [dates[2]]: null } };
+    assert.deepEqual(dailyAverage(dates, series), { value: '4,503,599,627,370,496.51', count: 2, total: 3, partial: true });
+    assert.equal(dailyAverage(dates, { exact: {} }).value, null);
+    assert.deepEqual(dailyAverage([dates[0]], { exact: { [dates[0]]: '0' } }), { value: '0.00', count: 1, total: 1, partial: false });
+    assert.equal(dailyAverage([dates[0]], { exact: { [dates[0]]: '10' }, partial: { [dates[0]]: true } }).partial, true);
+    assert.equal(rangeDurationLabel(0, 7 * 86400000), '7d');
+    assert.equal(rangeDurationLabel(0, 2 * 3600000), '2h');
+    const f = fixture();
+    f.chain[0].is_partial = 1;
+    const data = readObservedMetrics(f);
+    assert.equal(dailyAverage(data.dates, data.metrics.transactions.series[0]).partial, true);
 });
 
 test('no live chart uses generated data; unsupported metrics stay empty', () => {

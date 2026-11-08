@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries } from './data.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -113,12 +113,23 @@ for (const definition of CATALOGUE) {
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
     const surface = element('div', 'chart-surface');
     surface.append(expand);
+    let average;
+    let averageValue;
+    if (definition.averageUnit) {
+        average = element('div', 'chart-average');
+        const dot = element('span', 'average-dot');
+        dot.style.backgroundColor = definition.series[0].color;
+        dot.setAttribute('aria-hidden', 'true');
+        averageValue = element('span', '', 'Avg: —');
+        average.append(dot, averageValue);
+        surface.append(average);
+    }
     const legend = element('div', 'chart-legend');
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
     $(`${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
-    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand, heading });
+    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand, heading, average, averageValue });
 }
 
 const expandedDialog = element('dialog', 'expanded-chart');
@@ -226,6 +237,12 @@ function render() {
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
                 : 'No covered observations in this interval.');
         state.legend.replaceChildren();
+        if (state.average) {
+            const avg = dailyAverage(dates, series[0]);
+            const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : `${dates.length}d`;
+            state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${definition.averageUnit}${avg.partial ? ' · partial' : ''}`}`;
+            state.average.title = loading ? 'Loading daily values.' : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
+        }
         if (series.length > 1)
             for (const s of series) {
                 const item = element('span', 'legend-item');

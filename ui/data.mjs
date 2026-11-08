@@ -9,6 +9,35 @@ export function decimal(value, scale = 0) {
     return scale ? `${digits.slice(0, -scale)}.${digits.slice(-scale)}` : digits;
 }
 
+// Mean of displayed UTC-day totals. Missing values never count as zero.
+// Keep monetary arithmetic exact until rounding the displayed mean to 2 places.
+export function dailyAverage(dates, series) {
+    let sum = 0n;
+    let count = 0;
+    let partial = false;
+    for (const date of dates) {
+        const value = series?.exact?.[date];
+        if (typeof value !== 'string' || !/^\d+(\.\d{1,9})?$/.test(value)) continue;
+        const [whole, fraction = ''] = value.split('.');
+        sum += BigInt(whole) * 1000000000n + BigInt(fraction.padEnd(9, '0'));
+        count++;
+        partial ||= Boolean(series.partial?.[date]);
+    }
+    if (!count) return { value: null, count, total: dates.length, partial: true };
+    const denominator = BigInt(count) * 1000000000n;
+    const cents = (sum * 100n + denominator / 2n) / denominator;
+    const whole = (cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return { value: `${whole}.${(cents % 100n).toString().padStart(2, '0')}`, count, total: dates.length, partial: partial || count !== dates.length };
+}
+
+export function rangeDurationLabel(from, to) {
+    const seconds = (to - from) / 1000;
+    for (const [unit, size] of [['d', 86400], ['h', 3600], ['m', 60], ['s', 1]]) {
+        if (seconds >= size) return `${Number((seconds / size).toFixed(2))}${unit}`;
+    }
+    return '0s';
+}
+
 // Inclusive date controls follow the indexed chain, rather than today's wall clock.
 export function latestChainRange(coverage) {
     const chain = coverage.find((s) => s.source === 'chain');
@@ -73,7 +102,7 @@ export function readObservedMetrics(data) {
     const dailyIDs = new Set(dates);
     const roundDates = [];
     const roundDetails = {};
-    const put = (id, key, date, raw, scale, detail) => {
+    const put = (id, key, date, raw, scale, detail, partial = false) => {
         const item = metrics[id]?.series.find((s) => s.id === key);
         if (!item) return;
         const exact = decimal(raw, scale);
@@ -81,6 +110,7 @@ export function readObservedMetrics(data) {
         item.points.push([date, Number.isFinite(value) ? value : null]);
         item.exact[date] = exact;
         item.details[date] = detail;
+        (item.partial ??= {})[date] = partial;
     };
     for (const r of data.chain) {
         if (!dailyIDs.has(r.day)) continue;
@@ -99,6 +129,7 @@ export function readObservedMetrics(data) {
                 r[field],
                 scale,
                 detail,
+                Boolean(r.is_partial),
             );
         }
     }

@@ -35,14 +35,17 @@ export const CATALOGUE = [
         description: 'Estimated annual supply growth if issuance and burning continue at their average rates over the preceding 24 hours. Calculated hourly: (minted − burned) over 24h ÷ total supply × 365 × 100%.',
     }),
     chart('fees', 'Daily fees', 'gram', 'GRAM', {
+        averageUnit: 'GRAM/day',
         kind: 'bar', zero: true,
         description: 'Total fees collected from transaction (compute, action etc.) fees and message import fees each UTC day.',
     }),
     chart('minted', 'Daily issuance', 'gram', 'GRAM', {
+        averageUnit: 'GRAM/day',
         kind: 'bar', zero: true,
         description: 'New GRAM issued as block rewards each UTC day.',
     }),
     chart('burned', 'Daily burn', 'gram', 'GRAM', {
+        averageUnit: 'GRAM/day',
         description: 'GRAM burned from transaction fees (50% of them) and funds sent to −1:ff…ff each UTC day.',
         annotations: [BURN_START, SUBSECOND_START],
         kind: 'bar',
@@ -54,6 +57,7 @@ export const CATALOGUE = [
         description: 'Existing accounts across all workchains: active, uninitialized and frozen. Includes wallets and other contracts; deleted accounts are excluded.',
     }),
     chart('transactions', 'Transactions per day', 'gram', '', {
+        averageUnit: 'tx/day',
         kind: 'bar', zero: true,
         description: 'Both masterchain (-1) and basechain (0) transactions.',
     }),

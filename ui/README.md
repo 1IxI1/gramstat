@@ -34,6 +34,12 @@ API and deployment documentation:
   create history entries immediately; background refreshes do not rewrite them.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
+- Fees, issuance, burning and transactions show `Avg (<selected duration>)` inside
+  the plot. It is the arithmetic mean of available displayed UTC-day totals,
+  rounded to two decimals using integer arithmetic. Missing values are excluded,
+  not replaced by zero. Missing days or included partial totals mark the average
+  `partial`; the hover text gives the available-day count. Intraday selections
+  still use the whole UTC-day totals shown by these daily charts.
 - Annual inflation uses `/api/v1/inflation`: hourly estimates of net supply growth
   annualized from the preceding 24 complete UTC hours. The 24-hour window stays
   fixed when zooming. Negative estimates are supported; incomplete windows and

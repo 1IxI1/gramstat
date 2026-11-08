@@ -138,6 +138,7 @@ export class TimeChart {
         surface.setAttribute('aria-describedby', 'chart-help');
 
         this.onMove = (event) => {
+            if (!this.drag && event.target.closest('.chart-average')) { this.hide(); return; }
             if (this.drag) {
                 const p = this.pointerPosition(event);
                 this.drag.end = p;
@@ -149,7 +150,7 @@ export class TimeChart {
             if (event.pointerType !== 'touch') this.showAtPointer(event);
         };
         this.onDown = (event) => {
-            if (event.target.closest('button')) return;
+            if (event.target.closest('button, .chart-average')) return;
             if (event.button === 0 && event.pointerType === 'mouse' && this.config.onRange) {
                 const p = this.pointerPosition(event);
                 const rect = node('rect', { x: p, y: this.geometry.top, width: 0, height: this.geometry.bottom - this.geometry.top, class: 'range-selection' });
@@ -242,10 +243,11 @@ export class TimeChart {
     draw() {
         const width = this.surface.clientWidth || 480;
         const height = this.surface.clientHeight || 273;
+        const footerHeight = this.config.averageUnit ? (this.surface.querySelector('.chart-average')?.offsetHeight || 32) : 0;
         const left = 80;
         const right = width - 24;
         const top = 27;
-        const bottom = height - 41;
+        const bottom = height - footerHeight - 41;
         const [minimum, maximum] = domain(this.config, this.rows);
         const timestamps = this.rows.map((r) => Date.parse(r.date));
         const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
@@ -280,7 +282,7 @@ export class TimeChart {
             this.svg.append(
                 node(
                     'text',
-                    { x: x(index), y: height - 13, 'text-anchor': 'middle', class: 'axis-label' },
+                    { x: x(index), y: height - footerHeight - 13, 'text-anchor': 'middle', class: 'axis-label' },
                     new Intl.DateTimeFormat('en-GB', this.config.time && span <= 2 * 86400000 ? {timeZone:'UTC',hour:'2-digit',minute:'2-digit', ...(span<=600000?{second:'2-digit'}:{})} : { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
                         new Date(this.rows[index].date),
                     ),
