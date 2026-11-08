@@ -17,6 +17,9 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"supply_count": `SELECT toUInt32(count()) AS count FROM mainnet_gramstat_full.blocks FINAL
+WHERE workchain=-1 AND shard=-9223372036854775808 AND seqno BETWEEN {first_mc:UInt32} AND {last_mc:UInt32}
+AND gen_utime >= {from_ts:UInt32} AND gen_utime < {to_ts:UInt32}`,
 	"supply_bounds": `SELECT min(first_mc) AS first_mc, max(last_mc) AS last_mc,
 toUInt32(sum(mc_count)) AS mc_count, toString(argMin(tuple(opening_burn),hour).1) AS opening_burn
 FROM gramstat.supply_hourly FINAL

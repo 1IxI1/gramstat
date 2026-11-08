@@ -13,7 +13,10 @@ import (
 func TestSupplyHTTP(t *testing.T) {
 	s := New(readerFunc(func(_ context.Context, name string, p url.Values) (json.RawMessage, error) {
 		if name == "supply_bounds" {
-			return json.RawMessage(`[{"first_mc":10,"last_mc":11,"mc_count":2,"opening_burn":"123"}]`), nil
+			return json.RawMessage(`[{"first_mc":10,"last_mc":1010,"mc_count":1001,"opening_burn":"123"}]`), nil
+		}
+		if name == "supply_count" {
+			return json.RawMessage(`[{"count":2}]`), nil
 		}
 		if name == "supply_raw" && (p.Get("opening_burn") != "123" || p.Get("step") != "0") {
 			t.Fatal(p)
@@ -74,6 +77,10 @@ INSERT INTO gramstat.supply_hourly VALUES ('2026-11-03 21:00:00',103190380,10319
 	rows := run(queries["supply_raw"]+" FORMAT JSON", "0")
 	if len(rows) != 3 || rows[0]["supply_nanoton"] != "4999999999999999897" || rows[1]["supply_nanoton"] != "5000000000000000003" || rows[2]["supply_nanoton"] != nil {
 		t.Fatal(rows)
+	}
+	counts := run(queries["supply_count"]+" FORMAT JSON", "0")
+	if len(counts) != 1 || counts[0]["count"] != float64(3) {
+		t.Fatal(counts)
 	}
 	rows = run(queries["supply_raw"]+" FORMAT JSON", "3600")
 	if len(rows) != 1 || rows[0]["supply_nanoton"] != nil {

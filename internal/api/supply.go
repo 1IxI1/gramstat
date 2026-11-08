@@ -56,6 +56,27 @@ func (s *Server) loadSupply(ctx context.Context, q url.Values) ([]byte, error) {
 			p.Set("step", strconv.FormatInt(step, 10))
 			p.Set("first_mc", strconv.FormatUint(uint64(b.First), 10))
 			p.Set("last_mc", strconv.FormatUint(uint64(b.Last), 10))
+			if b.Count > uint64(budget) {
+				// A short viewport can contain few MCs even inside a dense hour.
+				// Count the requested timestamps, not the whole checkpoint span.
+				counts, e := s.reader.Read(ctx, "supply_count", p)
+				if e != nil {
+					return nil, e
+				}
+				var n []struct {
+					Count uint64 `json:"count"`
+				}
+				if e = json.Unmarshal(counts, &n); e != nil {
+					return nil, e
+				}
+				if len(n) != 1 {
+					return nil, fmt.Errorf("missing supply block count")
+				}
+				if n[0].Count <= uint64(budget) {
+					step = 0
+					p.Set("step", "0")
+				}
+			}
 			p.Set("opening_known", "0")
 			p.Set("opening_burn", "0")
 			if b.Opening != nil {
