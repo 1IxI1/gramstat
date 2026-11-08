@@ -70,6 +70,17 @@ test('unknown totals and geo remain unknown, without falling back to subtotals',
     assert.equal(CATALOGUE.find((c) => c.id === 'validator_count').kind, 'step');
 });
 
+test('zero-based chart axes leave headroom without doubling the peak', () => {
+    const accounts = CATALOGUE.find((c) => c.id === 'accounts');
+    const transactions = CATALOGUE.find((c) => c.id === 'transactions');
+    assert.deepEqual(domain(accounts, [{ values: [0, 6_000_000, 98_040_000], total: 104_040_000 }]), [0, 120_000_000]);
+    assert.deepEqual(domain(transactions, [{ values: [20_000_000], total: 20_000_000 }]), [0, 22_000_000]);
+    assert.deepEqual(domain(transactions, [{ values: [1], total: 1 }]), [0, 1.1]);
+    assert.deepEqual(domain(accounts, [{ values: [0, 0, 1], total: 1 }]), [0, 2]);
+    assert.deepEqual(domain(transactions, [{ values: [0], total: 0 }]), [0, 1.1]);
+    assert.deepEqual(domain(transactions, [{ values: [null], total: null }]), [0, 1]);
+});
+
 test('date intervals cross months and years, with exclusive upper bounds', () => {
     assert.deepEqual(periodDates('2026-12-31', '2027-01-02'), ['2026-12-31', '2027-01-01']);
     assert.throws(() => periodDates('2026-02-30', '2026-03-04'));

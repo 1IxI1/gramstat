@@ -82,10 +82,10 @@ function contiguous(rows, valid) {
 
 function niceCeiling(value) {
     if (value <= 0) return 1;
-    const power = 10 ** Math.floor(Math.log10(value));
-    const fraction = value / power;
-    const step = [1, 2, 2.5, 5, 10].find((candidate) => candidate >= fraction) || 10;
-    return step * power;
+    // Two significant digits keep the top tick close to the peak, even just
+    // above a round boundary (e.g. 104M should not produce a 200M axis).
+    const step = 10 ** (Math.floor(Math.log10(value)) - 1);
+    return Math.ceil(value / step) * step;
 }
 
 export function domain(config, rows) {
@@ -97,7 +97,10 @@ export function domain(config, rows) {
     if (!values.length) return [0, 1];
     const minimum = Math.min(...values);
     const maximum = Math.max(...values);
-    if (config.zero) return [0, niceCeiling(((maximum || 1) * 1.08) / 2) * 2];
+    if (config.zero) {
+        const upper = niceCeiling((maximum || 1) * 1.08);
+        return [0, config.integer ? Math.ceil(upper) : upper];
+    }
     const padding = (maximum - minimum || Math.abs(maximum) * 0.02 || 1) * 0.18;
     let lower = config.signed ? minimum - padding : Math.max(0, minimum - padding);
     let upper = maximum + padding;
