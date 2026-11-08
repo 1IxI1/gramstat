@@ -16,6 +16,43 @@ let wideRange = false;
 const recentRanges = [];
 const inputTime = (ms) => new Date(ms).toISOString().slice(0, 19);
 const displayTime = (ms) => inputTime(ms).replace('T', ' ');
+let calendarMonth;
+let calendarStart = null;
+
+function drawCalendar() {
+    if (!calendarMonth) return;
+    $('calendar-month').textContent = new Intl.DateTimeFormat('en-GB', {month:'long',year:'numeric',timeZone:'UTC'}).format(calendarMonth);
+    const first = Date.UTC(calendarMonth.getUTCFullYear(), calendarMonth.getUTCMonth(), 1);
+    const offset = (new Date(first).getUTCDay() + 6) % 7;
+    const start = Date.parse(`${$('from').value.slice(0,10)}T00:00:00Z`);
+    const end = Date.parse(`${$('to').value.slice(0,10)}T00:00:00Z`);
+    const ceiling = Date.parse(`${new Date().toISOString().slice(0,10)}T00:00:00Z`);
+    $('calendar-days').replaceChildren(...Array.from({length:42}, (_,i) => {
+        const ms = first + (i - offset) * 86400000;
+        const date = new Date(ms);
+        const b = element('button', '', String(date.getUTCDate())); b.type='button';
+        b.setAttribute('aria-label', date.toISOString().slice(0,10));
+        b.classList.toggle('outside', date.getUTCMonth() !== calendarMonth.getUTCMonth());
+        b.classList.toggle('selected', ms >= start && ms <= end);
+        b.classList.toggle('edge', ms === start || ms === end);
+        b.setAttribute('aria-pressed', String(ms >= start && ms <= end));
+        b.disabled = ms > ceiling || ms < Date.parse('2019-01-01T00:00:00Z');
+        b.onclick = () => {
+            if (calendarStart === null) {
+                calendarStart = ms;
+                $('from').value = inputTime(ms); $('to').value = inputTime(ms + 86400000 - 1000);
+                $('calendar-help').textContent = 'Now choose the end date.';
+            } else {
+                $('from').value = inputTime(Math.min(calendarStart, ms));
+                $('to').value = inputTime(Math.max(calendarStart, ms) + 86400000 - 1000);
+                calendarStart = null;
+                $('calendar-help').textContent = 'Choose a start date, then an end date.';
+            }
+            drawCalendar();
+        };
+        return b;
+    }));
+}
 
 function setRange(from, to, remember = true) {
     if (!Number.isFinite(from) || !Number.isFinite(to)) return;
@@ -255,6 +292,18 @@ $('range-form').addEventListener('submit', (e) => {
     e.preventDefault();
     setRange(Date.parse(`${$('from').value}Z`), Date.parse(`${$('to').value}Z`) + 1000);
 });
+$('time-picker').addEventListener('toggle', () => {
+    if (!$('time-picker').open) return;
+    const from = new Date(`${$('from').value || inputTime(Date.now())}Z`);
+    calendarMonth = new Date(Date.UTC(from.getUTCFullYear(),from.getUTCMonth(),1));
+    calendarStart = null;
+    $('calendar-help').textContent = 'Choose a start date, then an end date.';
+    drawCalendar();
+});
+for (const [id,direction] of [['calendar-prev',-1],['calendar-next',1]]) $(id).onclick = () => {
+    calendarMonth = new Date(Date.UTC(calendarMonth.getUTCFullYear(),calendarMonth.getUTCMonth()+direction,1)); drawCalendar();
+};
+for (const id of ['from','to']) $(id).addEventListener('change',drawCalendar);
 $('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
 $('geo-round').addEventListener('change', loadLocations);
 $('latest').addEventListener('click', () => loadLatest());

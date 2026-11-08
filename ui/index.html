@@ -25,6 +25,16 @@
                 <details id="time-picker" class="time-picker">
                     <summary><span id="range-label">Select a time range</span> <strong>UTC</strong> ▾</summary>
                     <div class="time-panel">
+                        <div class="range-calendar">
+                            <div class="calendar-heading">
+                                <button id="calendar-prev" type="button" aria-label="Previous calendar month">‹</button>
+                                <strong id="calendar-month"></strong>
+                                <button id="calendar-next" type="button" aria-label="Next calendar month">›</button>
+                            </div>
+                            <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                            <div id="calendar-days" class="calendar-days" role="group" aria-label="Select start and end dates"></div>
+                            <p id="calendar-help">Choose a start date, then an end date.</p>
+                        </div>
                         <form id="range-form">
                             <h3>Absolute time range · UTC</h3>
                             <label>From <input id="from" type="datetime-local" step="1" required min="2019-01-01T00:00:00" /></label>

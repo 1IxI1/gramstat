@@ -13,18 +13,25 @@ const chart = (id, title, section, unit = '', options = {}) => ({
 });
 const walletReason =
     'Full deployment history is required to identify first activations and previously deployed wallets.';
+const BURN_START = Object.freeze({
+    id: 'protocol-burning-start', utime: 1686983606, mc: 30410593,
+    label: 'Protocol burning starts', color: '#32875a',
+});
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
+        annotations: [BURN_START],
         layout: 'wide',
         fill: true,
         note: 'Exact masterchain observations at an automatic interval, corrected for cumulative burning before protocol v17. Drag to zoom; missing balances remain unknown.',
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
+        annotations: [BURN_START],
         unavailable: 'Two verified supply boundaries one year apart are required.',
     }),
     chart('fees', 'Fees per day', 'gram', 'TON', { kind: 'bar', zero: true }),
     chart('minted', 'Gram minted per day', 'gram', 'GRAM', { kind: 'bar', zero: true }),
     chart('burned', 'Gram burned per day', 'gram', 'GRAM', {
+        annotations: [BURN_START],
         kind: 'bar',
         zero: true,
         note: 'Total protocol burning. A fees / blackhole split is not available.',

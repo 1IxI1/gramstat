@@ -90,3 +90,11 @@ test('per-MC supply retains distinct exact values within the same second', () =>
     assert.match(series.detailsByIndex[0],/MC 103190382/);
     assert.match(series.detailsByIndex[1],/MC 103190383/);
 });
+
+test('burn-start annotations share the exact on-chain boundary', () => {
+    for (const id of ['supply','burned','inflation']) {
+        const [event] = CATALOGUE.find((c) => c.id === id).annotations;
+        assert.equal(event.mc,30410593);
+        assert.equal(new Date(event.utime*1000).toISOString(),'2023-06-17T06:33:26.000Z');
+    }
+});

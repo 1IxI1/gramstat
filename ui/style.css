@@ -51,8 +51,17 @@ a {
 .time-picker { min-width: 0; }
 .time-picker summary { cursor: pointer; list-style: none; line-height: 1.5; }
 .time-picker summary strong { color: var(--blue); font-size: 13px; }
-.time-panel { position: absolute; left: 0; top: calc(100% + 8px); width: min(850px, 100%); display: grid;
-    grid-template-columns: 1.3fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
+.time-panel { position: absolute; left: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
+.range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
+.calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
+.calendar-weekdays { color: var(--blue); font-size: 12px; margin-bottom: 8px; }
+.calendar-days button { padding: 9px 0; border: 0; border-radius: 0; font-size: 14px; }
+.calendar-days button.outside { color: #9aa5ab; }
+.calendar-days button.selected { background: #e1edf3; }
+.calendar-days button.edge { background: var(--blue); color: white; border-radius: 4px; }
+.range-calendar p { font-size: 13px; color: var(--muted); }
 .time-panel form, .quick-ranges { padding: 22px; min-width: 0; }
 .time-panel label { display: block; margin: 16px 0; }
 .time-panel label input { display: block; width: 100%; margin-top: 8px; min-width: 0; }
@@ -64,11 +73,14 @@ a {
 .quick-ranges button:hover, #recent-ranges button:hover { background: var(--plot); }
 #recent-ranges button { font-size: 13px; }
 .range-selection { fill: #5b91b133; stroke: #5b91b1; pointer-events: none; }
-@media (max-width: 640px) {
+.event-marker { pointer-events: none; }
+.event-marker-label { font: 12px Inter, Arial, sans-serif; paint-order: stroke; stroke: #f7f9f9; stroke-width: 3px; }
+@media (max-width: 900px) {
     .time-picker summary { font-size: 13px; padding: 10px 8px; }
     .time-controls > button { padding: 8px; }
     .time-panel { grid-template-columns: minmax(0, 1fr); max-height: 75vh; overflow-y: auto; }
     .quick-ranges { border-left: 0; border-top: 1px solid var(--line); max-height: 220px; }
+    .range-calendar { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 .source-status,
 .chart-status {

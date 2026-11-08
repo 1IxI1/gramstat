@@ -297,6 +297,22 @@ export class TimeChart {
         else if (this.config.kind === 'stacked-area') this.drawStack();
         else this.drawLines();
 
+        const markerStart = this.config.time || !hasReadings
+            ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
+        const markerEnd = this.config.time || !hasReadings
+            ? (this.config.rangeEnd ?? timestamps.at(-1) + 86400000) : timestamps.at(-1) + 86400000;
+        for (const event of this.config.annotations || []) {
+            const at = event.utime * 1000;
+            if (at < markerStart || at >= markerEnd || markerEnd <= markerStart) continue;
+            const mx = left + (at - markerStart) / (markerEnd - markerStart) * (right - left);
+            const marker = node('g', { 'data-event': event.id, class: 'event-marker' });
+            marker.append(node('title', {}, `${event.label} · ${new Date(at).toISOString()} · MC ${event.mc}`));
+            marker.append(node('line', { x1: mx, x2: mx, y1: top, y2: bottom, stroke: event.color, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }));
+            marker.append(node('text', { x: mx + (mx > (left + right) / 2 ? -6 : 6), y: top + 14,
+                fill: event.color, 'text-anchor': mx > (left + right) / 2 ? 'end' : 'start', class: 'event-marker-label' }, event.label));
+            this.svg.append(marker);
+        }
+
         this.selection = node('g', { visibility: 'hidden' });
         this.svg.append(this.selection);
         if (!this.tooltip.hidden) this.show(this.selectedIndex);
