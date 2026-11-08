@@ -81,7 +81,10 @@ export const CATALOGUE = [
         layout: 'wide',
         unavailable: 'Round-level stake series have not been prepared for this API yet.',
     }),
-    chart('validator_count', 'Validators', 'validator', '', { kind: 'step', round: true, integer: true }),
+    chart('validator_count', 'Validators', 'validator', '', {
+        kind: 'step', round: true, integer: true,
+        description: 'Number of elected validators in each validation round.',
+    }),
     chart('countries', 'Countries', 'validator', '', {
         kind: 'step',
         round: true,

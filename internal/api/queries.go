@@ -79,6 +79,11 @@ toString(stars_total) AS stars_total, toString(known_stars_total) AS known_stars
 is_partial, formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 formatDateTime(data_through, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS data_through
 FROM gramstat.telegram_stars_daily FINAL WHERE day >= {from:Date} AND day < {to:Date} ORDER BY day`,
+	"validators": `SELECT utime_since, utime_until, total, is_partial, data_through,
+formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at
+FROM gramstat.validator_rounds FINAL
+WHERE utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
+ AND utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY utime_since`,
 	"rounds": `SELECT r.utime_since, r.utime_until, r.total, r.is_partial, r.data_through,
 formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 g.located, g.unknown, g.countries, g.country_known, g.breakdown,

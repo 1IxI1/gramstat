@@ -15,6 +15,7 @@ let inflationData;
 let inflationError = '';
 let accountsData;
 let accountsError = '';
+let validatorsError = '';
 let activeRange;
 let wideRange = false;
 const recentRanges = [];
@@ -230,7 +231,7 @@ function render() {
         state.value.textContent = formatSummary(value, definition.unit);
         state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.round }) : '';
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -302,6 +303,7 @@ async function load() {
     inflationError = '';
     accountsData = undefined;
     accountsError = '';
+    validatorsError = '';
     $('apply').disabled = true;
     warning('');
     geoRequest++;
@@ -332,7 +334,10 @@ async function load() {
         const coverageRequest = getJSON('/api/v1/coverage', request.signal).catch(() => null);
         const [data, sources, supply, inflation, accounts] = await Promise.all([
             wideRange
-                ? getJSON(`/api/v1/chain?${new URLSearchParams(range)}`, request.signal).then((data) => ({ ...empty, ...data }))
+                ? getJSON(`/api/v1/chain?${new URLSearchParams(range)}`, request.signal).then(async (data) => {
+                    const validators = await getJSON(`/api/v1/validators?${new URLSearchParams(range)}`, request.signal).catch((e) => ({ error: e.message }));
+                    return { ...empty, ...data, rounds: validators.rounds || [], validatorsError: validators.error };
+                })
                 : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
             coverageRequest,
             getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
@@ -341,6 +346,7 @@ async function load() {
             coverageRequest.then(() => getJSON(`/api/v1/accounts?${accountsParams}`, request.signal)).catch((e) => ({ error: e.message })),
         ]);
         if (id !== requestId) return;
+        if (data.validatorsError) validatorsError = `Validators unavailable: ${data.validatorsError}`;
         if (sources) coverage = sources.coverage;
         if (supply.error) supplyError = `Supply unavailable: ${supply.error}`;
         else supplyData = supply;
@@ -367,6 +373,7 @@ function renderRounds() {
     const list = $('geo-round');
     list.replaceChildren();
     for (const [date, r] of Object.entries(readings.roundDetails)) {
+        if (r.located == null) continue;
         const option = element('option', '', `${formatDate(date)} · ${r.located ?? '?'}/${r.total} located`);
         option.value = r.utime_since;
         list.append(option);

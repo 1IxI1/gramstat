@@ -66,6 +66,27 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 	}
 }
 
+func TestHistoricalValidators(t *testing.T) {
+	s := New(readerFunc(func(_ context.Context, name string, q url.Values) (json.RawMessage, error) {
+		if name != "validators" || q.Get("from") != "2019-11-15" || q.Get("to") != "2024-10-13" {
+			t.Fatalf("unexpected read %s %v", name, q)
+		}
+		return json.RawMessage(`[{"utime_since":1573821854,"utime_until":1573921854,"total":5}]`), nil
+	}), logger())
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/validators?from=2019-11-15&to=2024-10-13", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"rounds":[`) || !strings.Contains(w.Body.String(), `"total":5`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	for _, query := range []string{"from=2019-11-15&to=2024-10-13&sql=x", "from=2019-11-15", "from=2024-10-13&to=2019-11-15"} {
+		w = httptest.NewRecorder()
+		s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/validators?"+query, nil))
+		if w.Code != 400 {
+			t.Fatal(query, w.Code)
+		}
+	}
+}
+
 func TestSingleflightAndSafeFailure(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	var calls atomic.Int32
