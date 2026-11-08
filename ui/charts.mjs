@@ -35,9 +35,10 @@ export function sumReadings(values) {
 
 export function buildRows(dates, series) {
     const lookups = series.map((item) => new Map(item.points));
-    return dates.map((date) => {
-        const values = lookups.map((lookup) => {
-            const value = lookup.get(date);
+    return dates.map((date, index) => {
+        const values = lookups.map((lookup, seriesIndex) => {
+            const s = series[seriesIndex];
+            const value = s.ordered && s.points[index]?.[0] === date ? s.points[index][1] : lookup.get(date);
             return Number.isFinite(value) ? value : null;
         });
         return { date, values, total: sumReadings(values) };
@@ -136,11 +137,40 @@ export class TimeChart {
         surface.setAttribute('aria-describedby', 'chart-help');
 
         this.onMove = (event) => {
+            if (this.drag) {
+                const p = this.pointerPosition(event);
+                this.drag.end = p;
+                this.drag.rect.setAttribute('x', Math.min(this.drag.start, p));
+                this.drag.rect.setAttribute('width', Math.abs(p - this.drag.start));
+                this.hide();
+                return;
+            }
             if (event.pointerType !== 'touch') this.showAtPointer(event);
         };
         this.onDown = (event) => {
+            if (event.button === 0 && event.pointerType === 'mouse' && this.config.onRange) {
+                const p = this.pointerPosition(event);
+                const rect = node('rect', { x: p, y: this.geometry.top, width: 0, height: this.geometry.bottom - this.geometry.top, class: 'range-selection' });
+                this.svg.append(rect);
+                this.drag = { start: p, end: p, rect };
+                surface.setPointerCapture(event.pointerId);
+                event.preventDefault();
+            }
             this.pinned = event.pointerType === 'touch' || event.pointerType === 'pen';
             this.showAtPointer(event);
+        };
+        this.onUp = (event) => {
+            const drag = this.drag;
+            if (!drag) return;
+            this.drag = null;
+            drag.rect.remove();
+            if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
+            if (event.type === 'pointercancel' || Math.abs(drag.end - drag.start) < 8) return;
+            const { left, right } = this.geometry;
+            const start = this.config.rangeStart ?? Date.parse(this.rows[0].date);
+            const end = this.config.rangeEnd ?? Date.parse(this.rows.at(-1).date) + 86400000;
+            const at = (x) => start + (x - left) / (right - left) * (end - start);
+            this.config.onRange(at(Math.min(drag.start, drag.end)), at(Math.max(drag.start, drag.end)));
         };
         this.onLeave = () => {
             if (!this.focused && !this.pinned) this.hide();
@@ -177,6 +207,8 @@ export class TimeChart {
         };
         surface.addEventListener('pointermove', this.onMove);
         surface.addEventListener('pointerdown', this.onDown);
+        surface.addEventListener('pointerup', this.onUp);
+        surface.addEventListener('pointercancel', this.onUp);
         surface.addEventListener('pointerleave', this.onLeave);
         surface.addEventListener('focus', this.onFocus);
         surface.addEventListener('blur', this.onBlur);
@@ -214,10 +246,12 @@ export class TimeChart {
         const bottom = height - 41;
         const [minimum, maximum] = domain(this.config, this.rows);
         const timestamps = this.rows.map((r) => Date.parse(r.date));
-        const span = timestamps.at(-1) - timestamps[0];
+        const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
+        const timeEnd = this.config.time ? (this.config.rangeEnd ?? timestamps.at(-1)) : timestamps.at(-1);
+        const span = timeEnd - timeStart;
         const x = (index) =>
-            this.config.round && span > 0
-                ? left + 8 + ((timestamps[index] - timestamps[0]) / span) * (right - left - 16)
+            (this.config.round || this.config.time) && span > 0
+                ? left + ((timestamps[index] - timeStart) / span) * (right - left)
                 : left + ((index + 0.5) / this.rows.length) * (right - left);
         const y = (value) => bottom - ((value - minimum) / (maximum - minimum)) * (bottom - top);
         this.geometry = { width, height, left, right, top, bottom, x, y };
@@ -245,7 +279,7 @@ export class TimeChart {
                 node(
                     'text',
                     { x: x(index), y: height - 13, 'text-anchor': 'middle', class: 'axis-label' },
-                    new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
+                    new Intl.DateTimeFormat('en-GB', this.config.time && span <= 2 * 86400000 ? {timeZone:'UTC',hour:'2-digit',minute:'2-digit', ...(span<=600000?{second:'2-digit'}:{})} : { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
                         new Date(this.rows[index].date),
                     ),
                 ),
@@ -372,10 +406,15 @@ export class TimeChart {
         });
     }
 
+    pointerPosition(event) {
+        const { left, right } = this.geometry;
+        return Math.max(left, Math.min(right, event.clientX - this.surface.getBoundingClientRect().left));
+    }
+
     showAtPointer(event) {
         const { left, right } = this.geometry;
         const position = event.clientX - this.surface.getBoundingClientRect().left;
-        if (this.config.round) {
+        if (this.config.round || this.config.time) {
             let best = 0;
             for (let i = 1; i < this.rows.length; i++)
                 if (Math.abs(this.geometry.x(i) - position) < Math.abs(this.geometry.x(best) - position)) best = i;
@@ -419,7 +458,7 @@ export class TimeChart {
             swatch.style.setProperty('--series-color', item.color);
             label.append(swatch, document.createTextNode(item.label));
             if (item.demo) label.append(demoMark());
-            const exact = item.exact?.[row.date];
+            const exact = item.ordered ? item.exactByIndex?.[this.selectedIndex] : item.exact?.[row.date];
             entry.append(
                 label,
                 html(
@@ -441,7 +480,8 @@ export class TimeChart {
             this.tooltip.append(total);
         }
         if (this.config.note) this.tooltip.append(html('p', 'tooltip-note', this.config.note));
-        const detail = this.config.series.find((s) => s.details?.[row.date])?.details[row.date];
+        const detailSeries = this.config.series.find((s) => s.details?.[row.date]);
+        const detail = detailSeries?.ordered ? detailSeries.detailsByIndex?.[this.selectedIndex] : detailSeries?.details[row.date];
         if (detail) this.tooltip.append(html('p', 'tooltip-note', detail));
         this.tooltip.hidden = false;
         const tooltipWidth = this.tooltip.offsetWidth;
@@ -461,6 +501,8 @@ export class TimeChart {
         if (this.onResize) window.removeEventListener('resize', this.onResize);
         this.surface.removeEventListener('pointermove', this.onMove);
         this.surface.removeEventListener('pointerdown', this.onDown);
+        this.surface.removeEventListener('pointerup', this.onUp);
+        this.surface.removeEventListener('pointercancel', this.onUp);
         this.surface.removeEventListener('pointerleave', this.onLeave);
         this.surface.removeEventListener('focus', this.onFocus);
         this.surface.removeEventListener('blur', this.onBlur);

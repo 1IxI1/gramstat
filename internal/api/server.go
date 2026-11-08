@@ -61,6 +61,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "dashboard"
 	case "/api/v1/locations":
 		name = "locations"
+	case "/api/v1/supply":
+		name = "supply"
 	default:
 		problem(w, 404, "not found")
 		return
@@ -93,9 +95,27 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || (name == "dashboard" && k != "from" && k != "to") || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || (name == "dashboard" && k != "from" && k != "to") || (name == "supply" && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
+	}
+	if name == "supply" {
+		from, e1 := time.Parse(time.RFC3339, q.Get("from"))
+		to, e2 := time.Parse(time.RFC3339, q.Get("to"))
+		if e1 != nil || e2 != nil || !from.Before(to) || from.Year() < 2019 || to.After(now.Truncate(24*time.Hour).Add(24*time.Hour)) || to.Sub(from) > 10*366*24*time.Hour || from.Nanosecond() != 0 || to.Nanosecond() != 0 {
+			return fmt.Errorf("use RFC3339 from/to timestamps, exclusive to, within 2019–today and at most ten years")
+		}
+		budget := 800
+		if q.Has("maxPoints") {
+			n, e := strconv.Atoi(q.Get("maxPoints"))
+			if e != nil || n < 100 || n > 2000 {
+				return fmt.Errorf("maxPoints must be between 100 and 2000")
+			}
+			budget = n
+		}
+		q.Set("from", from.UTC().Format(time.RFC3339))
+		q.Set("to", to.UTC().Format(time.RFC3339))
+		q.Set("maxPoints", strconv.Itoa(budget))
 	}
 	if name == "locations" {
 		n, err := strconv.ParseUint(q.Get("round"), 10, 32)
@@ -165,6 +185,9 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 }
 
 func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, error) {
+	if name == "supply" {
+		return s.loadSupply(ctx, q)
+	}
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	if name == "dashboard" {
 		result["period"] = map[string]string{"from": q.Get("from"), "to": q.Get("to")}

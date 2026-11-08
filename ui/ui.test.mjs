@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
 import { buildRows, formatDate } from './charts.mjs';
-import { decimal, readObservedMetrics, latestChainRange } from './data.mjs';
+import { decimal, readObservedMetrics, latestChainRange, supplySeries } from './data.mjs';
 
 const fixture = () => ({
     schemaVersion: 2,
@@ -75,4 +75,18 @@ test('default range follows chain indexing rather than newer independent sources
         { from: '2019-11-15', to: '2019-11-16' });
     assert.equal(latestChainRange([]), null);
     assert.equal(latestChainRange([{ source: 'chain', first_day: null, last_day: null }]), null);
+});
+
+test('per-MC supply retains distinct exact values within the same second', () => {
+    const series = supplySeries({schemaVersion:2, intervalSeconds:0, points:[
+        {utime:1793741108,mc_seqno:103190382,supply_nanoton:'5000000000000000001'},
+        {utime:1793741108,mc_seqno:103190383,supply_nanoton:null},
+    ]});
+    const rows=buildRows(series.points.map((p)=>p[0]),[series]);
+    assert.equal(rows.length,2);
+    assert.equal(rows[0].values[0],5000000000);
+    assert.equal(rows[1].values[0],null);
+    assert.equal(series.exactByIndex[0],'5000000000.000000001');
+    assert.match(series.detailsByIndex[0],/MC 103190382/);
+    assert.match(series.detailsByIndex[1],/MC 103190383/);
 });

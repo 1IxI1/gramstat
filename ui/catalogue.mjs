@@ -17,7 +17,7 @@ export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'TON', {
         layout: 'wide',
         fill: true,
-        note: 'Last masterchain balance each UTC day, corrected for cumulative burning before protocol v17. Missing stored balances remain unknown.',
+        note: 'Exact masterchain observations at an automatic interval, corrected for cumulative burning before protocol v17. Drag to zoom; missing balances remain unknown.',
     }),
     chart('inflation', 'Annual inflation', 'gram', '%', {
         unavailable: 'Two verified supply boundaries one year apart are required.',

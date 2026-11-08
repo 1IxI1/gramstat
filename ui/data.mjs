@@ -18,6 +18,21 @@ export function latestChainRange(coverage) {
     return { from: new Date(Math.max(start, end - 6 * 86400000)).toISOString().slice(0, 10), to: chain.last_day };
 }
 
+export function supplySeries(data) {
+    if (data?.schemaVersion !== 2 || !Array.isArray(data.points)) throw new Error('Unsupported supply response.');
+    const s = { id: 'total', label: 'Total supply', color: colorAt(0), ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] };
+    for (const p of data.points) {
+        const date = new Date(p.utime * 1000).toISOString();
+        const exact = decimal(p.supply_nanoton, 9);
+        s.points.push([date, exact === null ? null : Number(exact)]);
+        s.exact[date] = exact;
+        s.details[date] = `MC ${p.mc_seqno} · ${date} · ${data.intervalSeconds ? `interval ${data.intervalSeconds}s` : 'every MC'}`;
+        s.exactByIndex.push(exact);
+        s.detailsByIndex.push(s.details[date]);
+    }
+    return s;
+}
+
 export function readObservedMetrics(data) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');

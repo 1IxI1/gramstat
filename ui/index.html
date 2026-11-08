@@ -20,16 +20,35 @@
                 <h1>GRAMSTAT</h1>
             </header>
 
-            <form id="range-form" class="date-range">
-                <label>From <input id="from" type="date" required min="2019-01-01" /></label>
-                <label>Through <input id="to" type="date" required min="2019-01-01" /></label>
-                <button id="apply" type="submit">Apply</button>
-                <button id="latest" type="button">Latest indexed 7 days</button>
-            </form>
+            <div class="time-controls">
+                <button id="range-prev" type="button" aria-label="Previous time range">‹</button>
+                <details id="time-picker" class="time-picker">
+                    <summary><span id="range-label">Select a time range</span> <strong>UTC</strong> ▾</summary>
+                    <div class="time-panel">
+                        <form id="range-form">
+                            <h3>Absolute time range · UTC</h3>
+                            <label>From <input id="from" type="datetime-local" step="1" required min="2019-01-01T00:00:00" /></label>
+                            <label>To <input id="to" type="datetime-local" step="1" required min="2019-01-01T00:00:00" /></label>
+                            <button id="apply" type="submit">Apply time range</button>
+                            <h3>Recently used ranges</h3>
+                            <div id="recent-ranges"></div>
+                        </form>
+                        <div class="quick-ranges">
+                            <input id="range-search" type="search" placeholder="Search quick ranges" aria-label="Search quick ranges" />
+                            <p>Relative to the latest indexed block</p>
+                            <div id="range-presets"></div>
+                            <button id="latest" type="button">Last 7 days</button>
+                            <button id="range-all" type="button">All indexed history</button>
+                        </div>
+                    </div>
+                </details>
+                <button id="range-next" type="button" aria-label="Next time range">›</button>
+                <button id="range-out" type="button" aria-label="Zoom out time range">−</button>
+            </div>
             <p id="source-status" class="source-status">Loading source coverage…</p>
             <p class="source-status">
-                UTC. Missing history stays empty. Days near the indexing boundary are marked partial. Validator
-                charts use round start times.
+                Drag across a chart to select a time range. Supply uses exact UTC times; daily charts use whole UTC days
+                (up to 93 days). Missing history stays empty. Validator charts use round start times.
             </p>
             <div id="warning" class="warning" role="status" hidden>
                 <span id="warning-text"></span><button id="retry" type="button">Retry</button>

@@ -1,5 +1,5 @@
-import { CATALOGUE, periodDates } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange } from './data.mjs';
+import { CATALOGUE } from './catalogue.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -9,6 +9,33 @@ let loading = true;
 let requestId = 0;
 let controller;
 let coverage = [];
+let supplyData;
+let supplyError = '';
+let activeRange;
+let wideRange = false;
+const recentRanges = [];
+const inputTime = (ms) => new Date(ms).toISOString().slice(0, 19);
+const displayTime = (ms) => inputTime(ms).replace('T', ' ');
+
+function setRange(from, to, remember = true) {
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+    const ceiling = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`) + 86400000;
+    from = Math.max(Date.parse('2019-01-01T00:00:00Z'), Math.floor(from / 1000) * 1000);
+    to = Math.min(ceiling, Math.ceil(to / 1000) * 1000);
+    if (to <= from) return;
+    $('from').value = inputTime(from);
+    $('to').value = inputTime(to - 1000);
+    $('time-picker').open = false;
+    if (remember) {
+        if (!recentRanges.some((r) => r.from === from && r.to === to)) recentRanges.unshift({ from, to });
+        recentRanges.splice(5);
+        $('recent-ranges').replaceChildren(...recentRanges.map((r) => {
+            const b = element('button', '', `${displayTime(r.from)} — ${displayTime(r.to - 1000)}`);
+            b.type = 'button'; b.onclick = () => setRange(r.from, r.to, false); return b;
+        }));
+    }
+    load();
+}
 
 function element(tag, className, text) {
     const node = document.createElement(tag);
@@ -39,11 +66,12 @@ function render() {
     if (!readings) return;
     for (const state of cards.values()) {
         const { definition } = state;
-        const series = readings.metrics[definition.id]?.series || [];
-        const dates = definition.round ? readings.roundDates : readings.dates;
-        const shownDates = dates.length ? dates : readings.dates;
+        const isSupply = definition.id === 'supply';
+        const series = isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : readings.metrics[definition.id]?.series || [];
+        const dates = isSupply ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
+        const shownDates = dates.length ? dates : isSupply && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
-        const latest = rows.findLast((r) =>
+        const latest = isSupply ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
         );
         const value = latest
@@ -54,6 +82,7 @@ function render() {
         state.value.textContent = formatSummary(value, definition.unit);
         state.detail.textContent = latest ? formatDate(latest.date) : '';
         state.status.textContent =
+            (isSupply ? supplyError : wideRange ? 'Zoom to 93 days or less for daily and validator charts.' : '') ||
             definition.unavailable ||
             (latest
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date]
@@ -67,9 +96,12 @@ function render() {
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading }, shownDates);
+        state.chart.update({ ...definition, series, loading, time: isSupply,
+            rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
+            onRange: (from, to) => setRange(from, to),
+        }, shownDates);
     }
-    const label = `${readings.period.from} — ${readings.dates.at(-1)} UTC`;
+    const label = activeRange ? `${displayTime(activeRange.from)} — ${displayTime(activeRange.to - 1000)} UTC` : '';
     $('period-status').textContent = label;
     document.querySelectorAll('[data-period-label]').forEach((n) => (n.textContent = label));
     $('source-status').textContent = coverage
@@ -91,10 +123,14 @@ async function getJSON(path, signal) {
 }
 
 function selection() {
-    const from = $('from').value;
-    const inclusive = $('to').value;
-    const to = new Date(Date.parse(`${inclusive}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
-    periodDates(from, to);
+    const start = Date.parse(`${$('from').value}Z`);
+    const end = Date.parse(`${$('to').value}Z`) + 1000;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) throw new Error('Choose a valid UTC interval.');
+    activeRange = { from: start, to: end };
+    $('range-label').textContent = `${displayTime(start)} — ${displayTime(end - 1000)}`;
+    const from = new Date(start).toISOString().slice(0, 10);
+    const to = new Date(Math.ceil(end / 86400000) * 86400000).toISOString().slice(0, 10);
+    wideRange = Date.parse(to) - Date.parse(from) > 93 * 86400000;
     return { from, to };
 }
 
@@ -105,6 +141,8 @@ async function load() {
     controller = request;
     const timeout = setTimeout(() => request.abort(), 25000);
     loading = true;
+    supplyData = undefined;
+    supplyError = '';
     $('apply').disabled = true;
     warning('');
     geoRequest++;
@@ -114,25 +152,32 @@ async function load() {
     // Do not retain another date range behind a failed reload.
     try {
         const range = selection();
+        const dailyRange = wideRange ? { from: range.from, to: new Date(Date.parse(range.from) + 86400000).toISOString().slice(0,10) } : range;
+        const empty = { schemaVersion: 2, network: 'mainnet', period: dailyRange, chain: [], daily: [], stars: [], rounds: [] };
         readings = readObservedMetrics({
             schemaVersion: 2,
             network: 'mainnet',
-            period: range,
+            period: dailyRange,
             chain: [],
             daily: [],
             stars: [],
             rounds: [],
         });
         render();
-        const [data, sources] = await Promise.all([
-            getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
+        const budget = Math.max(100, Math.min(1200, Math.round(cards.get('supply').chart.surface.clientWidth)));
+        const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: String(budget) });
+        const [data, sources, supply] = await Promise.all([
+            wideRange ? Promise.resolve(empty) : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
             getJSON('/api/v1/coverage', request.signal).catch(() => null),
+            getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
         ]);
         if (id !== requestId) return;
         if (sources) coverage = sources.coverage;
+        if (supply.error) supplyError = `Supply unavailable: ${supply.error}`;
+        else supplyData = supply;
         readings = readObservedMetrics(data);
         const params = new URLSearchParams(location.search);
-        params.set('from', range.from);
+        params.set('from', $('from').value);
         params.set('to', $('to').value);
         history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`);
         renderRounds();
@@ -208,12 +253,40 @@ async function loadLocations() {
 
 $('range-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    load();
+    setRange(Date.parse(`${$('from').value}Z`), Date.parse(`${$('to').value}Z`) + 1000);
 });
 $('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
 $('geo-round').addEventListener('change', loadLocations);
-$('latest').addEventListener('click', loadLatest);
-async function loadLatest() {
+$('latest').addEventListener('click', () => loadLatest());
+function indexedBounds() {
+    const supply = coverage.find((s) => s.source === 'supply');
+    if (supply?.last_utime != null) return { from: supply.first_utime * 1000, to: (supply.last_utime + 1) * 1000 };
+    const range = latestChainRange(coverage);
+    if (!range) return null;
+    return { from: Date.parse(`${range.from}T00:00:00Z`), to: Date.parse(`${range.to}T00:00:00Z`) + 86400000 };
+}
+for (const [label, seconds] of [['5 minutes',300],['15 minutes',900],['30 minutes',1800],['1 hour',3600],['3 hours',10800],['6 hours',21600],['12 hours',43200],['24 hours',86400],['2 days',172800],['30 days',2592000],['90 days',7776000]]) {
+    const b = element('button', '', `Last ${label}`); b.type = 'button';
+    b.onclick = () => loadLatest(seconds);
+    $('range-presets').append(b);
+}
+$('range-search').addEventListener('input', (e) => {
+    document.querySelectorAll('.quick-ranges button').forEach((b) => b.hidden = !b.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
+});
+$('range-all').onclick = () => { const b = indexedBounds(); if (b) setRange(b.from, b.to); };
+for (const [id, direction] of [['range-prev',-1],['range-next',1]]) $(id).onclick = () => {
+    if (!activeRange) return;
+    const span = activeRange.to - activeRange.from;
+    setRange(activeRange.from + direction * span, activeRange.to + direction * span);
+};
+$('range-out').onclick = () => {
+    if (!activeRange) return;
+    const half = (activeRange.to - activeRange.from) / 2;
+    setRange(activeRange.from - half, activeRange.to + half);
+};
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('time-picker').open = false; });
+document.addEventListener('pointerdown', (e) => { if (!$('time-picker').contains(e.target)) $('time-picker').open = false; });
+async function loadLatest(seconds = 7 * 86400) {
     const id = ++requestId;
     controller?.abort();
     loading = true;
@@ -223,11 +296,9 @@ async function loadLatest() {
         const sources = await getJSON('/api/v1/coverage', AbortSignal.timeout(20000));
         if (id !== requestId) return;
         coverage = sources.coverage;
-        const range = latestChainRange(coverage);
+        const range = indexedBounds();
         if (!range) throw new Error('No prepared chain history is available yet.');
-        $('from').value = range.from;
-        $('to').value = range.to;
-        await load();
+        setRange(Math.max(range.from, range.to - seconds * 1000), range.to);
     } catch (e) {
         if (id === requestId) warning(`Data could not be loaded. ${e.message}`);
     } finally {
@@ -239,10 +310,10 @@ async function loadLatest() {
     }
 }
 const params = new URLSearchParams(location.search);
-$('to').max = $('from').max = new Date().toISOString().slice(0, 10);
+$('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
 if (params.has('from') && params.has('to')) {
-    $('from').value = params.get('from');
-    $('to').value = params.get('to');
+    $('from').value = params.get('from').length === 10 ? `${params.get('from')}T00:00:00` : params.get('from');
+    $('to').value = params.get('to').length === 10 ? `${params.get('to')}T23:59:59` : params.get('to');
     load();
 } else loadLatest();
 setInterval(

@@ -8,8 +8,12 @@ API and deployment documentation:
 
 ## Data
 
-- Default range: the latest seven indexed chain days from `/api/v1/coverage`. Date controls use UTC;
-  the visible end date is inclusive and API `to` is exclusive. Maximum: 93 days.
+- Default range: seven days ending at the latest indexed Supply block. The time
+  picker has UTC datetime/calendar inputs, searchable quick ranges, recent ranges,
+  previous/next period and zoom out. Its end second is inclusive; API `to` is exclusive.
+- Drag horizontally on a chart to select a range. Supply loads a pixel-budgeted
+  series from `/api/v1/supply`, down to individual MCs. Daily/validator charts use
+  whole UTC days up to 93 days; wider ranges show Supply and an explanatory message.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
 - Activity charts: hourly `daily_metrics` and `telegram_stars_daily`.

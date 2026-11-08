@@ -44,6 +44,32 @@ a {
     border-radius: 3px;
     color: inherit;
 }
+.time-controls { display: flex; align-items: stretch; margin-top: 24px; gap: 4px; position: relative; z-index: 10; }
+.time-controls button, .time-picker summary, .time-panel input {
+    font: inherit; color: inherit; background: white; border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px;
+}
+.time-picker { min-width: 0; }
+.time-picker summary { cursor: pointer; list-style: none; line-height: 1.5; }
+.time-picker summary strong { color: var(--blue); font-size: 13px; }
+.time-panel { position: absolute; left: 0; top: calc(100% + 8px); width: min(850px, 100%); display: grid;
+    grid-template-columns: 1.3fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
+.time-panel form, .quick-ranges { padding: 22px; min-width: 0; }
+.time-panel label { display: block; margin: 16px 0; }
+.time-panel label input { display: block; width: 100%; margin-top: 8px; min-width: 0; }
+.time-panel #apply { background: var(--blue); color: white; margin-bottom: 24px; }
+.quick-ranges { border-left: 1px solid var(--line); max-height: 460px; overflow-y: auto; }
+.quick-ranges input { width: 100%; min-width: 0; }
+.quick-ranges p { font-size: 13px; color: var(--muted); }
+.quick-ranges button, #recent-ranges button { display: block; border: none; text-align: left; width: 100%; }
+.quick-ranges button:hover, #recent-ranges button:hover { background: var(--plot); }
+#recent-ranges button { font-size: 13px; }
+.range-selection { fill: #5b91b133; stroke: #5b91b1; pointer-events: none; }
+@media (max-width: 640px) {
+    .time-picker summary { font-size: 13px; padding: 10px 8px; }
+    .time-controls > button { padding: 8px; }
+    .time-panel { grid-template-columns: minmax(0, 1fr); max-height: 75vh; overflow-y: auto; }
+    .quick-ranges { border-left: 0; border-top: 1px solid var(--line); max-height: 220px; }
+}
 .source-status,
 .chart-status {
     color: #6a7b84;

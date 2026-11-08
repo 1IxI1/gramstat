@@ -39,6 +39,9 @@ INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,roster_dige
 INSERT INTO gramstat.validator_geo_rounds(utime_since,utime_until,total,located,countries,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,379,378,22,'old','hash','2026-10-22 00:00:00');
 `)
 	for name, query := range queries {
+		if strings.HasPrefix(name, "supply_") {
+			continue
+		} // Covered by the checkpoint/raw integration test.
 		b := run(query + " FORMAT JSON")
 		var result struct {
 			Data []map[string]any `json:"data"`

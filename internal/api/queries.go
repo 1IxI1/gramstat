@@ -17,6 +17,35 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"supply_bounds": `SELECT min(first_mc) AS first_mc, max(last_mc) AS last_mc,
+toUInt32(sum(mc_count)) AS mc_count, toString(argMin(tuple(opening_burn),hour).1) AS opening_burn
+FROM gramstat.supply_hourly FINAL
+WHERE hour >= toStartOfHour(toDateTime({from_ts:UInt32},'UTC')) AND hour < toDateTime({to_ts:UInt32},'UTC')`,
+	"supply_raw": `WITH corrected AS (
+ SELECT seqno,gen_utime,
+ multiIf(global_balance IS NULL,NULL,
+ seqno >= 103190382 OR seqno < 30410593,global_balance,
+ {opening_known:UInt8}=0 OR countIf(burned IS NULL) OVER w > 0,NULL,
+ global_balance - {opening_burn:Decimal(38,0)} - sum(burned) OVER w) AS supply,
+ count() OVER () AS raw_count
+ FROM mainnet_gramstat_full.blocks FINAL
+ WHERE workchain=-1 AND shard=-9223372036854775808 AND seqno BETWEEN {first_mc:UInt32} AND {last_mc:UInt32}
+ WINDOW w AS (ORDER BY seqno ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+), points AS (
+ SELECT if({step:UInt32}=0,toUInt64(seqno),intDiv(toUInt64(gen_utime),greatest({step:UInt32},1))) AS bucket,
+ argMax(tuple(supply,gen_utime,seqno),tuple(gen_utime,seqno)) AS point
+ FROM corrected WHERE gen_utime >= {from_ts:UInt32} AND gen_utime < {to_ts:UInt32}
+ AND throwIf(raw_count != toUInt64({last_mc:UInt32})-{first_mc:UInt32}+1,'Incomplete supply block interval')=0
+ GROUP BY bucket
+)
+SELECT toUInt32(point.2) AS utime,toUInt32(point.3) AS mc_seqno,toString(point.1) AS supply_nanoton
+FROM points ORDER BY utime,mc_seqno`,
+	"supply_rollup": `SELECT toUInt32(point.2) AS utime,toUInt32(point.3) AS mc_seqno,toString(point.1) AS supply_nanoton
+FROM (SELECT intDiv(toUInt64(hour),{step:UInt32}) AS bucket,
+argMax(tuple(supply_nanoton,last_utime,last_mc),tuple(last_utime,last_mc)) AS point
+FROM gramstat.supply_hourly FINAL
+WHERE last_utime >= {from_ts:UInt32} AND last_utime < {to_ts:UInt32}
+GROUP BY bucket) ORDER BY utime,mc_seqno`,
 	"chain": `SELECT day, toString(transactions) AS transactions,
 toString(fees_nanoton) AS fees_nanoton, toString(minted_nanoton) AS minted_nanoton,
 toString(burned_nanoton) AS burned_nanoton, toString(supply_nanoton) AS supply_nanoton,
@@ -53,15 +82,19 @@ INNER JOIN gramstat.validator_rounds AS r FINAL
 WHERE g.utime_since = {round:UInt32}`,
 	"coverage": `SELECT 'chain' AS source, toString(minOrNull(day)) AS first_day,
 toString(maxOrNull(day)) AS last_day,
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS updated_at
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS updated_at,
+CAST(NULL AS Nullable(UInt32)) AS first_utime, CAST(NULL AS Nullable(UInt32)) AS last_utime
 FROM gramstat.chain_daily_full FINAL
 UNION ALL SELECT 'actions', toString(minOrNull(day)), toString(maxOrNull(day)),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC')
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
 FROM gramstat.daily_metrics FINAL
 UNION ALL SELECT 'validators', toString(toDate(minOrNull(utime_since), 'UTC')),
 toString(toDate(maxOrNull(utime_since), 'UTC')),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC')
-FROM gramstat.validator_rounds FINAL`,
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
+FROM gramstat.validator_rounds FINAL
+UNION ALL SELECT 'supply',toString(toDate(minOrNull(first_utime),'UTC')),toString(toDate(maxOrNull(last_utime),'UTC')),
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
+FROM gramstat.supply_hourly FINAL`,
 }
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {

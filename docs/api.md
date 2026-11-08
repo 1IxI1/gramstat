@@ -12,6 +12,14 @@ Gramstat dashboard.
   `chain`, `daily`, `stars`, `rounds` arrays in a `schemaVersion: 2` response.
 - `GET /api/v1/locations?round=<utime_since>`: selected round's coordinate points,
   coverage, cutoff and update timestamp. No raw IP, ADNL or internal record IDs.
+- `GET /api/v1/supply?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:
+  RFC3339 timestamps, exclusive `to`, second precision, up to ten years.
+  `maxPoints` defaults to 800 (100–2000). Returns `points` with `utime`, `mc_seqno`
+  and exact nullable `supply_nanoton`, plus `intervalSeconds` and `resolution`.
+  An interval of 0 means every MC; multiple MCs can have the same Unix second.
+  Short windows (at most 48 hours) use bounded MC reads and an opening burn
+  checkpoint; larger windows select last observations from hourly checkpoints.
+  The actual time/MC of each observation is retained, including NULL final values.
 
 GET and HEAD only. Unknown/repeated parameters, invalid dates and future days are
 rejected before querying the source. Read failures return a generic 503; SQL and
@@ -26,10 +34,11 @@ timestamps are preserved rather than assigned to UTC daily buckets.
 
 ## Sources
 
-The API role needs SELECT only on these tables:
+The API reads these prepared tables:
 
 ```
 gramstat.chain_daily_full
+gramstat.supply_hourly
 gramstat.daily_metrics
 gramstat.telegram_stars_daily
 gramstat.validator_rounds
@@ -37,6 +46,10 @@ gramstat.validator_geo_rounds
 ```
 
 `chain_daily_full` contains daily transactions, fees, issuance, burning and supply.
+`supply_hourly` contains UTC-hour MC boundaries, opening/closing cumulative burned
+amounts, and the corrected last-MC supply. Coverage also reports the `supply`
+source with `first_utime` and `last_utime`. The Supply reader has SELECT access to
+indexed `blocks` for short intervals; it bounds reads by MC primary-key ranges.
 `daily_metrics` contains action counts and amounts; `telegram_stars_daily` provides
 Stars purchase totals. The validator tables contain round-level rosters and
 geographical observations.
@@ -69,7 +82,7 @@ GRAMSTAT_CH_PASSWORD=<server-managed secret>
 ```
 
 Use a separate ClickHouse user restricted to the application host, with `readonly=1`
-and SELECT on the five tables above. Set its profile limits to match the fixed
+and SELECT on the tables above plus indexed `blocks`. Set its profile limits to match the fixed
 query settings: `max_execution_time=10`, `max_threads=2`,
 `max_memory_usage=268435456`, `max_result_rows=20000`,
 `max_result_bytes=4194304`, `result_overflow_mode='throw'`,
