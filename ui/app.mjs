@@ -23,6 +23,11 @@ const activityModes = ['hourly', 'daily', 'monthly'];
 const activityFromURL = () => activityModes.includes(new URLSearchParams(location.search).get('activity')) ? new URLSearchParams(location.search).get('activity') : 'daily';
 let activityMode = activityFromURL();
 const activityTabs = [];
+let activityRequest = 0;
+let activityController;
+let activityLoading = false;
+let activityError = '';
+let rangeLoad = Promise.resolve();
 
 function selectActivity(mode) {
     if (mode === activityMode) return;
@@ -30,7 +35,43 @@ function selectActivity(mode) {
     const url = new URL(location.href);
     url.searchParams.set('activity', mode);
     history.pushState(null, '', url);
-    load();
+    loadActivity();
+}
+
+async function loadActivity() {
+    const id = ++activityRequest;
+    activityController?.abort();
+    activityLoading = true;
+    activityError = '';
+    render('wallets', false, 'active_wallets_daily');
+    // A range load already owns up to four reader slots. Wait for it without
+    // restarting it, then fetch only the newly selected wallet view.
+    await rangeLoad;
+    if (id !== activityRequest || !activeRange) return;
+    const request = new AbortController();
+    activityController = request;
+    const timeout = setTimeout(() => request.abort(), 25000);
+    const mode = activityMode;
+    const params = new URLSearchParams({
+        from: new Date(activeRange.from).toISOString().replace('.000Z', 'Z'),
+        to: new Date(activeRange.to).toISOString().replace('.000Z', 'Z'),
+        activity: mode,
+        maxPoints: String(Math.max(100, Math.min(1200, Math.round(cards.get('active_wallets_daily').chart.surface.clientWidth)))),
+    });
+    try {
+        const data = await getJSON(`/api/v1/wallets?${params}`, request.signal);
+        if (id !== activityRequest) return;
+        // Retain the other wallet charts and their publication snapshot.
+        walletsData = walletsData ? { ...walletsData, active: data.active } : data;
+    } catch (e) {
+        if (id === activityRequest) activityError = `Active wallets unavailable: ${e.message}`;
+    } finally {
+        clearTimeout(timeout);
+        if (id === activityRequest) {
+            activityLoading = false;
+            render('wallets', false, 'active_wallets_daily');
+        }
+    }
 }
 
 function syncActivityTabs() {
@@ -252,11 +293,17 @@ window.addEventListener('popstate', () => {
     const to = q.get('to');
     const changedActivity = activityMode !== activityFromURL();
     activityMode = activityFromURL();
-    if (from && to && (from !== $('from').value || to !== $('to').value || changedActivity)) {
-        $('from').value = from.length === 10 ? `${from}T00:00:00` : from;
-        $('to').value = to.length === 10 ? `${to}T23:59:59` : to;
+    const fromInput = from?.length === 10 ? `${from}T00:00:00` : from;
+    const toInput = to?.length === 10 ? `${to}T23:59:59` : to;
+    // datetime-local normalizes away :00 seconds; compare instants, not text.
+    if (from && to && (Date.parse(`${fromInput}Z`) !== Date.parse(`${$('from').value}Z`) || Date.parse(`${toInput}Z`) !== Date.parse(`${$('to').value}Z`))) {
+        $('from').value = fromInput;
+        $('to').value = toInput;
         syncExpandedChart(false);
         load();
+    } else if (changedActivity) {
+        syncExpandedChart(false);
+        loadActivity();
     } else syncExpandedChart();
 });
 
@@ -264,21 +311,23 @@ function chartGroup(definition) {
     return definition.section === 'wallet' ? 'wallets' : ['supply', 'inflation', 'accounts'].includes(definition.id) ? definition.id : 'observations';
 }
 
-function render(group, roundsOnly = false) {
+function render(group, roundsOnly = false, onlyID) {
     if (!readings) return;
     syncActivityTabs();
     for (const state of cards.values()) {
         const { definition } = state;
+        if (onlyID && definition.id !== onlyID) continue;
         const currentGroup = chartGroup(definition);
         if (group && group !== currentGroup) continue;
         if (roundsOnly && !definition.round) continue;
-        const loading = pendingCharts.has(currentGroup);
+        const isActivity = definition.id === 'active_wallets_daily';
+        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading);
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
         const temporal = isSupply || isInflation || isAccounts || isWallet;
-        const series = isWallet ? (walletsData ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
+        const series = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
         const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
@@ -305,7 +354,7 @@ function render(group, roundsOnly = false) {
             const available = (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
             const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:'Unique wallets over 30 complete UTC days ending on each displayed day.'}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
             const missing = isActivity && activityMode === 'monthly' ? 'Each point requires 30 prepared days; incomplete or not-yet-prepared windows are omitted.' : 'History is being prepared.';
-            state.status.textContent = walletsError || (loading ? 'Loading wallet data…' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
+            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
         if (state.average) {
@@ -360,7 +409,16 @@ function selection() {
     return { from, to };
 }
 
-async function load() {
+function load() {
+    activityRequest++;
+    activityController?.abort();
+    activityLoading = false;
+    activityError = '';
+    rangeLoad = loadRange();
+    return rangeLoad;
+}
+
+async function loadRange() {
     const id = ++requestId;
     controller?.abort();
     const request = new AbortController();
