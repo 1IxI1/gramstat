@@ -19,6 +19,9 @@ type ClickHouseReader struct{ CH *ClickHouse }
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"daily_columns":           dailyColumnsSQL,
+	"stars_columns":           starsColumnsSQL,
+	"chain_columns":           chainColumnsSQL,
 	"wallet_days":             walletDaysSQL,
 	"wallet_activity":         walletActivitySQL,
 	"wallet_activity_average": walletActivityAverageSQL,
@@ -136,7 +139,7 @@ FROM gramstat.accounts_hourly FINAL`,
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {
 	// Keep individual reads within the SELECT-only role's fixed result budget.
 	// The public response still includes every daily observation for the range.
-	if name == "daily" {
+	if name == "daily" || name == "daily_columns" {
 		from, e1 := time.Parse(time.DateOnly, params.Get("from"))
 		to, e2 := time.Parse(time.DateOnly, params.Get("to"))
 		if e1 == nil && e2 == nil && to.Sub(from) > 366*24*time.Hour {

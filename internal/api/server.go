@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -36,6 +39,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Vary", "Accept, Accept-Encoding")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		problem(w, 405, "method not allowed")
@@ -59,6 +63,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "coverage"
 	case "/api/v1/dashboard":
 		name = "dashboard"
+	case "/api/v2/dashboard":
+		name = "columns"
 	case "/api/v1/activity":
 		name = "activity"
 	case "/api/v1/chain":
@@ -79,14 +85,50 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		problem(w, 404, "not found")
 		return
 	}
-	if err = validate(name, q, time.Now().UTC()); err != nil {
+	validationName := name
+	if name == "columns" {
+		validationName = "dashboard"
+	}
+	if err = validate(validationName, q, time.Now().UTC()); err != nil {
 		problem(w, 400, err.Error())
 		return
 	}
-	key := name + "?" + q.Encode()
+	binaryResponse := accepts(r.Header.Get("Accept"), binaryContentType)
+	compressed := accepts(r.Header.Get("Accept-Encoding"), "gzip")
+	key := name + "?" + q.Encode() + fmt.Sprintf("|binary=%t|gzip=%t", binaryResponse, compressed)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	data, err := s.cached(ctx, key, func() ([]byte, error) { return s.load(ctx, name, q) })
+	started := time.Now()
+	data, err := s.cached(ctx, key, func() ([]byte, error) {
+		data, err := s.load(ctx, name, q)
+		if err != nil {
+			return nil, err
+		}
+		if binaryResponse {
+			data, err = encodeColumns(data)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if len(data) > 32<<20 {
+			return nil, fmt.Errorf("chart response exceeds limit")
+		}
+		if compressed {
+			var output bytes.Buffer
+			writer, err := gzip.NewWriterLevel(&output, gzip.BestSpeed)
+			if err != nil {
+				return nil, err
+			}
+			if _, err = writer.Write(data); err != nil {
+				return nil, err
+			}
+			if err = writer.Close(); err != nil {
+				return nil, err
+			}
+			data = output.Bytes()
+		}
+		return data, nil
+	})
 	if err != nil {
 		// Source errors may contain SQL or internal addresses. Only server logs get them.
 		s.log.Error("chart read failed", "route", name, "error", err)
@@ -95,9 +137,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60")
+	w.Header().Set("Server-Timing", fmt.Sprintf("prepare;dur=%.3f", float64(time.Since(started).Microseconds())/1000))
+	if binaryResponse {
+		w.Header().Set("Content-Type", binaryContentType)
+	}
+	if compressed {
+		w.Header().Set("Content-Encoding", "gzip")
+	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(data)
 	}
+}
+
+func accepts(header, token string) bool {
+	for _, item := range strings.Split(header, ",") {
+		parts := strings.Split(item, ";")
+		if !strings.EqualFold(strings.TrimSpace(parts[0]), token) {
+			continue
+		}
+		for _, part := range parts[1:] {
+			if q, ok := strings.CutPrefix(strings.TrimSpace(part), "q="); ok {
+				quality, err := strconv.ParseFloat(q, 64)
+				return err == nil && quality > 0 && quality <= 1
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func problem(w http.ResponseWriter, status int, message string) {
@@ -217,6 +284,9 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 }
 
 func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, error) {
+	if name == "columns" {
+		return s.loadColumns(ctx, q)
+	}
 	if name == "wallets" {
 		return s.loadWallets(ctx, q)
 	}

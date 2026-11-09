@@ -1,5 +1,6 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, monthlyActivity, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
+import { readObservedMetrics, expandActivityColumns, monthlyActivity, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
+import { BINARY_TYPE, decodeColumns } from './wire.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 
@@ -30,11 +31,10 @@ let activityError = '';
 let rangeLoad = Promise.resolve();
 const sectionModeFromURL = () => new URLSearchParams(location.search).get('activityInterval') === 'monthly' ? 'monthly' : 'daily';
 let sectionMode = sectionModeFromURL();
-let monthlyReadings;
+let sectionReadings;
+let activitySource;
 let sectionLoading = false;
 let sectionError = '';
-let sectionRequest = 0;
-let sectionController;
 const sectionTabs = [...$('activity-interval').querySelectorAll('button')];
 
 function selectSectionMode(mode) {
@@ -55,31 +55,11 @@ for (const [i, tab] of sectionTabs.entries()) {
     };
 }
 
-async function loadSectionActivity() {
-    const id = ++sectionRequest;
-    sectionController?.abort();
-    sectionLoading = sectionMode === 'monthly';
+function loadSectionActivity() {
+    sectionLoading = pendingCharts.has('observations');
     sectionError = '';
+    sectionReadings = activitySource ? sectionMode === 'monthly' ? monthlyActivity(activitySource) : readObservedMetrics({ ...activitySource, period: readings.period }) : undefined;
     render('activity');
-    if (sectionMode !== 'monthly') return;
-    await rangeLoad;
-    if (id !== sectionRequest || !activeRange) return;
-    const start = new Date(activeRange.from), last = new Date(activeRange.to - 1);
-    const from = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)).toISOString().slice(0, 10);
-    const end = Date.UTC(last.getUTCFullYear(), last.getUTCMonth() + 1, 1);
-    const tomorrow = Math.floor(Date.now()/86400000)*86400000 + 86400000;
-    const to = new Date(Math.min(end, tomorrow)).toISOString().slice(0, 10);
-    const request = new AbortController(); sectionController = request;
-    const timeout = setTimeout(() => request.abort(), 25000);
-    try {
-        const data = await getJSON(`/api/v1/activity?${new URLSearchParams({ from, to })}`, request.signal);
-        if (id === sectionRequest) monthlyReadings = monthlyActivity(data);
-    } catch (e) {
-        if (id === sectionRequest) { monthlyReadings = undefined; sectionError = `Monthly Activity unavailable: ${e.message}`; }
-    } finally {
-        clearTimeout(timeout);
-        if (id === sectionRequest) { sectionLoading = false; render('activity'); }
-    }
 }
 
 function selectActivity(mode) {
@@ -390,7 +370,7 @@ function render(group, roundsOnly = false, onlyID) {
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly;
-        const observations = monthly ? monthlyReadings : readings;
+        const observations = isSection ? sectionReadings : readings;
         const series = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
         const dates = monthly ? observations?.dates || [] : temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
@@ -482,8 +462,9 @@ function warning(message) {
 }
 
 async function getJSON(path, signal) {
-    const r = await fetch(path, { signal, cache: 'no-cache' });
+    const r = await fetch(path, { signal, cache: 'no-cache', headers: { Accept: BINARY_TYPE } });
     if (!r.ok) throw new Error(`Request failed (${r.status}).`);
+    if (r.headers.get('content-type')?.startsWith(BINARY_TYPE)) return decodeColumns(await r.arrayBuffer());
     return r.json();
 }
 
@@ -499,17 +480,15 @@ function selection() {
 }
 
 function load() {
-    sectionRequest++;
-    sectionController?.abort();
-    monthlyReadings = undefined;
-    sectionLoading = sectionMode === 'monthly';
+    sectionReadings = undefined;
+    activitySource = undefined;
+    sectionLoading = true;
     sectionError = '';
     activityRequest++;
     activityController?.abort();
     activityLoading = false;
     activityError = '';
     rangeLoad = loadRange();
-    if (sectionMode === 'monthly') loadSectionActivity();
     return rangeLoad;
 }
 
@@ -589,14 +568,20 @@ async function loadRange() {
             }),
             async () => {
                 try {
-                    const data = await getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal);
+                    const data = await getJSON(`/api/v2/dashboard?${new URLSearchParams(range)}`, request.signal);
                     if (id !== requestId) return;
-                    readings = readObservedMetrics({ ...empty, ...data });
+                    if (data.schemaVersion !== 3) throw Error('Unsupported dashboard response.');
+                    readings = readObservedMetrics({ ...empty, ...data, schemaVersion: 2 });
+                    activitySource = expandActivityColumns(data.activity);
+                    sectionReadings = sectionMode === 'monthly' ? monthlyActivity(activitySource) : readObservedMetrics({ ...activitySource, period: range });
+                    sectionLoading = false;
                     pendingCharts.delete('observations');
                     render('observations');
                     renderRounds();
                 } catch (e) {
                     if (id !== requestId) return;
+                    sectionLoading = false;
+                    sectionError = `Activity unavailable: ${e.message}`;
                     warning(`Data could not be loaded. ${e.message}`);
                     pendingCharts.delete('observations');
                     render('observations');

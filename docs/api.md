@@ -5,6 +5,54 @@ Gramstat dashboard.
 
 ## HTTP contract
 
+- `GET /api/v2/dashboard?from=2019-11-15&to=2026-08-16`: UTC `[from,to)`,
+  the same 3660-day bound as v1. `schemaVersion: 3` returns compact `chain` and
+  `rounds`, plus `activity` columns sharing one `dates` axis. Activity includes
+  complete boundary calendar months, capped at tomorrow UTC. Its `metrics`
+  vectors contain exact `values`, nullable `amounts`, `partial` flags and optional
+  DEX `breakdown` vectors; Stars has `total`, `known`, `unknown`, `partial` vectors.
+  Missing rows are null, observed zeros remain zero. `monthly_` metrics are the
+  independently prepared unique-address counts. The UI slices Daily to the
+  selected range and calculates Monthly from the prefetched months with the same
+  adapters as v1, without a second request or summing daily distinct users.
+
+All data routes support `Accept: application/vnd.gramstat.columns.v1` for the
+lossless **GSC1** binary representation, and `Accept-Encoding: gzip`. Without the
+binary Accept header, responses remain JSON (v1 contracts are unchanged).
+Representations are cached separately and advertise `Vary: Accept, Accept-Encoding`.
+`Server-Timing: prepare` reports server preparation/cache time, excluding download.
+
+### GSC1 transport
+
+Four ASCII magic bytes `GSC1` precede one recursively encoded value. Lengths are
+unsigned base-128 varints; text is UTF-8 preceded by its byte length. Tags:
+
+| Tag | Encoding |
+| --- | --- |
+| 0 / 1 / 2 | null / false / true |
+| 3 | little-endian float64 (JSON floating-point values and safe scalar numbers) |
+| 4 | text |
+| 5 | array length, recursively encoded items |
+| 6 | object key count, text key / value pairs |
+| 7 | table row count, column count, text key / encoded column-array pairs |
+| 8 | absent object property (distinct from null) |
+| 9 | vector length, number/string kind byte, width byte, mask-present byte, optional mask, packed integers |
+| 10 | vector length and one repeated scalar value |
+| 11 | number sequence length, start and step varints |
+| 12 | date sequence length, axis-kind byte (UTC day=0, calendar month=1), start and step varints |
+
+Integer widths are chosen from 1, 2, 4, 8 or 16 bytes after inspecting the entire
+vector. Kind 0 restores JSON numbers; kind 1 restores integer strings. Values are
+unsigned little-endian. The optional bitmap uses two bits per position, low bits
+first: 0=value, 1=null, 2=absent; no integer bytes are stored for null/absent
+positions. Numeric strings are restored through BigInt to exact strings in JS;
+money never passes through Number. Non-integer strings retain their original
+text, including fractional zeros. Unsafe unquoted integer tokens are rejected.
+Date-axis starts are Unix days or `year * 12 + month - 1`. The reference decoder
+is `ui/wire.mjs`; cross-language tests compare Go encoding with this decoder.
+
+### Legacy routes
+
 - `GET /api/health`: process liveness (not data freshness).
 - `GET /api/v1/coverage`: observed first/last day and latest calculation time per
   source. These bounds do not certify gap-free ingestion.
@@ -158,7 +206,7 @@ The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
 `/api/` proxies the loopback service. Static paths are allowlisted; historical
 snapshots, provenance and repository files are not served. Copy only `index.html`,
-`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wallet-registry.mjs`, `style.css`, `favicon.svg`
+`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `wallet-registry.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
 
 For HTTPS deployment through HAProxy, terminate TLS at the proxy and forward

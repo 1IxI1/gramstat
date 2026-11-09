@@ -255,6 +255,31 @@ export function readObservedMetrics(data) {
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
 }
 
+// Restore the existing adapter contract from shared-axis columns. There is no
+// numerical conversion here: exact strings, zeros and unknowns remain distinct.
+export function expandActivityColumns(data) {
+    const dates = data?.dates;
+    if (!Array.isArray(dates) || !data.period || !Array.isArray(data.metrics)) throw Error('Invalid Activity columns.');
+    const column = (values) => {
+        if (!Array.isArray(values) || values.length !== dates.length) throw Error('Invalid Activity column length.');
+        return values;
+    };
+    const daily = [];
+    for (const metric of data.metrics) {
+        const values = column(metric.values), amounts = column(metric.amounts), partial = column(metric.partial);
+        for (const values of Object.values(metric.breakdown || {})) column(values);
+        for (let i = 0; i < dates.length; i++) {
+            if (values[i] === null) continue;
+            daily.push({ metric: metric.metric, day: dates[i], value: values[i], amount_nanoton: amounts[i], is_partial: partial[i],
+                breakdown: Object.fromEntries(Object.entries(metric.breakdown || {}).map(([key, values]) => [key, values[i]])) });
+        }
+    }
+    const { total, known, unknown, partial } = data.stars;
+    [total, known, unknown, partial].forEach(column);
+    const stars = dates.flatMap((day, i) => known[i] === null ? [] : [{ day, stars_total: total[i], known_stars_total: known[i], unknown_purchases: unknown[i], is_partial: partial[i] }]);
+    return { schemaVersion: 2, network: 'mainnet', period: data.period, chain: [], daily, stars, rounds: [] };
+}
+
 // Calendar-month sums use exact strings. Unique addresses come only from the
 // independently prepared monthly observations, never the sum of daily uniques.
 export function monthlyActivity(data) {

@@ -96,3 +96,41 @@ func TestActivityRouteReadsOnlyPreparedActivity(t *testing.T) {
 		t.Fatal("invalid input reached source")
 	}
 }
+
+func TestColumnDashboardUsesSelectedCoreRangeAndWholeActivityMonths(t *testing.T) {
+	calls := map[string]int{}
+	s := New(readerFunc(func(_ context.Context, name string, q url.Values) (json.RawMessage, error) {
+		calls[name]++
+		from, to := "2024-02-10", "2024-02-20"
+		if name == "daily_columns" || name == "stars_columns" {
+			from, to = "2024-02-01", "2024-03-01"
+		}
+		if q.Get("from") != from || q.Get("to") != to {
+			t.Fatalf("%s: %v", name, q)
+		}
+		return json.RawMessage(`[]`), nil
+	}), logger())
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v2/dashboard?from=2024-02-10&to=2024-02-20", nil))
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var data struct {
+		Schema   int             `json:"schemaVersion"`
+		Activity activityColumns `json:"activity"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &data); err != nil {
+		t.Fatal(err)
+	}
+	if data.Schema != 3 || len(data.Activity.Dates) != 29 || data.Activity.Dates[28] != "2024-02-29" {
+		t.Fatal(data)
+	}
+	for _, name := range []string{"chain_columns", "rounds", "daily_columns", "stars_columns"} {
+		if calls[name] != 1 {
+			t.Fatal(calls)
+		}
+	}
+	if len(calls) != 4 {
+		t.Fatal(calls)
+	}
+}

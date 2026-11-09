@@ -25,6 +25,11 @@ API and deployment documentation:
   receivers and swap users require independently prepared monthly distinct counts.
   Every Activity chart shows an exact-arithmetic mean per displayed series below
   the plot, in units/day or units/month, excluding unknown buckets.
+- The page loads `/api/v2/dashboard` once for the selected range, including shared
+  Activity date/value columns for whole boundary months. Daily / Monthly toggles
+  reuse that response locally. All API requests negotiate lossless GSC1 binary
+  columns and HTTP gzip; exact integers use 8–128 bits as required, with explicit
+  missing-value masks. `wire.mjs` restores the existing exact-string adapter inputs.
 - Supply, daily fees, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.
