@@ -35,11 +35,10 @@ func (c *ClickHouse) Query(ctx context.Context, query string, params url.Values)
 	for k, v := range params {
 		p[k] = v
 	}
-	p.Set("query", query)
 	p.Set("readonly", "1")
 	p.Set("wait_end_of_query", "1")
 	u.RawQuery = p.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}

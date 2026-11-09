@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 type Reader interface {
@@ -144,6 +145,7 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 	for k, v := range params {
 		p["param_"+k] = v
 	}
+	query = walletPublicationParams(query, p)
 	data, err := c.CH.Query(ctx, query+" FORMAT JSON", p)
 	if err != nil {
 		return nil, err
@@ -158,4 +160,25 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 		return nil, fmt.Errorf("missing chart rows")
 	}
 	return result.Data, nil
+}
+
+// Keep each HTTP field below ClickHouse's form-field limit even for the full
+// history. All queries still use the same captured publication snapshot.
+func walletPublicationParams(query string, p url.Values) string {
+	const placeholder = "{published:Array(Tuple(Date,String))}"
+	const chunkSize = 32 * 1024
+	value := p.Get("param_published")
+	if len(value) <= chunkSize || !strings.Contains(query, placeholder) {
+		return query
+	}
+	delete(p, "param_published")
+	var chunks []string
+	for i := 0; len(value) > 0; i++ {
+		n := min(len(value), chunkSize)
+		key := fmt.Sprintf("published_chunk_%d", i)
+		p.Set("param_"+key, value[:n])
+		chunks = append(chunks, "{"+key+":String}")
+		value = value[n:]
+	}
+	return strings.ReplaceAll(query, placeholder, "CAST(concat("+strings.Join(chunks, ",")+"), 'Array(Tuple(Date,String))')")
 }

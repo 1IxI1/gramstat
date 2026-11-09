@@ -3,12 +3,39 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"net/url"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestFullHistoryPublicationParameters(t *testing.T) {
+	binary, err := exec.LookPath("clickhouse")
+	if err != nil {
+		t.Skip("clickhouse-local unavailable")
+	}
+	var tuples []string
+	start := time.Date(2019, 11, 15, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 3660; i++ {
+		tuples = append(tuples, fmt.Sprintf("('%s','00000000-0000-0000-0000-%012d')", start.AddDate(0, 0, i).Format(time.DateOnly), i))
+	}
+	p := url.Values{"param_published": {"[" + strings.Join(tuples, ",") + "]"}}
+	query := walletPublicationParams("WITH {published:Array(Tuple(Date,String))} AS p SELECT length(p), tupleElement(p[3660],2)", p)
+	args := []string{"local", "--path", t.TempDir(), "--query", query}
+	for k, values := range p {
+		if len(values[0]) > 32*1024 {
+			t.Fatal("oversized HTTP field", k)
+		}
+		args = append(args, "--"+k, values[0])
+	}
+	out, err := exec.Command(binary, args...).CombinedOutput()
+	if err != nil || string(out) != "3660\t00000000-0000-0000-0000-000000003659\n" {
+		t.Fatalf("%v: %s", err, out)
+	}
+}
 
 func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 	calls := 0
