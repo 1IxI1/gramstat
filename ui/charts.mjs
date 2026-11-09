@@ -8,9 +8,10 @@ export function formatValue(value, unit = '') {
     return `${exactNumber.format(value)}${unit === '%' ? '%' : unit ? ` ${unit}` : ''}`;
 }
 
-// Shorten only display text: the exact decimal strings remain untouched in series data.
+// Format display text without converting exact decimal strings to floating point.
 export function formatTooltipExact(value) {
-    return value.replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
+    const [whole, fraction] = value.replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1').split('.');
+    return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fraction === undefined ? '' : `.${fraction}`);
 }
 
 export function formatSummary(value, unit = '') {

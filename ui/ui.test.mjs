@@ -113,12 +113,15 @@ test('x-axis dates include years on long or year-crossing ranges', () => {
     assert.equal(formatAxisDate(date, { span: 300000, time: true }), '12:00:00');
 });
 
-test('tooltip removes only insignificant decimal zeroes, never rounding exact money', () => {
-    assert.equal(formatTooltipExact('577149.900000000'), '577149.9');
+test('tooltip groups whole digits and removes only insignificant fractional zeroes', () => {
+    assert.equal(formatTooltipExact('49677279'), '49,677,279');
+    assert.equal(formatTooltipExact('161758846'), '161,758,846');
+    assert.equal(formatTooltipExact('577149.900000000'), '577,149.9');
     assert.equal(formatTooltipExact('100.000000000'), '100');
     assert.equal(formatTooltipExact('0.000000000'), '0');
     assert.equal(formatTooltipExact('0.000000001'), '0.000000001');
-    assert.equal(formatTooltipExact('5258373238.061259412'), '5258373238.061259412');
+    assert.equal(formatTooltipExact('5258373238.061259412'), '5,258,373,238.061259412');
+    assert.equal(formatTooltipExact('9007199254740993.01'), '9,007,199,254,740,993.01');
     assert.equal(formatTooltipExact('-0.120000000000'), '-0.12');
 });
 
@@ -163,8 +166,8 @@ test('annualized inflation preserves negative rates, exact inputs and unknown wi
     const rows=buildRows(series.points.map((p)=>p[0]),[series]);
     assert.equal(rows[0].values[0],-0.123456789012);
     assert.equal(rows[1].values[0],null);
-    assert.match(series.details[rows[0].date],/9007199\.254740993 GRAM/);
-    assert.match(series.details[rows[0].date],/5000000000\.000000001 GRAM/);
+    assert.match(series.details[rows[0].date],/9,007,199\.254740993 GRAM/);
+    assert.match(series.details[rows[0].date],/5,000,000,000\.000000001 GRAM/);
     const [min,max]=domain(CATALOGUE.find((c)=>c.id==='inflation'),rows);
     assert.ok(min<rows[0].values[0] && max>rows[0].values[0]);
     assert.throws(()=>inflationSeries({schemaVersion:2,windowSeconds:3600,points:[]}));
