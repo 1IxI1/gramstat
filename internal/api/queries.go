@@ -20,6 +20,7 @@ type ClickHouseReader struct{ CH *ClickHouse }
 var queries = map[string]string{
 	"wallet_days":      walletDaysSQL,
 	"wallet_activity":  walletActivitySQL,
+	"wallet_monthly":   walletMonthlySQL,
 	"wallet_count":     walletCountSQL,
 	"wallet_activated": walletActivatedSQL,
 	"accounts_bounds":  accountsBoundsSQL,

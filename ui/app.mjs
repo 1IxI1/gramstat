@@ -19,6 +19,29 @@ let accountsData;
 let accountsError = '';
 let walletsData;
 let walletsError = '';
+const activityModes = ['hourly', 'daily', 'monthly'];
+const activityFromURL = () => activityModes.includes(new URLSearchParams(location.search).get('activity')) ? new URLSearchParams(location.search).get('activity') : 'daily';
+let activityMode = activityFromURL();
+const activityTabs = [];
+
+function selectActivity(mode) {
+    if (mode === activityMode) return;
+    activityMode = mode;
+    const url = new URL(location.href);
+    url.searchParams.set('activity', mode);
+    history.pushState(null, '', url);
+    load();
+}
+
+function syncActivityTabs() {
+    for (const tab of activityTabs) {
+        const selected = tab.dataset.mode === activityMode;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+    }
+    const surface = cards.get('active_wallets_daily')?.chart.surface;
+    surface?.setAttribute('aria-labelledby', `activity-${activityMode}`);
+}
 let validatorsError = '';
 let activeRange;
 let wideRange = false;
@@ -119,6 +142,26 @@ for (const definition of CATALOGUE) {
     const detail = element('span', 'readout-detail');
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
     const surface = element('div', 'chart-surface');
+    if (definition.id === 'active_wallets_daily') {
+        const tabs = element('div', 'activity-tabs');
+        tabs.setAttribute('role', 'tablist');
+        tabs.setAttribute('aria-label', 'Active wallets interval');
+        surface.id = 'active-wallets-panel';
+        surface.setAttribute('role', 'tabpanel');
+        for (const [i, mode] of activityModes.entries()) {
+            const tab = element('button', '', mode[0].toUpperCase() + mode.slice(1));
+            tab.type = 'button'; tab.id = `activity-${mode}`; tab.dataset.mode = mode;
+            tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', surface.id);
+            tab.onclick = () => selectActivity(mode);
+            tab.onkeydown = (e) => {
+                const index = e.key === 'ArrowRight' ? (i + 1) % 3 : e.key === 'ArrowLeft' ? (i + 2) % 3 : e.key === 'Home' ? 0 : e.key === 'End' ? 2 : -1;
+                if (index < 0) return;
+                e.preventDefault(); activityTabs[index].focus(); selectActivity(activityModes[index]);
+            };
+            activityTabs.push(tab); tabs.append(tab);
+        }
+        heading.append(tabs);
+    }
     surface.append(expand);
     let average;
     let averageValue;
@@ -207,7 +250,9 @@ window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
     const from = q.get('from');
     const to = q.get('to');
-    if (from && to && (from !== $('from').value || to !== $('to').value)) {
+    const changedActivity = activityMode !== activityFromURL();
+    activityMode = activityFromURL();
+    if (from && to && (from !== $('from').value || to !== $('to').value || changedActivity)) {
         $('from').value = from.length === 10 ? `${from}T00:00:00` : from;
         $('to').value = to.length === 10 ? `${to}T23:59:59` : to;
         syncExpandedChart(false);
@@ -221,6 +266,7 @@ function chartGroup(definition) {
 
 function render(group, roundsOnly = false) {
     if (!readings) return;
+    syncActivityTabs();
     for (const state of cards.values()) {
         const { definition } = state;
         const currentGroup = chartGroup(definition);
@@ -255,9 +301,11 @@ function render(group, roundsOnly = false) {
                 : 'No covered observations in this interval.');
         if (isWallet) {
             const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;
-            const available = walletsData?.coverageDays.length ?? 0;
-            const interval = definition.id === 'active_wallets_daily' && walletsData ? `Interval: ${{60:'1 minute',3600:'1 hour',86400:'1 day'}[walletsData.active.intervalSeconds]}. ` : '';
-            state.status.textContent = walletsError || (loading ? 'Loading wallet data…' : available ? `${interval}${available < totalDays ? `${available} of ${totalDays} UTC days available; history is being prepared.` : ''}` : 'Wallet history is being prepared for this interval.');
+            const isActivity = definition.id === 'active_wallets_daily';
+            const available = (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
+            const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:'Unique wallets over 30 complete UTC days ending on each displayed day.'}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
+            const missing = isActivity && activityMode === 'monthly' ? 'Each point requires 30 prepared days; incomplete or not-yet-prepared windows are omitted.' : 'History is being prepared.';
+            state.status.textContent = walletsError || (loading ? 'Loading wallet data…' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
         if (state.average) {
@@ -358,6 +406,7 @@ async function load() {
         const accountsParams = new URLSearchParams(supplyParams);
         accountsParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('accounts').chart.surface.clientWidth)))));
         const walletParams = new URLSearchParams(supplyParams);
+        walletParams.set('activity', activityMode);
         walletParams.set('maxPoints', String(Math.max(100, Math.min(1200, Math.round(cards.get(expandedId === 'active_wallets_daily' ? 'active_wallets_daily' : 'activated_wallets').chart.surface.clientWidth)))));
         const chartTask = (group, path, accept) => async () => {
             const data = await getJSON(path, request.signal).catch((e) => ({ error: e.message }));

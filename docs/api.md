@@ -47,11 +47,20 @@ Gramstat dashboard.
   the same timestamp contract. Returns `activated`, `activations`, `active`, each
   with `points` (`utime`, exact integer-string `value`, and MC for cumulative
   points) and `intervalSeconds`. Cumulative points obey the budget and preserve
-  same-second MCs at interval 0. Activity selects 60/3600/86400-second UTC buckets;
-  daily activity and daily activations retain all days even beyond the target
-  point budget. Boundary buckets are whole aligned intervals. `coverageDays`
+   same-second MCs at interval 0. `activity=hourly|daily|monthly` selects a fixed
+   window; default `daily`. Hourly uses 3600-second UTC buckets, daily 86400.
+   Monthly is a rolling exact 30-day union with daily points, not calendar months.
+   Its point for day D covers [D−29 days, D+1 day), and requires all 30 certified
+   days. `active.windowSeconds` describes the window; `intervalSeconds` is the
+   point cadence. `active.coverageDays` separately identifies ready activity days.
+   Wide hourly views select the last exact hourly observation in each display bin,
+   never sum or union hours: `sampleStepSeconds` reports this sampling stride.
+   Daily/monthly activity and activations retain all days beyond the target
+   point budget. Boundary buckets are whole aligned intervals. `coverageDays`
   identifies prepared days, `registry` identifies the frozen code registry.
-  All series bind to the same published run per day. Unverified preparations are
+   Hourly/daily series bind to the same published run per day; monthly counts
+   retain their 30 contributing verified day versions in `wallet_monthly`.
+   The API role needs SELECT on that scalar table. Unverified preparations are
   excluded and missing days are gaps. The source epoch is fixed server-side;
   clients cannot select arbitrary databases, registries or run IDs.
 

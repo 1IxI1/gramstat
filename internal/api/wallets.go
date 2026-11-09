@@ -18,10 +18,18 @@ const walletDaysSQL = `SELECT day,toString(argMax(d.run_id,tuple(through_mc,calc
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
  GROUP BY day ORDER BY day`
 
-const walletActivitySQL = `SELECT bucket AS utime,toString(active) AS value FROM gramstat.wallet_counts
+const walletActivitySQL = `SELECT max(bucket) AS utime,toString(argMax(active,bucket)) AS value FROM gramstat.wallet_counts
  WHERE source_id={source:String} AND registry={registry:String} AND step={step:UInt32}
  AND bucket>=intDiv({from_ts:UInt32},{step:UInt32})*{step:UInt32} AND bucket<{to_ts:UInt32}
- AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))} ORDER BY bucket`
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
+ GROUP BY intDiv(bucket,{sample_step:UInt32}) ORDER BY utime`
+
+const walletMonthlySQL = `SELECT toUInt32(toUnixTimestamp(toDateTime(day,'UTC'))) AS utime,
+ toString(argMax(active,calculated_at)) AS value FROM gramstat.wallet_monthly
+ WHERE source_id={source:String} AND registry={registry:String}
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ GROUP BY day ORDER BY day`
 
 const walletCountSQL = `SELECT toUInt32(count()) AS count FROM gramstat.wallet_activations_mc
  WHERE source_id={source:String} AND registry={registry:String}
@@ -95,13 +103,24 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		daily = append(daily, map[string]any{"utime": date.Unix(), "value": d.Activations})
 	}
 	p.Set("published", published+"]")
-	activityStep := int64(60)
-	for _, step := range []int64{60, 3600, 86400} {
-		activityStep = step
-		if (to.Unix()-from.Unix()+step-1)/step <= int64(budget) {
-			break
-		}
+	mode := q.Get("activity")
+	if mode == "" {
+		mode = "daily"
 	}
+	activityStep, windowSeconds := int64(86400), int64(86400)
+	if mode == "hourly" {
+		activityStep = 3600
+		windowSeconds = 3600
+	}
+	if mode == "monthly" {
+		windowSeconds = 30 * 86400
+	}
+	sampleStep := activityStep
+	if mode == "hourly" {
+		hours := (to.Unix()-1)/3600 - from.Unix()/3600 + 1
+		sampleStep = ((hours + int64(budget) - 1) / int64(budget)) * 3600
+	}
+	p.Set("sample_step", strconv.FormatInt(sampleStep, 10))
 	activatedStep := supplyInterval(to.Unix()-from.Unix(), budget)
 	activated, activity := json.RawMessage(`[]`), json.RawMessage(`[]`)
 	if len(coverage) > 0 {
@@ -126,14 +145,31 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 			return nil, err
 		}
 		p.Set("step", strconv.FormatInt(activityStep, 10))
-		activity, err = s.reader.Read(ctx, "wallet_activity", p)
+		query := "wallet_activity"
+		if mode == "monthly" {
+			query = "wallet_monthly"
+		}
+		activity, err = s.reader.Read(ctx, query, p)
 		if err != nil {
 			return nil, err
+		}
+	}
+	activeDates := dates
+	if mode == "monthly" {
+		var points []struct {
+			Utime uint32 `json:"utime"`
+		}
+		if err = json.Unmarshal(activity, &points); err != nil {
+			return nil, err
+		}
+		activeDates = []string{}
+		for _, point := range points {
+			activeDates = append(activeDates, time.Unix(int64(point.Utime), 0).UTC().Format(time.DateOnly))
 		}
 	}
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "registry": walletRegistry, "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "coverageDays": dates,
 		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated},
 		"activations": map[string]any{"intervalSeconds": 86400, "points": daily},
-		"active":      map[string]any{"intervalSeconds": activityStep, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
+		"active":      map[string]any{"mode": mode, "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	return json.Marshal(result)
 }

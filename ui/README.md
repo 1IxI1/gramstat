@@ -61,7 +61,11 @@ API and deployment documentation:
   legacy Highload and V5 beta entries link source history, rather than asserting
   that a particular unverified compiler/revision reproduces their hash.
   `/api/v1/wallets` supplies prepared per-MC cumulative values, daily activations
-  and exact activity counts with an automatic minute/hour/day interval. Missing
+  and exact activity counts with Hourly / Daily / Monthly tabs (Daily by default).
+  Monthly is a rolling 30-complete-UTC-day unique count with daily points.
+  Wide hourly views sample exact hourly observations; zoom does not change the
+  chosen counting window. The tab is retained in the `activity` URL parameter.
+  Missing
   preparation days remain gaps; the status shows partial coverage during backfill.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.

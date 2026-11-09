@@ -105,9 +105,19 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || ((name == "dashboard" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints") || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || ((name == "dashboard" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
+	}
+	if name == "wallets" {
+		mode := q.Get("activity")
+		if mode == "" {
+			mode = "daily"
+		}
+		if mode != "hourly" && mode != "daily" && mode != "monthly" {
+			return fmt.Errorf("activity must be hourly, daily or monthly")
+		}
+		q.Set("activity", mode)
 	}
 	if name == "supply" || name == "inflation" || name == "accounts" || name == "wallets" {
 		from, e1 := time.Parse(time.RFC3339, q.Get("from"))
