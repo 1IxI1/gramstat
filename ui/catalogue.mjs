@@ -144,7 +144,7 @@ export const CATALOGUE = [
         monthlyDescription: 'Newly minted .ton domain NFTs per UTC calendar month. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',
     }),
     chart('liquid_staking_deposits', 'Liquid staking deposits', 'activity', '', { kind: 'bar', zero: true }),
-    chart('lst_amount', 'Liquid staking deposited', 'activity', 'GRAM', {
+    chart('lst_amount', 'Liquid stakes deposited', 'activity', 'GRAM', {
         kind: 'stacked-bar',
         zero: true,
         layout: 'wide',
