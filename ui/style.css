@@ -13,17 +13,55 @@
     src: url('./fonts/InterVariable-Italic.woff2') format('woff2');
 }
 :root {
+    color-scheme: light dark;
     font-family: Inter, Arial, sans-serif;
     font-synthesis: none;
     font-variant-numeric: tabular-nums;
-    color: #27343b;
-    background: #fff;
-    --blue: #5b91b1;
+    color: light-dark(#27343b, #e0e8ed);
+    background: light-dark(#fff, #11191f);
+    --blue: light-dark(#5b91b1, #83b6d6);
     --green: #5c9980;
     --red: #c27870;
-    --muted: #849198;
-    --line: #e3e8e9;
-    --plot: #f7f9f9;
+    --muted: light-dark(#849198, #a0afb9);
+    --line: light-dark(#e3e8e9, #33434e);
+    --plot: light-dark(#f7f9f9, #19252e);
+}
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+#theme-toggle { margin-right: auto; min-width: 42px; font-size: 20px; line-height: 1; }
+
+/* Shared surfaces and labels also cover SVG charts and modal views. */
+:root {
+.date-range input, .date-range button, .geo-panel select,
+.time-controls button, .time-picker summary, .time-panel input,
+.time-panel, .wallet-registry, .wallet-registry-heading, .expanded-chart,
+.chart-toggle button[aria-pressed='true'], .skip-link {
+    background: light-dark(#fff, #11191f);
+}
+.chart-tooltip { background: light-dark(#fffffff7, #1e2c36f7); }
+.source-status, .chart-status, .chart-description, .wallet-hash-label,
+.chart-explanation, .chart-average, .tooltip-date {
+    color: light-dark(#6a7b84, #aabac5);
+}
+h3, .chart-expand, .chart-tooltip, .chart-toggle button[aria-pressed='true'] {
+    color: light-dark(#53626b, #c8d6df);
+}
+.chart-expand:hover, .legend-item:hover, .skip-link { color: light-dark(#27343b, #e0e8ed); }
+.wallet-registry-link, .wallet-registry-table a { color: light-dark(#397799, #83b6d6); }
+.chart-legend, .tooltip-note, .section-date, .readout-unit, .readout-detail,
+.chart-toggle button, footer, .footer-quote { color: var(--muted); }
+.masthead, .chart-tooltip, .tooltip-total { border-color: var(--line); }
+.axis-label, .chart-empty { fill: var(--muted); }
+.grid-line { stroke: light-dark(#e5ebed, #33434e); }
+.event-marker-label { stroke: var(--plot); }
+.calendar-days button.selected { background: light-dark(#e1edf3, #2a4659); }
+.calendar-days button.edge, .calendar-choices button[aria-pressed='true'],
+.time-panel #apply, .activity-tabs button[aria-selected='true'] {
+    color: light-dark(#fff, #11191f);
+}
+.chart-toggle { background: var(--plot); }
+.warning { background: light-dark(#fff5e8, #382e20); color: light-dark(#775528, #e7c38c); }
+.warning button { border-color: light-dark(#dec9ab, #806641); }
 }
 
 * {

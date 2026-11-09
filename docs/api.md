@@ -203,6 +203,10 @@ outside the requested window. Missing mappings, unreconciled penalty allocation,
 late releases or gaps leave unknown points. The API reads only the prepared
 `gramstat.validator_stake_changes` table (grant SELECT to its read-only role).
 
+The `chain` coverage row also exposes nullable `last_complete_day`, the latest
+UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day
+range end no later than this day's end, even when newer blocks are available.
+
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
 can have partial edge days because shard generation timestamps can straddle the

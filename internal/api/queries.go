@@ -136,23 +136,24 @@ WHERE g.utime_since = {round:UInt32}`,
 	"coverage": `SELECT 'chain' AS source, toString(minOrNull(day)) AS first_day,
 toString(maxOrNull(day)) AS last_day,
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS updated_at,
-CAST(NULL AS Nullable(UInt32)) AS first_utime, CAST(NULL AS Nullable(UInt32)) AS last_utime
+CAST(NULL AS Nullable(UInt32)) AS first_utime, CAST(NULL AS Nullable(UInt32)) AS last_utime,
+toString(maxOrNullIf(day, is_partial = 0)) AS last_complete_day
 FROM gramstat.chain_daily_full FINAL
 UNION ALL SELECT 'actions', toString(minOrNull(day)), toString(maxOrNull(day)),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL, NULL
 FROM gramstat.daily_metrics FINAL WHERE NOT startsWith(metric,'monthly_')
 UNION ALL SELECT 'validators', toString(toDate(minOrNull(utime_since), 'UTC')),
 toString(toDate(maxOrNull(utime_since), 'UTC')),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL, NULL
 FROM gramstat.validator_rounds FINAL
 UNION ALL SELECT 'supply',toString(toDate(minOrNull(first_utime),'UTC')),toString(toDate(maxOrNull(last_utime),'UTC')),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime), NULL
 FROM gramstat.supply_hourly FINAL
 UNION ALL SELECT 'inflation',toString(toDate(minOrNull(point_at),'UTC')),toString(toDate(maxOrNull(point_at),'UTC')),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),toUInt32(minOrNull(point_at)),toUInt32(maxOrNull(point_at))
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),toUInt32(minOrNull(point_at)),toUInt32(maxOrNull(point_at)), NULL
 FROM gramstat.inflation_hourly FINAL
 UNION ALL SELECT 'accounts',toString(toDate(minOrNull(first_utime),'UTC')),toString(toDate(maxOrNull(last_utime),'UTC')),
-formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
+formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime), NULL
 FROM gramstat.accounts_hourly FINAL`,
 }
 

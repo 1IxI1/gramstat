@@ -5,6 +5,30 @@ import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 
 const $ = (id) => document.getElementById(id);
+const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+let preferredTheme;
+try { preferredTheme = localStorage.getItem('gramstat-theme'); } catch {}
+function applyTheme() {
+    const dark = preferredTheme === 'dark' || (preferredTheme !== 'light' && systemTheme.matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    $('theme-toggle').setAttribute('aria-pressed', String(dark));
+    $('theme-toggle').textContent = dark ? '☀' : '☾';
+    $('theme-toggle').title = dark ? 'Switch to light theme' : 'Switch to dark theme';
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#11191f' : '#ffffff';
+}
+applyTheme();
+systemTheme.addEventListener('change', applyTheme);
+$('theme-toggle').addEventListener('click', () => {
+    preferredTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('gramstat-theme', preferredTheme); } catch {}
+    applyTheme();
+});
+window.addEventListener('storage', event => {
+    if (event.key === 'gramstat-theme' || event.key === null) {
+        preferredTheme = event.newValue;
+        applyTheme();
+    }
+});
 const cards = new Map();
 let readings;
 let loading = true;
@@ -809,9 +833,12 @@ async function loadLatest(seconds = 90 * 86400) {
         const range = indexedBounds();
         if (!range) throw new Error('No prepared chain history is available yet.');
         const supply = coverage.find(s => s.source === 'supply');
-        const end = supply?.last_utime != null
+        let end = supply?.last_utime != null
             ? Math.floor(range.to / 86400000) * 86400000
             : Date.parse(`${coverage.find(s => s.source === 'chain').last_day}T00:00:00Z`);
+        const completeDay = coverage.find(s => s.source === 'chain')?.last_complete_day;
+        if (!completeDay) throw new Error('No confirmed complete UTC day is available yet.');
+        end = Math.min(end, Date.parse(`${completeDay}T00:00:00Z`) + 86400000);
         if (end <= range.from) throw new Error('No complete UTC day is available yet.');
         setRange(Math.max(range.from, end - seconds * 1000), end);
     } catch (e) {

@@ -37,7 +37,8 @@ func TestQueriesWithRealClickHouse(t *testing.T) {
 	}
 	run(schema + stakeChangesFixture + `
 INSERT INTO gramstat.chain_daily_full VALUES('2026-10-21',1,100,0,0,NULL,NULL,1,1,3,'fixture','2026-10-28 00:00:00'),
-('2026-10-22',7,NULL,50,0,5258373238061259412,1792627200,0,1,3,'fixture','2026-10-28 00:00:00');
+('2026-10-22',7,NULL,50,0,5258373238061259412,1792627200,0,1,3,'fixture','2026-10-28 00:00:00'),
+('2026-10-23',1,100,0,0,NULL,NULL,1,1,3,'fixture','2026-10-28 00:00:00');
 INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,380,'current','hash','2026-10-22 00:00:00');
 INSERT INTO gramstat.validator_geo_rounds(utime_since,utime_until,total,located,countries,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,379,378,22,'old','hash','2026-10-22 00:00:00');
 INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id,submitted_nanogram,selected_nanogram,remaining_nanogram,unfreeze_utime,config34_hash,roster_digest,status,calculated_at,reward_nanogram) VALUES(1792540800,1792606336,1792540800,900719925474099312345,800719925474099312345,NULL,NULL,'hash','current','missing_result','2026-10-22 00:00:00',NULL);
@@ -54,12 +55,19 @@ INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id
 			t.Fatalf("%s: %v %s", name, err, b)
 		}
 		if name == "chain" {
-			if len(result.Data) != 2 {
+			if len(result.Data) != 3 {
 				t.Fatal(string(b))
 			}
 			r := result.Data[1]
 			if r["supply_nanoton"] != "5258373238061259412" || r["fees_nanoton"] != nil || r["transactions"] != "7" || r["is_partial"] != float64(0) {
 				t.Fatal(string(b))
+			}
+		}
+		if name == "coverage" {
+			for _, row := range result.Data {
+				if row["source"] == "chain" && row["last_complete_day"] != "2026-10-22" {
+					t.Fatal("incorrect complete daily boundary: " + string(b))
+				}
 			}
 		}
 		if name == "rounds" && (len(result.Data) != 1 || result.Data[0]["countries"] != nil || result.Data[0]["located"] != nil) {
