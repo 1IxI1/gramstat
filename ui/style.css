@@ -55,6 +55,15 @@ a {
     grid-template-columns: 1fr 1.2fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
 .range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.calendar-title { display: flex; align-items: baseline; justify-content: center; gap: 4px; min-width: 0; }
+.calendar-title button { border: 0; background: transparent; padding: 5px 2px; font-weight: 600; cursor: pointer; }
+.calendar-title button:hover, .calendar-title button:focus-visible { color: var(--blue); text-decoration: underline; text-underline-offset: 4px; }
+.calendar-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.calendar-choices button { border: 0; padding: 10px 3px; background: transparent; cursor: pointer; }
+.calendar-choices button:hover:not(:disabled) { background: var(--plot); }
+.calendar-choices button[aria-pressed='true'] { background: var(--blue); color: white; border-radius: 5px; }
+.calendar-choices button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.range-calendar [hidden] { display: none; }
 .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
 .calendar-weekdays { color: var(--blue); font-size: 12px; margin-bottom: 8px; }
 .calendar-days button { padding: 9px 0; border: 0; border-radius: 0; font-size: 14px; }
@@ -67,7 +76,6 @@ a {
 .time-panel label input { display: block; width: 100%; margin-top: 8px; min-width: 0; }
 .time-panel #apply { background: var(--blue); color: white; margin-bottom: 24px; }
 .quick-ranges { border-left: 1px solid var(--line); max-height: 460px; overflow-y: auto; }
-.quick-ranges input { width: 100%; min-width: 0; }
 .quick-ranges p { font-size: 13px; color: var(--muted); }
 .quick-ranges button, #recent-ranges button { display: block; border: none; text-align: left; width: 100%; }
 .quick-ranges button:hover, #recent-ranges button:hover { background: var(--plot); }

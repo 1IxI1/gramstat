@@ -123,10 +123,48 @@ const inputTime = (ms) => new Date(ms).toISOString().slice(0, 19);
 const displayTime = (ms) => inputTime(ms).replace('T', ' ');
 let calendarMonth;
 let calendarStart = null;
+let calendarView = 'days';
+const calendarMinimumYear = 2019;
+const monthName = (year, month) => new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month, 1)));
+const decadeStart = (year) => Math.floor((year - 1) / 10) * 10 + 1;
 
 function drawCalendar() {
     if (!calendarMonth) return;
-    $('calendar-month').textContent = new Intl.DateTimeFormat('en-GB', {month:'long',year:'numeric',timeZone:'UTC'}).format(calendarMonth);
+    const year = calendarMonth.getUTCFullYear();
+    const month = calendarMonth.getUTCMonth();
+    const current = new Date();
+    const latestYear = current.getUTCFullYear();
+    const latestMonth = current.getUTCMonth();
+    $('calendar-month').textContent = monthName(year, month);
+    $('calendar-year').textContent = String(year);
+    $('calendar-decade').textContent = `${decadeStart(year)} – ${decadeStart(year) + 9}`;
+    $('calendar-month').hidden = $('calendar-year').hidden = calendarView === 'years';
+    $('calendar-decade').hidden = calendarView !== 'years';
+    document.querySelector('.calendar-weekdays').hidden = calendarView !== 'days';
+    $('calendar-days').hidden = calendarView !== 'days';
+    $('calendar-choices').hidden = calendarView === 'days';
+    $('calendar-prev').disabled = calendarView === 'days' ? year === calendarMinimumYear && month === 0
+        : calendarView === 'months' ? year === calendarMinimumYear : decadeStart(year) <= calendarMinimumYear;
+    $('calendar-next').disabled = calendarView === 'days' ? year === latestYear && month === latestMonth
+        : calendarView === 'months' ? year === latestYear : decadeStart(year) + 10 > latestYear;
+    if (calendarView !== 'days') {
+        const years = calendarView === 'years';
+        $('calendar-choices').setAttribute('aria-label', years ? 'Choose calendar year' : 'Choose calendar month');
+        $('calendar-choices').replaceChildren(...Array.from({length: years ? 10 : 12}, (_, i) => {
+            const choice = years ? decadeStart(year) + i : i;
+            const b = element('button', '', years ? String(choice) : monthName(year, choice));
+            b.type = 'button';
+            b.setAttribute('aria-pressed', String(choice === (years ? year : month)));
+            b.disabled = years ? choice < calendarMinimumYear || choice > latestYear : year === latestYear && choice > latestMonth;
+            b.onclick = () => {
+                calendarMonth = new Date(Date.UTC(years ? choice : year, years ? month : choice, 1));
+                calendarView = years ? 'months' : 'days';
+                drawCalendar();
+            };
+            return b;
+        }));
+        return;
+    }
     const first = Date.UTC(calendarMonth.getUTCFullYear(), calendarMonth.getUTCMonth(), 1);
     const offset = (new Date(first).getUTCDay() + 6) % 7;
     const start = Date.parse(`${$('from').value.slice(0,10)}T00:00:00Z`);
@@ -679,13 +717,18 @@ $('time-picker').addEventListener('toggle', () => {
     if (!$('time-picker').open) return;
     const from = new Date(`${$('from').value || inputTime(Date.now())}Z`);
     calendarMonth = new Date(Date.UTC(from.getUTCFullYear(),from.getUTCMonth(),1));
+    calendarView = 'days';
     calendarStart = null;
     $('calendar-help').textContent = 'Choose a start date, then an end date.';
     drawCalendar();
 });
 for (const [id,direction] of [['calendar-prev',-1],['calendar-next',1]]) $(id).onclick = () => {
-    calendarMonth = new Date(Date.UTC(calendarMonth.getUTCFullYear(),calendarMonth.getUTCMonth()+direction,1)); drawCalendar();
+    const years = calendarView === 'years';
+    calendarMonth = new Date(Date.UTC(calendarMonth.getUTCFullYear() + (years ? direction * 10 : calendarView === 'months' ? direction : 0),calendarMonth.getUTCMonth() + (calendarView === 'days' ? direction : 0),1));
+    drawCalendar();
 };
+$('calendar-month').onclick = () => { calendarView = 'months'; drawCalendar(); };
+$('calendar-year').onclick = () => { calendarView = 'years'; drawCalendar(); };
 for (const id of ['from','to']) $(id).addEventListener('change',drawCalendar);
 $('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
 $('geo-round').addEventListener('change', loadLocations);
@@ -705,9 +748,6 @@ for (const [label, seconds] of [
     b.onclick = () => loadLatest(seconds);
     $('range-presets').append(b);
 }
-$('range-search').addEventListener('input', (e) => {
-    document.querySelectorAll('.quick-ranges button').forEach((b) => b.hidden = !b.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
-});
 $('range-all').onclick = () => {
     const b = indexedBounds();
     if (b) {

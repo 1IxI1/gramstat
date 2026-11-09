@@ -28,11 +28,16 @@
                         <div class="range-calendar">
                             <div class="calendar-heading">
                                 <button id="calendar-prev" type="button" aria-label="Previous calendar month">‹</button>
-                                <strong id="calendar-month"></strong>
+                                <div class="calendar-title">
+                                    <button id="calendar-month" type="button" aria-label="Choose calendar month"></button>
+                                    <button id="calendar-year" type="button" aria-label="Choose calendar year"></button>
+                                    <strong id="calendar-decade" hidden></strong>
+                                </div>
                                 <button id="calendar-next" type="button" aria-label="Next calendar month">›</button>
                             </div>
                             <div class="calendar-weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
                             <div id="calendar-days" class="calendar-days" role="group" aria-label="Select start and end dates"></div>
+                            <div id="calendar-choices" class="calendar-choices" role="group" hidden></div>
                             <p id="calendar-help">Choose a start date, then an end date.</p>
                         </div>
                         <form id="range-form">
@@ -44,7 +49,6 @@
                             <div id="recent-ranges"></div>
                         </form>
                         <div class="quick-ranges">
-                            <input id="range-search" type="search" placeholder="Search quick ranges" aria-label="Search quick ranges" />
                             <p>Relative to the latest indexed block</p>
                             <div id="range-presets"></div>
                             <button id="range-all" type="button">All time</button>
@@ -52,7 +56,7 @@
                     </div>
                 </details>
                 <button id="range-next" type="button" aria-label="Next time range">›</button>
-                <button id="range-out" type="button" title="Double the visible time span around its center">Zoom out</button>
+                <button id="range-out" type="button" title="Double the visible time span around its center">Zoom out (x2)</button>
             </div>
             <p id="source-status" hidden></p>
             <div id="warning" class="warning" role="status" hidden>
