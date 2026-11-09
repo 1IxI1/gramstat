@@ -34,6 +34,7 @@ export const CATALOGUE = [
     }),
     chart('fees', 'Daily fees', 'gram', 'GRAM', {
         averageUnit: 'GRAM/day',
+        annotations: [BURN_START],
         kind: 'bar', zero: true,
         description: 'Total fees collected from transaction (compute, action etc.) fees and message import fees each UTC day.',
     }),
