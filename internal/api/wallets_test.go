@@ -23,6 +23,10 @@ func TestFullHistoryPublicationParameters(t *testing.T) {
 		tuples = append(tuples, fmt.Sprintf("('%s','00000000-0000-0000-0000-%012d')", start.AddDate(0, 0, i).Format(time.DateOnly), i))
 	}
 	p := url.Values{"param_published": {"[" + strings.Join(tuples, ",") + "]"}}
+	unused := url.Values{"param_published": {p.Get("param_published")}}
+	if walletPublicationParams(walletMonthlySQL, unused) != walletMonthlySQL || unused.Has("param_published") {
+		t.Fatal("monthly request retained unused oversized publication field")
+	}
 	query := walletPublicationParams("WITH {published:Array(Tuple(Date,String))} AS p SELECT length(p), tupleElement(p[3660],2)", p)
 	args := []string{"local", "--path", t.TempDir(), "--query", query}
 	for k, values := range p {

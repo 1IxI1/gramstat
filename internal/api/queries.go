@@ -169,7 +169,11 @@ func walletPublicationParams(query string, p url.Values) string {
 	const placeholder = "{published:Array(Tuple(Date,String))}"
 	const chunkSize = 32 * 1024
 	value := p.Get("param_published")
-	if len(value) <= chunkSize || !strings.Contains(query, placeholder) {
+	if !strings.Contains(query, placeholder) {
+		delete(p, "param_published")
+		return query
+	}
+	if len(value) <= chunkSize {
 		return query
 	}
 	delete(p, "param_published")
