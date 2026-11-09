@@ -173,4 +173,19 @@ INSERT INTO gramstat.wallet_activations_mc SELECT 's','r',toDate('2025-01-01')+t
 	if len(result.Data) != 2 || result.Data[0].Value != "4096" || result.Data[1].Value != "407664" {
 		t.Fatal(string(out))
 	}
+	for i := range args {
+		if args[i] == "--query" {
+			args[i+1] = walletCountSQL + " SETTINGS max_rows_to_read=100000"
+		}
+		if args[i] == "--param_from_ts" {
+			args[i+1] = fmt.Sprint(start.AddDate(0, 0, 99).Unix())
+		}
+		if args[i] == "--param_to_ts" {
+			args[i+1] = fmt.Sprint(start.AddDate(0, 0, 100).Unix())
+		}
+	}
+	out, err = exec.Command(binary, args...).CombinedOutput()
+	if err != nil || string(out) != "4096\n" {
+		t.Fatalf("bounded single-day count: %v: %s", err, out)
+	}
 }
