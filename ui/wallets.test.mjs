@@ -1,8 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { walletSeries } from './data.mjs';
+import { walletSeries, dailyAverage, observationPeriodLabel } from './data.mjs';
 import { buildRows } from './charts.mjs';
 import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
+
+test('activity mean uses every hour rather than sampled plot points', () => {
+    const mean = dailyAverage(['sample'], {exact:{sample:'7'}}, {sum:'10',count:2,total:3});
+    assert.equal(mean.value, '5.00');
+    assert.equal(mean.count, 2);
+    assert.equal(mean.partial, true);
+});
+
+test('observation captions distinguish days, hours, months, instants and round bounds', () => {
+    const date='2026-07-15T23:00:00Z';
+    assert.equal(observationPeriodLabel(date,{id:'activations',section:'wallet'}),'for 15 Jul 2026 · UTC day');
+    assert.match(observationPeriodLabel(date,{id:'active_wallets_daily',section:'wallet'},'hourly'),/15 Jul 2026 23:00.*16 Jul 2026 00:00 UTC/);
+    assert.equal(observationPeriodLabel(date,{id:'active_wallets_daily',section:'wallet'},'monthly'),'for Jul 2026 · UTC month');
+    assert.match(observationPeriodLabel(date,{id:'supply'}),/^as of .*23:00:00 UTC$/);
+    assert.match(observationPeriodLabel(date,{id:'inflation'}),/^24h ending /);
+    assert.match(observationPeriodLabel(date,{id:'fees'}),/UTC day$/);
+    assert.match(observationPeriodLabel(date,{round:true},null,{utime_until:Date.parse('2026-07-16T23:00:00Z')/1000}),/^round .*15 Jul.*16 Jul.*UTC$/);
+});
 
 test('wallet adapter preserves MC ties, exact zero, and missing-day gaps', () => {
     const data = { schemaVersion: 2, registry: WALLET_REGISTRY_SHA256, period: { from: '2024-10-13T00:00:00Z', to: '2024-10-15T00:00:00Z' }, coverageDays: ['2024-10-13'],

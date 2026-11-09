@@ -57,6 +57,9 @@ Gramstat dashboard.
    fixed `windowSeconds` and `intervalSeconds` and daily coverage dates.
    Wide hourly views select the last exact hourly observation in each display bin,
    never sum or union hours: `sampleStepSeconds` reports this sampling stride.
+   Sampled hourly responses also include `active.average` with exact integer-string
+   `sum` and integer `count` across every covered hour, so the displayed mean is
+   independent of plot sampling. Missing hours are excluded rather than zeroed.
    Daily/monthly activity and activations retain all buckets beyond the target
    point budget. Boundary buckets are whole aligned intervals. `coverageDays`
   identifies prepared days, `registry` identifies the frozen code registry.

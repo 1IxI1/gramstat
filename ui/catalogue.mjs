@@ -72,11 +72,11 @@ export const CATALOGUE = [
         description: 'Both masterchain (-1) and basechain (0) transactions.',
     }),
     chart('active_wallets_daily', 'Active wallets', 'wallet', '', {
-        layout: 'full', kind: 'bar', zero: true, integer: true, registryTerm: 'wallet', registryTerms: ['wallet', 'wallets'],
+        layout: 'full', kind: 'bar', zero: true, integer: true, averageUnit: 'wallets/day', registryTerm: 'wallet', registryTerms: ['wallet', 'wallets'],
         description: "Unique addresses that sent at least one non-bounced message during the selected window, after or in the same transaction as their first recognized wallet deployment. Internal and external-out messages count, including sends initiated through extensions; incoming messages alone do not count. Once an address has been deployed as a recognized wallet, its later sends still count, even if its code changes or it is deleted and deployed again (because wallets don't allow code changes really).",
     }),
     chart('activations', 'Activations per day', 'wallet', '', {
-        layout: 'half', kind: 'bar', zero: true, integer: true, registryTerm: 'wallet code',
+        layout: 'half', kind: 'bar', zero: true, integer: true, averageUnit: 'wallets/day', registryTerm: 'wallet code',
         description: 'Unique addresses first deployed with a recognized wallet code each UTC day, using the deployment transaction’s time. Earlier non-wallet deployments do not exclude an address; repeated wallet deployments are not counted again. Outgoing messages are not required.',
     }),
     chart('activated_wallets', 'Activated wallets', 'wallet', '', {

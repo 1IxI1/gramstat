@@ -270,7 +270,7 @@ h2 {
 .activity-tabs button { border: 0; border-radius: 5px; padding: 5px 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
 .activity-tabs button[aria-selected='true'] { background: var(--blue); color: white; }
 .activity-tabs button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-#chart-active_wallets_daily .chart-heading { flex-wrap: wrap; }
+#chart-active_wallets_daily .chart-heading { flex-wrap: wrap; justify-content: flex-start; }
 .chart-expand {
     position: absolute;
     top: 8px;
@@ -339,12 +339,14 @@ h3 {
 }
 .readout-detail {
     overflow: hidden;
-    margin-left: auto;
+    margin-left: 4px;
+    white-space: normal;
     color: #98a1a7;
     font-size: 13px;
     text-overflow: ellipsis;
     letter-spacing: 0;
 }
+.wallet-readout .readout-detail { margin-left: 4px; white-space: normal; }
 .chart-surface {
     position: relative;
     height: 273px;

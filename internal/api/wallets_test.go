@@ -140,6 +140,9 @@ func TestWalletReaderSQL(t *testing.T) {
 	if r := run(strings.ReplaceAll(walletActivitySQL, "{sample_step:UInt32}", "7200")+" FORMAT JSON", "3600"); len(r) != 1 || r[0]["value"] != "7" || r[0]["utime"] != float64(1728781200) {
 		t.Fatal("hourly sample must not sum hours", r)
 	}
+	if r := run(walletActivityAverageSQL+" FORMAT JSON", "3600"); len(r) != 1 || r[0]["sum"] != "10" || r[0]["count"] != float64(2) {
+		t.Fatal("mean must include unsampled hours", r)
+	}
 	if r := run(walletMonthlySQL+" FORMAT JSON", "86400"); len(r) != 1 || r[0]["value"] != "7" {
 		t.Fatal(r)
 	}
@@ -163,6 +166,8 @@ func TestWalletActivityModes(t *testing.T) {
 					return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","activations":"2"},{"day":"2024-10-14","run_id":"00000000-0000-0000-0000-000000000001","activations":"3"}]`), nil
 				case "wallet_activated":
 					return json.RawMessage(`[]`), nil
+				case "wallet_activity_average":
+					return json.RawMessage(`[{"sum":"10","count":2}]`), nil
 				case "wallet_activity", "wallet_monthly":
 					if (name == "wallet_monthly") != (mode == "monthly") {
 						t.Fatal(name, mode)

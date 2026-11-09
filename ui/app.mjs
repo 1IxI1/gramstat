@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
+import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 
@@ -178,7 +178,7 @@ for (const definition of CATALOGUE) {
     expand.title = 'Expand chart';
     expand.onclick = () => navigateChart(expandedId === definition.id ? null : definition.id);
     heading.append(title);
-    const readout = element('div', 'readout');
+    const readout = element('div', definition.section === 'wallet' ? 'readout wallet-readout' : 'readout');
     const value = element('span', 'readout-value', '—');
     const detail = element('span', 'readout-detail');
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
@@ -340,7 +340,8 @@ function render(group, roundsOnly = false, onlyID) {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        state.detail.textContent = latest ? formatDate(latest.date, { seconds: isSupply || isAccounts || definition.id === 'activated_wallets' || definition.round }) : '';
+        const periodLabel = (date) => observationPeriodLabel(date, definition, activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
+        state.detail.textContent = latest ? periodLabel(latest.date) : '';
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && definition.section !== 'wallet' && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
             definition.unavailable ||
@@ -359,10 +360,15 @@ function render(group, roundsOnly = false, onlyID) {
         }
         state.legend.replaceChildren();
         if (state.average) {
-            const avg = dailyAverage(dates, series[0]);
+            const aggregate = isActivity && series.length && walletsData?.active.average ? {
+                ...walletsData.active.average,
+                total: Math.ceil(activeRange.to/3600000)-Math.floor(activeRange.from/3600000),
+            } : undefined;
+            const avg = dailyAverage(dates, series[0], aggregate);
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : `${dates.length}d`;
-            state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${definition.averageUnit}${avg.partial ? ' · partial' : ''}`}`;
-            state.average.title = loading ? 'Loading daily values.' : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
+            const unit = isActivity ? `wallets/${{hourly:'hour',daily:'day',monthly:'month'}[activityMode]}` : definition.averageUnit;
+            state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${unit}${avg.partial ? ' · partial' : ''}`}`;
+            state.average.title = loading ? 'Loading values.' : isActivity ? `Mean of ${avg.count} available UTC ${ {hourly:'hours',daily:'days',monthly:'calendar months'}[activityMode] }. Missing buckets are excluded. Whole buckets are used, including those overlapping the selected boundaries. Hourly averages include every prepared hour, even when the plot samples hours.` : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
         }
         if (series.length > 1)
             for (const s of isAccounts ? [...series].reverse() : series) {
@@ -372,7 +378,7 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, time: temporal, calendarMonths: isActivity && activityMode === 'monthly',
+        state.chart.update({ ...definition, series, loading, periodLabel, time: temporal, calendarMonths: isActivity && activityMode === 'monthly',
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),
         }, shownDates);

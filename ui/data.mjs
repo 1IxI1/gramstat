@@ -12,11 +12,12 @@ export function decimal(value, scale = 0) {
 
 // Mean of displayed UTC-day totals. Missing values never count as zero.
 // Keep monetary arithmetic exact until rounding the displayed mean to 2 places.
-export function dailyAverage(dates, series) {
+export function dailyAverage(dates, series, aggregate) {
     let sum = 0n;
     let count = 0;
     let partial = false;
-    for (const date of dates) {
+    let total = dates.length;
+    for (const date of aggregate ? [] : dates) {
         const value = series?.exact?.[date];
         if (typeof value !== 'string' || !/^\d+(\.\d{1,9})?$/.test(value)) continue;
         const [whole, fraction = ''] = value.split('.');
@@ -24,11 +25,38 @@ export function dailyAverage(dates, series) {
         count++;
         partial ||= Boolean(series.partial?.[date]);
     }
-    if (!count) return { value: null, count, total: dates.length, partial: true };
+    if (aggregate) {
+        sum = BigInt(aggregate.sum) * 1000000000n;
+        count = aggregate.count;
+        total = aggregate.total;
+    }
+    if (!count) return { value: null, count, total, partial: true };
     const denominator = BigInt(count) * 1000000000n;
     const cents = (sum * 100n + denominator / 2n) / denominator;
     const whole = (cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return { value: `${whole}.${(cents % 100n).toString().padStart(2, '0')}`, count, total: dates.length, partial: partial || count !== dates.length };
+    return { value: `${whole}.${(cents % 100n).toString().padStart(2, '0')}`, count, total, partial: partial || count !== total };
+}
+
+export function walletPeriodLabel(date, id, mode = 'daily') {
+    if (id === 'activated_wallets') return `as of ${formatDate(date, { seconds: true })} UTC`;
+    const start = new Date(date);
+    if (id === 'active_wallets_daily' && mode === 'monthly') {
+        return `for ${new Intl.DateTimeFormat('en-GB', { month:'short', year:'numeric', timeZone:'UTC' }).format(start)} · UTC month`;
+    }
+    if (id === 'active_wallets_daily' && mode === 'hourly') {
+        return `for ${formatDate(date)} – ${formatDate(new Date(start.getTime()+3600000).toISOString())} UTC`;
+    }
+    return `for ${new Intl.DateTimeFormat('en-GB', { day:'numeric', month:'short', year:'numeric', timeZone:'UTC' }).format(start)} · UTC day`;
+}
+
+export function observationPeriodLabel(date, definition, mode, round) {
+    if (definition.section === 'wallet') return walletPeriodLabel(date, definition.id, mode);
+    if (['supply','accounts'].includes(definition.id)) return `as of ${formatDate(date,{seconds:true})} UTC`;
+    if (definition.id === 'inflation') return `24h ending ${formatDate(date)} UTC`;
+    if (definition.round) return round
+        ? `round ${formatDate(date,{seconds:true})} – ${formatDate(new Date(round.utime_until*1000).toISOString(),{seconds:true})} UTC`
+        : `round starting ${formatDate(date,{seconds:true})} UTC`;
+    return walletPeriodLabel(date, 'activations');
 }
 
 export function rangeDurationLabel(from, to) {

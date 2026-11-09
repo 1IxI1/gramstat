@@ -18,12 +18,14 @@ const walletDaysSQL = `SELECT day,toString(argMax(d.run_id,tuple(through_mc,calc
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
  GROUP BY day ORDER BY day`
 
-const walletActivitySQL = `SELECT max(bucket) AS utime,toString(argMax(active,bucket)) AS value FROM gramstat.wallet_counts
- WHERE source_id={source:String} AND registry={registry:String} AND step={step:UInt32}
+const walletActivityFilterSQL = ` WHERE source_id={source:String} AND registry={registry:String} AND step={step:UInt32}
  AND bucket>=intDiv({from_ts:UInt32},{step:UInt32})*{step:UInt32} AND bucket<{to_ts:UInt32}
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
- AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
- GROUP BY intDiv(bucket,{sample_step:UInt32}) ORDER BY utime`
+ AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}`
+
+const walletActivitySQL = `SELECT max(bucket) AS utime,toString(argMax(active,bucket)) AS value FROM gramstat.wallet_counts` + walletActivityFilterSQL + ` GROUP BY intDiv(bucket,{sample_step:UInt32}) ORDER BY utime`
+
+const walletActivityAverageSQL = `SELECT toString(sum(active)) AS sum,toUInt32(count()) AS count FROM gramstat.wallet_counts` + walletActivityFilterSQL
 
 const walletMonthlySQL = `SELECT toUInt32(toUnixTimestamp(toDateTime(month,'UTC'))) AS utime,
  toUInt32(toUnixTimestamp(toDateTime(addMonths(month,1),'UTC'))) AS end_utime,
@@ -126,6 +128,7 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	p.Set("sample_step", strconv.FormatInt(sampleStep, 10))
 	activatedStep := supplyInterval(to.Unix()-from.Unix(), budget)
 	activated, activity := json.RawMessage(`[]`), json.RawMessage(`[]`)
+	var activityAverage any
 	if len(coverage) > 0 {
 		if to.Sub(from) <= 48*time.Hour {
 			counts, e := s.reader.Read(ctx, "wallet_count", p)
@@ -156,6 +159,23 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		if err != nil {
 			return nil, err
 		}
+		if mode == "hourly" && sampleStep > activityStep {
+			b, e := s.reader.Read(ctx, "wallet_activity_average", p)
+			if e != nil {
+				return nil, e
+			}
+			var totals []struct {
+				Sum   string `json:"sum"`
+				Count uint32 `json:"count"`
+			}
+			if e = json.Unmarshal(b, &totals); e != nil {
+				return nil, e
+			}
+			if len(totals) != 1 {
+				return nil, fmt.Errorf("missing wallet activity totals")
+			}
+			activityAverage = totals[0]
+		}
 	}
 	activeDates := dates
 	if mode == "monthly" {
@@ -173,6 +193,6 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "registry": walletRegistry, "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "coverageDays": dates,
 		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated},
 		"activations": map[string]any{"intervalSeconds": 86400, "points": daily},
-		"active":      map[string]any{"mode": mode, "calendarMonths": mode == "monthly", "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
+		"active":      map[string]any{"mode": mode, "average": activityAverage, "calendarMonths": mode == "monthly", "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	return json.Marshal(result)
 }
