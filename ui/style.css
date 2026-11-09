@@ -256,6 +256,9 @@ h2 {
 .chart-card.half {
     grid-column: span 3;
 }
+.chart-card.full {
+    grid-column: 1 / -1;
+}
 .chart-heading {
     display: flex;
     align-items: flex-start;

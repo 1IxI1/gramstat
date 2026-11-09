@@ -353,9 +353,9 @@ function render(group, roundsOnly = false, onlyID) {
             const isActivity = definition.id === 'active_wallets_daily';
             const available = (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
             const monthly = isActivity && activityMode === 'monthly';
-            const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:'One bar per complete UTC calendar month. Incomplete months are omitted.'}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
+            const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:''}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
             const missing = 'History is being prepared.';
-            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? `${interval}${available} complete months available.` : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
+            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
         if (state.average) {
