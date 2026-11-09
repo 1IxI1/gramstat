@@ -92,6 +92,11 @@ export const CATALOGUE = [
         kind: 'step', round: true, integer: true,
         description: 'Number of elected validators in each validation round.',
     }),
+    chart('validator_stake', 'Stake', 'validator', 'GRAM', {
+        kind: 'step', round: true, layout: 'wide',
+        series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2)],
+        description: 'Stake for the same election, aligned to its validation round. Submitted: accepted election applications, including unselected candidates and excess stake. Selected: maximum observed principal retained after selection. Remaining: principal left after fines, immediately before release, excluding rewards. Missing stages remain gaps; final results can lag behind the other lines.',
+    }),
     chart('countries', 'Countries', 'validator', '', {
         kind: 'step',
         round: true,

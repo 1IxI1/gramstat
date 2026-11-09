@@ -243,6 +243,7 @@ export function readObservedMetrics(data) {
             const gap = new Date(previousRoundUntil * 1000).toISOString();
             roundDates.push(gap);
             for (const id of ['validator_count', 'countries', 'located']) put(id, 'total', gap, null);
+            for (const key of ['submitted', 'selected', 'remaining']) put('validator_stake', key, gap, null);
         }
         const date = new Date(r.utime_since * 1000).toISOString();
         const until = new Date(r.utime_until * 1000).toISOString();
@@ -252,6 +253,11 @@ export function readObservedMetrics(data) {
         put('validator_count', 'total', date, String(r.total), 0, detail);
         put('countries', 'total', date, r.countries === null ? null : String(r.countries), 0, detail);
         put('located', 'total', date, r.located === null ? null : String(r.located), 0, detail);
+        const stakeDetail = r.unfreeze_utime == null ? 'Final principal has not been collected.' : `Principal before release on ${formatDate(new Date(r.unfreeze_utime * 1000).toISOString(), { seconds: true })} UTC; rewards excluded.`;
+        for (const key of ['submitted', 'selected', 'remaining']) {
+            put('validator_stake', key, date, r[`${key}_nanogram`], 9,
+                key === 'remaining' ? stakeDetail : `Election ${r.election_id ?? 'unknown'}; ${key === 'submitted' ? 'accepted applications before selection' : 'maximum observed selected principal'}.`);
+        }
         previousRoundUntil = r.utime_until;
     }
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };

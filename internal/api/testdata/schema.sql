@@ -1,6 +1,12 @@
 -- Consumer-side fixture for isolated tests, not a production schema migration.
 -- Writers own the production tables; keep the queried columns/types compatible.
 CREATE DATABASE gramstat;
+CREATE TABLE gramstat.validator_stake_rounds (
+    utime_since UInt32, utime_until UInt32, election_id Nullable(UInt32),
+    submitted_nanogram Nullable(Decimal(38,0)), selected_nanogram Nullable(Decimal(38,0)),
+    remaining_nanogram Nullable(Decimal(38,0)), unfreeze_utime Nullable(UInt32),
+    config34_hash String, roster_digest String, status String, calculated_at DateTime64(6,'UTC')
+) ENGINE=ReplacingMergeTree(calculated_at) ORDER BY utime_since;
 CREATE TABLE gramstat.accounts_hourly (
     hour DateTime('UTC'), first_mc UInt32, last_mc UInt32, first_utime UInt32, last_utime UInt32,
     opening_uninit UInt64, opening_active UInt64, opening_frozen UInt64,

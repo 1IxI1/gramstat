@@ -151,6 +151,7 @@ gramstat.daily_metrics
 gramstat.telegram_stars_daily
 gramstat.validator_rounds
 gramstat.validator_geo_rounds
+gramstat.validator_stake_rounds
 ```
 
 `chain_daily_full` contains daily transactions, fees, issuance, burning and supply.
@@ -161,6 +162,15 @@ indexed `blocks` for short intervals; it bounds reads by MC primary-key ranges.
 `daily_metrics` contains action counts and amounts; `telegram_stars_daily` provides
 Stars purchase totals. The validator tables contain round-level rosters and
 geographical observations.
+
+Validator responses also contain `submitted_nanogram`, `selected_nanogram` and
+`remaining_nanogram`: nullable exact integer strings for the three stages of
+one election. They are aligned to its validation round, with `election_id`,
+`unfreeze_utime` and `stake_status` retaining the stage context. Remaining is
+principal immediately before release, after fines and **without rewards**.
+Stake snapshots join only matching verified intervals, config hashes and rosters.
+Each line can have different historical coverage; missing final results remain
+NULL even for closed rounds. The API role requires SELECT on the new table.
 
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets

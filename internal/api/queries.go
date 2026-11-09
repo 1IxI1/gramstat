@@ -90,19 +90,31 @@ toString(stars_total) AS stars_total, toString(known_stars_total) AS known_stars
 is_partial, formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 formatDateTime(data_through, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS data_through
 FROM gramstat.telegram_stars_daily FINAL WHERE day >= {from:Date} AND day < {to:Date} ORDER BY day`,
-	"validators": `SELECT utime_since, utime_until, total, is_partial, data_through,
-formatDateTime(calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at
-FROM gramstat.validator_rounds FINAL
-WHERE utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
- AND utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY utime_since`,
+	"validators": `SELECT r.utime_since, r.utime_until, r.total, r.is_partial, r.data_through,
+formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
+s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
+toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
+s.unfreeze_utime, s.status AS stake_status
+FROM gramstat.validator_rounds AS r FINAL
+LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
+ ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
+ AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
+WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
+ AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"rounds": `SELECT r.utime_since, r.utime_until, r.total, r.is_partial, r.data_through,
 formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 g.located, g.unknown, g.countries, g.country_known, g.breakdown,
 g.status AS geo_status, g.data_through AS geo_data_through,
-formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_at
+formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_at,
+s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
+toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
+s.unfreeze_utime, s.status AS stake_status
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_geo_rounds AS g FINAL
  ON r.utime_since = g.utime_since AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
+LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
+ ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
+ AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"locations": `SELECT g.utime_since, g.total, g.located, g.unknown, g.data_through, g.status,
