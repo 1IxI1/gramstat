@@ -81,7 +81,7 @@ export const CATALOGUE = [
         description: 'Unique addresses first deployed with a recognized wallet code each UTC day, using the deployment transaction’s time. Earlier non-wallet deployments do not exclude an address; repeated wallet deployments are not counted again. Outgoing messages are not required.',
     }),
     chart('activated_wallets', 'Activated wallets', 'wallet', '', {
-        layout: 'half', step: true, integer: true, registryTerm: 'wallet code',
+        layout: 'half', step: true, fill: true, integer: true, registryTerm: 'wallet code',
         description: 'Total unique addresses that have been deployed with a recognized wallet code. Each address is counted once, at its first qualifying wallet deployment, even if it previously hosted a different contract. Outgoing messages are not required. Later deletion, freezing, code changes or redeployment do not remove the address from this total.',
     }),
     chart('stake', 'Staked GRAM', 'validator', 'GRAM', {

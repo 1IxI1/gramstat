@@ -296,9 +296,6 @@ for (const definition of CATALOGUE) {
 }
 
 const expandedDialog = element('dialog', 'expanded-chart');
-const expandedPeriod = element('div', 'section-date expanded-period');
-expandedPeriod.setAttribute('data-period-label', '');
-expandedDialog.append(expandedPeriod);
 document.body.append(expandedDialog);
 let expandedId = null;
 let chartPlaceholder;
@@ -486,7 +483,6 @@ function render(group, roundsOnly = false, onlyID) {
     }
     const label = activeRange ? `${displayTime(activeRange.from)} — ${displayTime(activeRange.to - 1000)} UTC` : '';
     $('period-status').textContent = label;
-    document.querySelectorAll('[data-period-label]').forEach((n) => (n.textContent = label));
     $('source-status').textContent = coverage
         .map(
             (s) => `${s.source}: ${s.first_day ?? 'none'}–${s.last_day ?? 'none'} · updated ${s.updated_at ? formatDate(s.updated_at) : 'never'}`,
