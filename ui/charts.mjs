@@ -277,11 +277,14 @@ export class TimeChart {
         const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
         const timeEnd = this.config.time ? (this.config.rangeEnd ?? timestamps.at(-1)) : timestamps.at(-1);
         const span = timeEnd - timeStart;
-        const monthBounds = (index) => {
+        const bucketBounds = (index) => {
             const date = new Date(timestamps[index]);
-            return [Math.max(timeStart,timestamps[index]), Math.min(timeEnd,Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1))];
+            const end = this.config.calendarMonths ? Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1)
+                : timestamps[index] + this.config.barIntervalSeconds * 1000;
+            return [Math.max(timeStart,timestamps[index]), Math.min(timeEnd,end)];
         };
-        const plottedTime = (index) => this.config.calendarMonths ? (monthBounds(index)[0]+monthBounds(index)[1])/2 : timestamps[index];
+        const intervalBars = this.config.kind.includes('bar') && (this.config.calendarMonths || this.config.barIntervalSeconds > 0);
+        const plottedTime = (index) => intervalBars ? (bucketBounds(index)[0]+bucketBounds(index)[1])/2 : timestamps[index];
         const x = (index) =>
             (this.config.round || this.config.time) && span > 0
                 ? left + ((plottedTime(index) - timeStart) / span) * (right - left)
@@ -290,8 +293,8 @@ export class TimeChart {
         const rewardRows = this.rows.map((row) => ({ values: row.values.filter((_, i) => this.config.series[i].axis === 'right') }));
         const [, rewardMax] = domain({ kind: 'bar', zero: true }, rewardRows);
         const rewardY = (value) => bottom - value / rewardMax * (bottom - rewardTop);
-        const monthWidth = (index) => Math.max(2,(monthBounds(index)[1]-monthBounds(index)[0])/span*(right-left)*0.68);
-        this.geometry = { width, height, left, right, top, bottom, primaryBottom, x, y, monthWidth, rewardY };
+        const bucketWidth = (index) => span > 0 ? Math.max(0,(bucketBounds(index)[1]-bucketBounds(index)[0])/span*(right-left)*0.68) : 0;
+        this.geometry = { width, height, left, right, top, bottom, primaryBottom, x, y, intervalBars, bucketWidth, rewardY };
         this.svg.replaceChildren();
         this.svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
@@ -375,7 +378,8 @@ export class TimeChart {
         const stacked = this.config.kind === 'stacked-bar';
         const defaultWidth = Math.max(2, ((right - left) / this.rows.length) * 0.68);
         this.rows.forEach((row, index) => {
-            const width = this.config.calendarMonths ? this.geometry.monthWidth(index) : defaultWidth;
+            const width = this.geometry.intervalBars ? this.geometry.bucketWidth(index) : defaultWidth;
+            if (width <= 0) return;
             if (stacked && row.total === null) return;
             let base = 0;
             this.config.series.forEach((item, seriesIndex) => {

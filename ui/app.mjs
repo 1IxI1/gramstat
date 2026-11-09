@@ -533,6 +533,7 @@ function render(group, roundsOnly = false, onlyID) {
                 state.legend.append(item);
             }
         state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+            barIntervalSeconds: isActivity && activityMode !== 'monthly' ? (activityMode === 'hourly' ? 3600 : 86400) : undefined,
             averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),
