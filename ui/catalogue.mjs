@@ -120,11 +120,18 @@ export const CATALOGUE = [
     chart('swaps_total', 'Swaps', 'activity', '', { kind: 'bar', zero: true }),
     chart('jetton_users', 'Jetton senders / receivers', 'activity', '', {
         series: [series('jetton_senders', 'Senders'), series('jetton_receivers', 'Receivers', 1)],
+        description: 'Unique addresses sending or receiving jettons through successful transfers. Includes wallets and smart contracts, with no token whitelist or spam filter.\nEach address is counted once per UTC day.',
+        monthlyDescription: 'Unique addresses sending or receiving jettons through successful transfers. Includes wallets and smart contracts, with no token whitelist or spam filter.\nEach address is counted once per UTC calendar month.',
     }),
     chart('nft_users', 'NFT senders / receivers', 'activity', '', {
         series: [series('nft_senders', 'Senders'), series('nft_receivers', 'Receivers', 1)],
+        description: 'Unique addresses sending or receiving NFTs through successful transfers. Includes wallets and smart contracts, with no collection whitelist or spam filter.\nEach address is counted once per UTC day.',
+        monthlyDescription: 'Unique addresses sending or receiving NFTs through successful transfers. Includes wallets and smart contracts, with no collection whitelist or spam filter.\nEach address is counted once per UTC calendar month.',
     }),
-    chart('swaps_users', 'Swap users', 'activity'),
+    chart('swaps_users', 'Swap users', 'activity', '', {
+        description: 'Unique addresses initiating successful swaps recognized by Toncenter actions. Includes wallets and smart contracts.\nEach address is counted once per UTC day.',
+        monthlyDescription: 'Unique addresses initiating successful swaps recognized by Toncenter actions. Includes wallets and smart contracts.\nEach address is counted once per UTC calendar month.',
+    }),
     chart('swaps_dex', 'Swaps by DEX', 'activity', '', {
         kind: 'stacked-bar',
         zero: true,

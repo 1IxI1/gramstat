@@ -101,6 +101,7 @@ a {
     min-height: 3em;
 }
 #chart-accounts .chart-status, #chart-stake .chart-status { white-space: pre-line; }
+#chart-jetton_users .chart-status, #chart-nft_users .chart-status, #chart-swaps_users .chart-status { white-space: pre-line; }
 .chart-description { color: #6a7b84; font-size: 15px; line-height: 1.5; margin: 8px 0 0; }
 .wallet-registry-link { padding: 0; border: 0; background: none; color: #397799; text-decoration: underline; text-underline-offset: 3px; }
 .wallet-registry { width: min(960px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--line); border-radius: 8px; color: inherit; }
