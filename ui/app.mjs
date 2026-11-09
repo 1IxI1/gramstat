@@ -436,9 +436,15 @@ function render(group, roundsOnly = false, onlyID) {
             (latest
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
                 : 'No covered observations in this interval.');
-        if (definition.descriptionEmphasis && state.status.textContent === definition.description) {
-            const [before, after] = definition.description.split(definition.descriptionEmphasis);
-            state.status.replaceChildren(document.createTextNode(before), element('em', '', definition.descriptionEmphasis), document.createTextNode(after));
+        if ((definition.descriptionStrong || definition.descriptionEmphasis) && state.status.textContent === definition.description) {
+            let parts = [definition.description];
+            for (const [term, tag] of [[definition.descriptionStrong, 'strong'], [definition.descriptionEmphasis, 'em']]) {
+                if (!term) continue;
+                parts = parts.flatMap(part => typeof part === 'string'
+                    ? part.split(term).flatMap((text, i) => i ? [element(tag, '', term), text] : [text])
+                    : [part]);
+            }
+            state.status.replaceChildren(...parts);
         }
         if (isWallet) {
             const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;

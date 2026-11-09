@@ -112,7 +112,9 @@ export const CATALOGUE = [
         kind: 'stacked-area', step: true, round: true, share: true, layout: 'full',
         series: [{ ...series('near_reward', 'Increase ≈ reward', 1), color: '#27956a', emphasis: true, fillOpacity: 0.48 }, series('below_reward', 'Increase < reward'),
             series('above_reward', 'Increase > reward', 3), series('unchanged', 'Unchanged', 4), series('decreased', 'Decreased', 2)],
-        description: 'Each round (n) is compared with round n−2 for stake-holder addresses present in both.\n“Increase ≈ reward” means the stake increase matches the estimated reward within 2% or 5 GRAM, whichever is greater.\nReinvestment is estimated from stake changes; deposits and withdrawals can also affect them.',
+        description: 'Increase ≈ reward means the stake increase matches previous obtained reward within 2% or 5 GRAM. Which probably means these validators are reinvesting their rewards.\nEach round n is compared with round n−2 for stake-holder addresses present in both.',
+        descriptionStrong: 'Increase ≈ reward',
+        descriptionEmphasis: 'these validators are reinvesting',
     }),
     chart('telegram_share', 'Telegram share', 'validator', '%', {
         layout: 'half',
