@@ -27,6 +27,13 @@ export function formatDate(date, { seconds = false } = {}) {
     }).format(new Date(date)).replace(', ', ' ');
 }
 
+export function formatAxisDate(date, { span, time, crossesYear } = {}) {
+    const options = time && span <= 2 * 86400000
+        ? { hour: '2-digit', minute: '2-digit', ...(span <= 600000 ? { second: '2-digit' } : {}) }
+        : { day: 'numeric', month: 'short', ...(span >= 90 * 86400000 || crossesYear ? { year: 'numeric' } : {}) };
+    return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', ...options }).format(new Date(date));
+}
+
 export function sumReadings(values) {
     if (!values.length || values.some((value) => !Number.isFinite(value))) return null;
     // Avoid exposing binary floating-point tails in stacked demo totals.
@@ -281,14 +288,16 @@ export class TimeChart {
             }
         }
         const tickIndices = [0, Math.floor((this.rows.length - 1) / 2), this.rows.length - 1];
+        const crossesYear = new Date(timeStart).getUTCFullYear() !== new Date(timeEnd).getUTCFullYear();
         for (const index of tickIndices) {
+            const tickX = x(index);
             this.svg.append(
                 node(
                     'text',
-                    { x: x(index), y: height - footerHeight - 13, 'text-anchor': 'middle', class: 'axis-label' },
-                    new Intl.DateTimeFormat('en-GB', this.config.time && span <= 2 * 86400000 ? {timeZone:'UTC',hour:'2-digit',minute:'2-digit', ...(span<=600000?{second:'2-digit'}:{})} : { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
-                        new Date(this.rows[index].date),
-                    ),
+                    { x: tickX, y: height - footerHeight - 13,
+                        'text-anchor': tickX - left < 60 ? 'start' : right - tickX < 60 ? 'end' : 'middle',
+                        class: 'axis-label' },
+                    formatAxisDate(this.rows[index].date, { span, time: this.config.time, crossesYear }),
                 ),
             );
         }

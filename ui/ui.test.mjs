@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
-import { buildRows, formatDate, domain } from './charts.mjs';
+import { buildRows, formatDate, formatAxisDate, domain } from './charts.mjs';
 import { decimal, readObservedMetrics, latestChainRange, supplySeries, inflationSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 
 const fixture = () => ({
@@ -101,6 +101,16 @@ test('date intervals cross months and years, with exclusive upper bounds', () =>
     assert.equal(decimal('0', 9), '0.000000000');
     assert.equal(decimal('1e9', 9), null);
     assert.throws(() => readObservedMetrics({ ...fixture(), schemaVersion: 1 }));
+});
+
+test('x-axis dates include years on long or year-crossing ranges', () => {
+    const date = '2023-02-15T12:00:00Z';
+    assert.equal(formatAxisDate(date, { span: 7 * 86400000, time: true }), '15 Feb');
+    assert.equal(formatAxisDate(date, { span: 7 * 86400000, time: true, crossesYear: true }), '15 Feb 2023');
+    assert.equal(formatAxisDate(date, { span: 90 * 86400000, time: true }), '15 Feb 2023');
+    assert.equal(formatAxisDate(date, { span: 7 * 365 * 86400000, time: true }), '15 Feb 2023');
+    assert.equal(formatAxisDate(date, { span: 3600000, time: true }), '12:00');
+    assert.equal(formatAxisDate(date, { span: 300000, time: true }), '12:00:00');
 });
 
 test('default range follows chain indexing rather than newer independent sources', () => {
