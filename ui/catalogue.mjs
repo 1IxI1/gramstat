@@ -162,12 +162,19 @@ export const CATALOGUE = [
         series: ['tonstakers', 'stakee', 'kton', 'sgram'].map((id, i) => series(id, id, i)),
         note: 'Selected four pools. A pool with unknown deposit amounts stays unknown.',
     }),
-    chart('telegram_stars_purchases', 'Stars purchases', 'activity', '', { kind: 'bar', zero: true }),
+    chart('telegram_stars_purchases', 'Stars purchases', 'activity', '', {
+        kind: 'bar', zero: true,
+        description: 'Number of payments for Telegram Stars through Fragment in GRAM or USDT, after spam filtering.',
+    }),
     chart('stars_quantity', 'Stars purchased', 'activity', 'Stars', {
         kind: 'bar',
         zero: true,
+        description: 'Telegram Stars purchased through Fragment, after spam filtering.',
     }),
-    chart('stars_unknown', 'Stars purchases · unknown size', 'activity', '', { kind: 'bar', zero: true }),
+    chart('stars_unknown', 'Stars purchases · unknown size', 'activity', '', {
+        kind: 'bar', zero: true,
+        description: 'Number of Stars-labelled payments to Fragment whose quantity could not be determined or validated.',
+    }),
 ];
 
 export function periodDates(from, to) {
