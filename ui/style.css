@@ -462,6 +462,7 @@ h3 {
     font-size: 14px;
     line-height: 1.5;
 }
+.chart-tooltip.pinned { pointer-events: auto; user-select: text; cursor: text; }
 .tooltip-date {
     display: block;
     margin-bottom: 7px;

@@ -148,28 +148,30 @@ export class TimeChart {
         surface.setAttribute('aria-describedby', 'chart-help');
 
         this.onMove = (event) => {
-            if (!this.drag && event.target.closest('.chart-average')) { this.hide(); return; }
+            if (this.tooltip.contains(event.target)) return;
             if (this.drag) {
                 const p = this.pointerPosition(event);
                 this.drag.end = p;
                 this.drag.rect.setAttribute('x', Math.min(this.drag.start, p));
                 this.drag.rect.setAttribute('width', Math.abs(p - this.drag.start));
-                this.hide();
+                if (Math.abs(p - this.drag.start) >= 8) this.hide();
                 return;
             }
+            if (this.pinned) return;
+            if (event.target.closest('.chart-average')) { this.hide(); return; }
             if (event.pointerType !== 'touch') this.showAtPointer(event);
         };
         this.onDown = (event) => {
-            if (event.target.closest('button, .chart-average')) return;
+            if (this.tooltip.contains(event.target) || event.target.closest('button, .chart-average')) return;
             if (event.button === 0 && event.pointerType === 'mouse' && this.config.onRange) {
                 const p = this.pointerPosition(event);
                 const rect = node('rect', { x: p, y: this.geometry.top, width: 0, height: this.geometry.bottom - this.geometry.top, class: 'range-selection' });
                 this.svg.append(rect);
-                this.drag = { start: p, end: p, rect };
+                this.drag = { start: p, end: p, rect, wasPinned: this.pinned, previousIndex: this.selectedIndex };
                 surface.setPointerCapture(event.pointerId);
                 event.preventDefault();
             }
-            this.pinned = event.pointerType === 'touch' || event.pointerType === 'pen';
+            if (event.pointerType !== 'mouse') this.pin();
             this.showAtPointer(event);
         };
         this.onUp = (event) => {
@@ -178,7 +180,12 @@ export class TimeChart {
             this.drag = null;
             drag.rect.remove();
             if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
-            if (event.type === 'pointercancel' || Math.abs(drag.end - drag.start) < 8) return;
+            if (event.type === 'pointercancel') return;
+            if (Math.abs(drag.end - drag.start) < 8) {
+                if (drag.wasPinned && this.selectedIndex === drag.previousIndex) this.hide();
+                else { this.pin(); this.showAtPointer(event); }
+                return;
+            }
             const { left, right } = this.geometry;
             const start = this.config.rangeStart ?? Date.parse(this.rows[0].date);
             const end = this.config.rangeEnd ?? Date.parse(this.rows.at(-1).date) + 86400000;
@@ -190,7 +197,7 @@ export class TimeChart {
         };
         this.onFocus = () => {
             this.focused = true;
-            this.show(this.selectedIndex);
+            if (!this.pinned) this.show(this.selectedIndex);
         };
         this.onBlur = () => {
             this.focused = false;
@@ -204,7 +211,6 @@ export class TimeChart {
                 End: this.rows.length - 1,
             };
             if (event.key === 'Escape') {
-                this.pinned = false;
                 this.hide();
                 event.preventDefault();
             } else if (Object.hasOwn(actions, event.key)) {
@@ -214,7 +220,6 @@ export class TimeChart {
         };
         this.onOutside = (event) => {
             if (!surface.contains(event.target) && this.pinned) {
-                this.pinned = false;
                 this.hide();
             }
         };
@@ -525,8 +530,15 @@ export class TimeChart {
     }
 
     hide() {
+        this.pinned = false;
+        this.tooltip.classList.remove('pinned');
         this.tooltip.hidden = true;
         if (this.selection) this.selection.setAttribute('visibility', 'hidden');
+    }
+
+    pin() {
+        this.pinned = true;
+        this.tooltip.classList.add('pinned');
     }
 
     destroy() {

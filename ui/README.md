@@ -16,10 +16,12 @@ API and deployment documentation:
   whole UTC days. Fees, issuance, burning and transactions retain daily points
   across the indexed history via `/api/v1/chain`. Activity and validator datasets
   support up to 93 days; Supply and annual inflation also support wider ranges.
-- Supply, daily burning and annual inflation show a green dashed marker at
+- Click or tap a reading to pin its tooltip; pinned values can be selected and
+  copied. Click the same reading again, click outside, or press Escape to dismiss.
+- Supply, daily fees, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.
-- The same charts mark **2.5 → 0.4s blocks** at 2026-04-09 07:12:24 UTC,
+- Supply, daily issuance and annual inflation mark **2.5 → 0.4s blocks** at 2026-04-09 07:12:24 UTC,
   MC 59238081: the key block enabling the new consensus on both chains in config
   #30. This marks configuration activation, not a claim of a fixed interval for
   every following block. Sources: [TON Docs](https://docs.ton.org/subsecond),
