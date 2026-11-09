@@ -232,7 +232,6 @@ export function readObservedMetrics(data) {
         const detail = r.is_partial ? 'Partial day.' : '';
         for (const [id, field] of [
             ['stars_quantity', 'known_stars_total'],
-            ['stars_known', 'known_stars_total'],
             ['stars_unknown', 'unknown_purchases'],
         ])
             put(id, 'total', r.day, r[field], 0,

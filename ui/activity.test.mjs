@@ -50,24 +50,22 @@ test('Stars purchased retains known quantities in daily and monthly views despit
         day, stars_total: i === 0 ? null : '0', known_stars_total: i === 0 ? '9007199254740993' : '0',
         unknown_purchases: i === 0 ? '2' : '0', is_partial: 0,
     }));
-    for (const id of ['stars_quantity', 'stars_known']) {
-        const daily = readObservedMetrics(data).metrics[id].series[0];
-        assert.equal(daily.exact['2024-02-01'], '9007199254740993');
-        assert.equal(daily.exact['2024-02-02'], '0');
-        assert.equal(daily.details['2024-02-01'], '');
-        assert.equal(daily.partial['2024-02-01'], false);
-        const monthly = monthlyActivity(data).metrics[id].series[0];
-        assert.equal(monthly.exact['2024-02-01'], '9007199254740993');
-        assert.equal(monthly.partial['2024-02-01'], false);
-        assert.equal(monthly.details['2024-02-01'], '');
-        assert.equal(dailyAverage(['2024-02-01'], monthly).partial, false);
-        data.stars[0].is_partial = 1;
-        assert.equal(readObservedMetrics(data).metrics[id].series[0].partial['2024-02-01'], true);
-        const partialMonth = monthlyActivity(data).metrics[id].series[0];
-        assert.equal(partialMonth.partial['2024-02-01'], true);
-        assert.equal(partialMonth.details['2024-02-01'], 'Partial calendar month.');
-        data.stars[0].is_partial = 0;
-    }
+    const daily = readObservedMetrics(data).metrics.stars_quantity.series[0];
+    assert.equal(daily.exact['2024-02-01'], '9007199254740993');
+    assert.equal(daily.exact['2024-02-02'], '0');
+    assert.equal(daily.details['2024-02-01'], '');
+    assert.equal(daily.partial['2024-02-01'], false);
+    const monthly = monthlyActivity(data).metrics.stars_quantity.series[0];
+    assert.equal(monthly.exact['2024-02-01'], '9007199254740993');
+    assert.equal(monthly.partial['2024-02-01'], false);
+    assert.equal(monthly.details['2024-02-01'], '');
+    assert.equal(dailyAverage(['2024-02-01'], monthly).partial, false);
+    data.stars[0].is_partial = 1;
+    assert.equal(readObservedMetrics(data).metrics.stars_quantity.series[0].partial['2024-02-01'], true);
+    const partialMonth = monthlyActivity(data).metrics.stars_quantity.series[0];
+    assert.equal(partialMonth.partial['2024-02-01'], true);
+    assert.equal(partialMonth.details['2024-02-01'], 'Partial calendar month.');
+    data.stars[0].is_partial = 0;
     assert.equal(data.stars[0].stars_total, null);
     data.stars.pop();
     assert.equal(monthlyActivity(data).metrics.stars_quantity.series[0].exact['2024-02-01'], null);

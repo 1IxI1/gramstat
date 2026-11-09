@@ -161,10 +161,6 @@ export const CATALOGUE = [
         kind: 'bar',
         zero: true,
     }),
-    chart('stars_known', 'Known Stars subtotal', 'activity', 'Stars', {
-        kind: 'bar',
-        zero: true,
-    }),
     chart('stars_unknown', 'Stars purchases · unknown size', 'activity', '', { kind: 'bar', zero: true }),
 ];
 
