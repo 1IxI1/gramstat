@@ -110,6 +110,7 @@ export const CATALOGUE = [
     }),
     chart('stake_changes', 'Stake changes between rounds', 'validator', '%', {
         kind: 'stacked-area', step: true, round: true, share: true, layout: 'full',
+        defaultHiddenSeries: ['below_reward', 'above_reward', 'unchanged', 'decreased'],
         series: [{ ...series('near_reward', 'Increase ≈ reward', 1), color: '#27956a', emphasis: true, fillOpacity: 0.48 }, series('below_reward', 'Increase < reward'),
             series('above_reward', 'Increase > reward', 3), series('unchanged', 'Unchanged', 4), series('decreased', 'Decreased', 2)],
         description: 'Increase ≈ reward means the stake increase matches previous obtained reward within 2% or 5 GRAM. Which probably means these validators are reinvesting their rewards.\nEach round n is compared with round n−2 for stake-holder addresses present in both.',

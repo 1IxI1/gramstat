@@ -407,7 +407,7 @@ function render(group, roundsOnly = false, onlyID) {
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly;
         const observations = isSection ? sectionReadings : readings;
         const allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
-        const hiddenSeries = state.hiddenSeries ??= new Set();
+        const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
@@ -424,10 +424,12 @@ function render(group, roundsOnly = false, onlyID) {
         const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
         if (definition.id === 'stake_changes') {
-            const reinvesting = allSeries.find(s => s.id === 'near_reward')?.points.findLast(([, value]) => Number.isFinite(value));
-            state.value.textContent = reinvesting ? String(Math.round(reinvesting[1])) : '—';
-            state.card.querySelector('.readout-unit').textContent = '% are reinvesting';
-            state.detail.textContent = reinvesting ? `in ${periodLabel(reinvesting[0])}` : '';
+            const reinvestingOnly = series.length === 1 && series[0].id === 'near_reward';
+            state.card.querySelector('.readout-unit').textContent = reinvestingOnly ? '% are reinvesting' : '%';
+            if (reinvestingOnly) {
+                state.value.textContent = value === null ? '—' : String(Math.round(value));
+                state.detail.textContent = latest ? `in ${periodLabel(latest.date)}` : '';
+            }
         }
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : '') ||
