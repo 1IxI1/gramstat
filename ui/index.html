@@ -52,13 +52,9 @@
                     </div>
                 </details>
                 <button id="range-next" type="button" aria-label="Next time range">›</button>
-                <button id="range-out" type="button" aria-label="Zoom out time range">−</button>
+                <button id="range-out" type="button" title="Double the visible time span around its center">Zoom out</button>
             </div>
-            <p id="source-status" class="source-status">Loading source coverage…</p>
-            <p class="source-status">
-                Drag across a chart to select a time range. Click a reading to pin its tooltip and copy its text. Supply uses exact UTC times; daily charts use whole UTC days.
-                Prepared daily charts support the full history. Missing history stays empty.
-            </p>
+            <p id="source-status" hidden></p>
             <div id="warning" class="warning" role="status" hidden>
                 <span id="warning-text"></span><button id="retry" type="button">Retry</button>
             </div>

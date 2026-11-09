@@ -44,14 +44,14 @@ a {
     border-radius: 3px;
     color: inherit;
 }
-.time-controls { display: flex; align-items: stretch; margin-top: 24px; gap: 4px; position: relative; z-index: 10; }
+.time-controls { display: flex; align-items: stretch; justify-content: flex-end; margin-top: 24px; gap: 4px; position: relative; z-index: 10; }
 .time-controls button, .time-picker summary, .time-panel input {
     font: inherit; color: inherit; background: white; border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px;
 }
 .time-picker { min-width: 0; }
 .time-picker summary { cursor: pointer; list-style: none; line-height: 1.5; }
 .time-picker summary strong { color: var(--blue); font-size: 13px; }
-.time-panel { position: absolute; left: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
+.time-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
     grid-template-columns: 1fr 1.2fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
 .range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
