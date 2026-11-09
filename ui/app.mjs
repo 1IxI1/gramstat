@@ -796,7 +796,7 @@ $('range-out').onclick = () => {
 };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('time-picker').open = false; });
 document.addEventListener('pointerdown', (e) => { if (!$('time-picker').contains(e.target)) $('time-picker').open = false; });
-async function loadLatest(seconds = 7 * 86400) {
+async function loadLatest(seconds = 90 * 86400) {
     const id = ++requestId;
     controller?.abort();
     loading = true;

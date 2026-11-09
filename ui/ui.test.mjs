@@ -129,7 +129,7 @@ test('default range follows chain indexing rather than newer independent sources
     assert.deepEqual(latestChainRange([
         { source: 'actions', first_day: '2026-10-21', last_day: '2026-11-08' },
         { source: 'chain', first_day: '2019-11-15', last_day: '2024-01-03' },
-    ]), { from: '2023-12-28', to: '2024-01-03' });
+    ]), { from: '2023-10-06', to: '2024-01-03' });
     assert.deepEqual(latestChainRange([{ source: 'chain', first_day: '2019-11-15', last_day: '2019-11-16' }]),
         { from: '2019-11-15', to: '2019-11-16' });
     assert.equal(latestChainRange([]), null);

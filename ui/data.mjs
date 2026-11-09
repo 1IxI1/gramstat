@@ -75,7 +75,7 @@ export function latestChainRange(coverage) {
     const end = Date.parse(`${chain.last_day}T00:00:00Z`);
     const start = Date.parse(`${chain.first_day}T00:00:00Z`);
     if (!Number.isFinite(end) || !Number.isFinite(start) || start > end) return null;
-    return { from: new Date(Math.max(start, end - 6 * 86400000)).toISOString().slice(0, 10), to: chain.last_day };
+    return { from: new Date(Math.max(start, end - 89 * 86400000)).toISOString().slice(0, 10), to: chain.last_day };
 }
 
 export function supplySeries(data) {
