@@ -102,6 +102,7 @@ a {
 }
 #chart-accounts .chart-status, #chart-stake .chart-status, #chart-staking_apr .chart-status { white-space: pre-line; }
 #chart-staking_apr .tooltip-note { white-space: pre-line; }
+#chart-stake_changes .chart-status, #chart-stake_changes .tooltip-note { white-space: pre-line; }
 #chart-jetton_users .chart-status, #chart-nft_users .chart-status, #chart-swaps_users .chart-status { white-space: pre-line; }
 .chart-description { color: #6a7b84; font-size: 15px; line-height: 1.5; margin: 8px 0 0; }
 .wallet-registry-link { padding: 0; border: 0; background: none; color: #397799; text-decoration: underline; text-underline-offset: 3px; }

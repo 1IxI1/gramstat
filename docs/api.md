@@ -188,6 +188,21 @@ requested date range, and hides stale APR after corrections. This is gross rewar
 APR relative to selected capital, without reinvestment, pool fee deductions or
 subtraction of lost principal. It is not an individual depositor's realized yield.
 
+Round responses also expose `stake_change_*` fields for comparisons with `n−2`:
+`previous` (the earlier round start), `previous_holders`, `current_holders`,
+`matched`, `new`, `exited`, and five mutually exclusive counts: `near_reward`,
+`below_reward`, `above_reward`, `unchanged`, `decreased`. Counts are nullable UInt32
+JSON numbers; known zeros stay zero. The five counts sum to `matched`; `status`
+must be `complete` to plot percentages. Holder addresses combine all their keys;
+new/exited addresses are not in the denominator. This describes stake changes,
+not proven reinvestment. A positive change is near the old proportional reward
+within the greater of 2% or 5 GRAM. Unchanged/decreased take precedence.
+
+Both predecessor intervals and their config/roster proofs are checked even when
+outside the requested window. Missing mappings, unreconciled penalty allocation,
+late releases or gaps leave unknown points. The API reads only the prepared
+`gramstat.validator_stake_changes` table (grant SELECT to its read-only role).
+
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
 can have partial edge days because shard generation timestamps can straddle the

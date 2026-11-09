@@ -43,6 +43,7 @@ INSERT INTO gramstat.validator_rounds VALUES
 (1767325536,1767391072,301,0,1767391072,now64(6),'next','next-hash');
 INSERT INTO gramstat.validator_stake_rounds VALUES
 (1767260000,1767325536,1767260000,1000000000000000000,1000000000000000000,999000000000000000,1000000000000000,1767358304,'complete','roster','hash',now64(6),'stake-v3',24.060058593750,131072,1767391072,'next-hash','next','complete');`)
+	run(stakeChangesFixture + "ALTER TABLE gramstat.validator_stake_rounds ADD COLUMN unfreeze_mc_seqno Nullable(UInt32);")
 	for _, name := range []string{"validators", "rounds"} {
 		rows := run(queries[name] + " FORMAT JSON")
 		// The successor lies beyond the request's end; still use its proof.

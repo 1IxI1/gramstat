@@ -96,12 +96,13 @@ formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
 ` + aprJoinSQL + `
+` + stakeChangesJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"rounds": `SELECT r.utime_since AS utime_since, r.utime_until AS utime_until,
@@ -113,7 +114,7 @@ formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_a
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_geo_rounds AS g FINAL
  ON r.utime_since = g.utime_since AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
@@ -121,6 +122,7 @@ LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
 ` + aprJoinSQL + `
+` + stakeChangesJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"locations": `SELECT g.utime_since, g.total, g.located, g.unknown, g.data_through, g.status,
@@ -167,6 +169,41 @@ if(s.apr_status = 'complete' AND NOT coalesce((` + aprReadySQL + `), false), 'st
 const aprJoinSQL = `LEFT JOIN gramstat.validator_rounds AS n FINAL
  ON n.utime_since = s.utime_until AND n.utime_until = s.apr_next_utime_until
  AND n.config34_hash = s.apr_next_config34_hash AND n.roster_digest = s.apr_next_roster_digest`
+
+const stakeChangesColumnsSQL = `ch.previous_utime_since AS stake_change_previous,
+ch.previous_holders AS stake_change_previous_holders, ch.current_holders AS stake_change_current_holders,
+ch.matched AS stake_change_matched, ch.new_holders AS stake_change_new, ch.exited_holders AS stake_change_exited,
+ch.near_reward AS stake_change_near_reward, ch.below_reward AS stake_change_below_reward,
+ch.above_reward AS stake_change_above_reward, ch.unchanged AS stake_change_unchanged,
+ch.decreased AS stake_change_decreased, ch.status AS stake_change_status`
+
+// Check all three interval proofs plus the source release/selected snapshots.
+// Restrict only the output round to the requested window, not its predecessors.
+const stakeChangesJoinSQL = `LEFT JOIN (
+ SELECT x.utime_since AS utime_since, x.utime_until AS utime_until,
+ x.config34_hash AS config34_hash, x.roster_digest AS roster_digest,
+ x.current_selected_nanogram AS current_selected_nanogram, x.previous_utime_since AS previous_utime_since,
+ x.previous_holders AS previous_holders, x.current_holders AS current_holders,
+ x.matched AS matched, x.new_holders AS new_holders, x.exited_holders AS exited_holders,
+ x.near_reward AS near_reward, x.below_reward AS below_reward, x.above_reward AS above_reward,
+ x.unchanged AS unchanged, x.decreased AS decreased, x.status AS status
+ FROM gramstat.validator_stake_changes AS x FINAL
+ INNER JOIN gramstat.validator_rounds AS p FINAL
+  ON p.utime_since=x.previous_utime_since AND p.utime_until=x.middle_utime_since
+  AND p.config34_hash=x.previous_config34_hash AND p.roster_digest=x.previous_roster_digest
+ INNER JOIN gramstat.validator_rounds AS m FINAL
+  ON m.utime_since=x.middle_utime_since AND m.utime_until=x.utime_since
+  AND m.config34_hash=x.middle_config34_hash AND m.roster_digest=x.middle_roster_digest
+ INNER JOIN gramstat.validator_stake_rounds AS ps FINAL
+  ON ps.utime_since=p.utime_since AND ps.utime_until=p.utime_until
+  AND ps.config34_hash=p.config34_hash AND ps.roster_digest=p.roster_digest
+ WHERE x.calc_version='stake-changes-v1' AND p.data_through>=p.utime_until AND m.data_through>=m.utime_until
+ AND (x.status!='complete' OR (ps.selected_nanogram=x.previous_selected_nanogram
+  AND ps.remaining_nanogram=x.previous_remaining_nanogram AND ps.reward_nanogram=x.previous_reward_nanogram
+  AND ps.unfreeze_mc_seqno=x.result_mc AND ps.status!='invalid_source'))
+) AS ch ON ch.utime_since=r.utime_since AND ch.utime_until=r.utime_until
+ AND ch.config34_hash=r.config34_hash AND ch.roster_digest=r.roster_digest
+ AND ch.current_selected_nanogram=s.selected_nanogram`
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {
 	// Keep individual reads within the SELECT-only role's fixed result budget.

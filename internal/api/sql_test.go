@@ -15,6 +15,9 @@ import (
 //go:embed testdata/schema.sql
 var schema string
 
+//go:embed testdata/stake_changes.sql
+var stakeChangesFixture string
+
 func TestQueriesWithRealClickHouse(t *testing.T) {
 	binary, err := exec.LookPath("clickhouse")
 	if err != nil {
@@ -32,7 +35,7 @@ func TestQueriesWithRealClickHouse(t *testing.T) {
 		}
 		return b
 	}
-	run(schema + `
+	run(schema + stakeChangesFixture + `
 INSERT INTO gramstat.chain_daily_full VALUES('2026-10-21',1,100,0,0,NULL,NULL,1,1,3,'fixture','2026-10-28 00:00:00'),
 ('2026-10-22',7,NULL,50,0,5258373238061259412,1792627200,0,1,3,'fixture','2026-10-28 00:00:00');
 INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,380,'current','hash','2026-10-22 00:00:00');

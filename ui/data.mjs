@@ -245,6 +245,7 @@ export function readObservedMetrics(data) {
             roundDates.push(gap);
             for (const id of ['validator_count', 'countries', 'located', 'staking_apr']) put(id, 'total', gap, null);
             for (const key of ['submitted', 'selected', 'remaining', 'reward']) put('stake', key, gap, null);
+            for (const s of metrics.stake_changes.series) put('stake_changes', s.id, gap, null);
         }
         const date = new Date(r.utime_since * 1000).toISOString();
         const until = new Date(r.utime_until * 1000).toISOString();
@@ -262,6 +263,23 @@ export function readObservedMetrics(data) {
         const aprDetail = r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
             : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM.\nSelected stake: ${decimal(r.selected_nanogram, 9)} GRAM.\nAPR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
         put('staking_apr', 'total', date, r.apr_percent, 'percent', aprDetail);
+        const changeKeys = metrics.stake_changes.series.map(s => s.id);
+        const counts = changeKeys.map(key => r[`stake_change_${key}`]);
+        const matched = r.stake_change_matched;
+        const covered = r.stake_change_status === 'complete' && Number.isInteger(matched) && matched > 0
+            && counts.every(n => Number.isInteger(n) && n >= 0) && counts.reduce((a, b) => a + b, 0) === matched;
+        const changeDetail = covered
+            ? `Compared with ${formatDate(new Date(r.stake_change_previous * 1000).toISOString(), { seconds: true })} UTC (n−2).\nMatched: ${matched} of ${r.stake_change_current_holders} current addresses (${(matched / r.stake_change_current_holders * 100).toFixed(2)}%); ${r.stake_change_previous_holders} previous addresses. New: ${r.stake_change_new}. Exited: ${r.stake_change_exited}.\n${metrics.stake_changes.series.map((s, i) => `${s.label}: ${counts[i]}`).join('; ')}.`
+            : `Comparison unavailable: ${(r.stake_change_status || 'missing inputs').replaceAll('_', ' ')}.`;
+        // Round the cumulative shares, then difference them: the five displayed
+        // percentages sum to exactly 100%, including after decimal formatting.
+        let cumulative = 0, previousUnits = 0;
+        for (let i = 0; i < changeKeys.length; i++) {
+            cumulative += covered ? counts[i] : 0;
+            const units = covered ? Math.round(cumulative * 1000000 / matched) : 0;
+            put('stake_changes', changeKeys[i], date, covered ? ((units - previousUnits) / 10000).toFixed(4) : null, 'percent', changeDetail);
+            previousUnits = units;
+        }
         previousRoundUntil = r.utime_until;
     }
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
