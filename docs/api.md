@@ -249,6 +249,11 @@ The [nginx example](../deploy/nginx.conf) binds port
 snapshots, provenance and repository files are not served. Copy only `index.html`,
 `app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `wallet-registry.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
+Also copy `ui/fonts/` for the self-hosted Inter variable fonts (normal and italic)
+and their SIL Open Font License. These are unmodified Inter v4.1 files from
+`rsms/inter`, commit `e3a3d4c57d5ecc01453a575621882a384c1995a3`,
+`docs/font-files/InterVariable{,-Italic}.woff2`. The nginx allowlist serves only
+the two WOFF2 files; no third-party font service is required.
 
 For HTTPS deployment through HAProxy, terminate TLS at the proxy and forward
 requests to the private nginx listener. All frontend API requests are same-origin.
