@@ -31,7 +31,7 @@ export function decodeColumns(buffer) {
         if (tag === 8) return undefined;
         if (tag === 6) {
             const result = {}, n = count();
-            for (let i = 0; i < n; i++) Object.defineProperty(result, text(), { value: value(depth + 1), enumerable: true, writable: true });
+            for (let i = 0; i < n; i++) Object.defineProperty(result, text(), { value: value(depth + 1), enumerable: true, writable: true, configurable: true });
             return result;
         }
         const n = count();
@@ -42,7 +42,7 @@ export function decodeColumns(buffer) {
             for (let j = 0; j < columns; j++) {
                 const key = text(), column = value(depth + 1);
                 if (!Array.isArray(column) || column.length !== n) throw Error('Invalid chart column');
-                for (let i = 0; i < n; i++) if (column[i] !== undefined) Object.defineProperty(result[i], key, { value: column[i], enumerable: true, writable: true });
+                for (let i = 0; i < n; i++) if (column[i] !== undefined) Object.defineProperty(result[i], key, { value: column[i], enumerable: true, writable: true, configurable: true });
             }
             return result;
         }

@@ -33,6 +33,7 @@ func checkJS(t *testing.T, legacy, wire []byte, activity bool) {
  const expected=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
  const bytes=fs.readFileSync(process.argv[4]);
  const actual=decodeColumns(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+ for(const key of Object.keys(actual)) assert.equal(Object.getOwnPropertyDescriptor(actual,key).configurable,true);
  // Separate HTTP representations may be prepared on opposite UTC seconds.
  if(expected.servedAt && actual.servedAt) actual.servedAt=expected.servedAt;
  if(process.argv[5]==='activity') {
