@@ -532,7 +532,7 @@ footer {
 }
 .footer-quote {
     display: grid;
-    max-width: 760px;
+    width: 100%;
     margin: 24px auto 0;
     color: #b2b9bd;
     font-size: 14px;
