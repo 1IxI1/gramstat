@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const MaxDays = 93
+const MaxDays = 3660
 
 type entry struct {
 	data    []byte
@@ -188,7 +188,12 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 		data, err := load()
 		s.mu.Lock()
 		if err == nil {
-			if len(s.cache) >= 32 {
+			delete(s.cache, key)
+			cacheBytes := 0
+			for _, e := range s.cache {
+				cacheBytes += len(e.data)
+			}
+			for len(s.cache) >= 32 || cacheBytes+len(data) > 64<<20 {
 				var oldest string
 				var expiry time.Time
 				for k, e := range s.cache {
@@ -196,6 +201,7 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 						oldest, expiry = k, e.expires
 					}
 				}
+				cacheBytes -= len(s.cache[oldest].data)
 				delete(s.cache, oldest)
 			}
 			s.cache[key] = entry{data, time.Now().Add(5 * time.Minute)}
@@ -247,7 +253,7 @@ func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, e
 		}
 	}
 	data, err := json.Marshal(result)
-	if len(data) > 4<<20 {
+	if len(data) > 32<<20 {
 		return nil, fmt.Errorf("chart response exceeds limit")
 	}
 	return data, err

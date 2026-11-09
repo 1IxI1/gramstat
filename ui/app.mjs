@@ -85,7 +85,6 @@ function syncActivityTabs() {
 }
 let validatorsError = '';
 let activeRange;
-let wideRange = false;
 const recentRanges = [];
 const inputTime = (ms) => new Date(ms).toISOString().slice(0, 19);
 const displayTime = (ms) => inputTime(ms).replace('T', ' ');
@@ -343,7 +342,7 @@ function render(group, roundsOnly = false, onlyID) {
         const periodLabel = (date) => observationPeriodLabel(date, definition, activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : wideRange && definition.section !== 'wallet' && !['fees', 'minted', 'burned', 'transactions'].includes(definition.id) ? 'Zoom to 93 days or less for activity and validator geography charts.' : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -412,7 +411,6 @@ function selection() {
     $('range-label').textContent = `${displayTime(start)} — ${displayTime(end - 1000)}`;
     const from = new Date(start).toISOString().slice(0, 10);
     const to = new Date(Math.ceil(end / 86400000) * 86400000).toISOString().slice(0, 10);
-    wideRange = Date.parse(to) - Date.parse(from) > 93 * 86400000;
     return { from, to };
 }
 
@@ -501,18 +499,11 @@ async function loadRange() {
             }),
             async () => {
                 try {
-                    const data = await getJSON(`/api/v1/${wideRange ? 'chain' : 'dashboard'}?${new URLSearchParams(range)}`, request.signal);
+                    const data = await getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal);
                     if (id !== requestId) return;
                     readings = readObservedMetrics({ ...empty, ...data });
                     pendingCharts.delete('observations');
                     render('observations');
-                    if (wideRange) {
-                        const validators = await getJSON(`/api/v1/validators?${new URLSearchParams(range)}`, request.signal).catch((e) => ({ error: e.message }));
-                        if (id !== requestId) return;
-                        if (validators.error) validatorsError = `Validators unavailable: ${validators.error}`;
-                        readings = readObservedMetrics({ ...empty, ...data, rounds: validators.rounds || [] });
-                        render('observations', true);
-                    }
                     renderRounds();
                 } catch (e) {
                     if (id !== requestId) return;

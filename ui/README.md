@@ -15,7 +15,7 @@ API and deployment documentation:
   series from `/api/v1/supply`, down to individual MCs. Daily/validator charts use
   whole UTC days. Fees, issuance, burning and transactions retain daily points
   across the indexed history via `/api/v1/chain`. Activity and validator datasets
-  support up to 93 days; Supply and annual inflation also support wider ranges.
+  support the full history (up to ten years), including every prepared daily Activity point.
 - Click or tap a reading to pin its tooltip; pinned values can be selected and
   copied. Click the same reading again, click outside, or press Escape to dismiss.
 - Supply, daily fees, daily burning and annual inflation show a green dashed marker at

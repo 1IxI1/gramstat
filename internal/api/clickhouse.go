@@ -51,11 +51,11 @@ func (c *ClickHouse) Query(ctx context.Context, query string, params url.Values)
 		return nil, fmt.Errorf("ClickHouse read: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20+1))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20+1))
 	if err != nil {
 		return nil, err
 	}
-	if len(data) > 8<<20 {
+	if len(data) > 32<<20 {
 		return nil, fmt.Errorf("ClickHouse response too large")
 	}
 	if resp.StatusCode != http.StatusOK || resp.Header.Get("X-ClickHouse-Exception-Code") != "" || strings.HasPrefix(string(data), "Code:") {

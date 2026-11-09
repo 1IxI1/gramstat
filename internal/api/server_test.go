@@ -33,7 +33,7 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 	}), logger())
 	for _, target := range []string{
 		"/api/v1/dashboard", "/api/v1/dashboard?from=2026-10-22&to=2026-10-22",
-		"/api/v1/dashboard?from=2026-02-30&to=2026-03-02", "/api/v1/dashboard?from=2020-01-01&to=2026-10-22",
+		"/api/v1/dashboard?from=2026-02-30&to=2026-03-02", "/api/v1/dashboard?from=2018-01-01&to=2026-10-22",
 		"/api/v1/dashboard?from=2026-10-21&to=2026-10-28&sql=DROP", "/api/v1/coverage?readonly=0",
 		"/api/v1/locations?round=1&round=2", "/api/v1/locations?round=1%3BDROP", "/api/v1/locations?round=4294967296",
 		"/api/v1/dashboard?from=2026-10-21;to=2026-10-28",

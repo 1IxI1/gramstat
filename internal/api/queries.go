@@ -139,8 +139,8 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 	}
 	p := url.Values{
 		"readonly": {"1"}, "max_execution_time": {"10"}, "max_threads": {"2"},
-		"max_memory_usage": {"268435456"}, "max_result_rows": {"20000"},
-		"max_result_bytes": {"4194304"}, "result_overflow_mode": {"throw"},
+		"max_memory_usage": {"268435456"}, "max_result_rows": {"100000"},
+		"max_result_bytes": {"33554432"}, "result_overflow_mode": {"throw"},
 		"max_rows_to_read": {"2000000"}, "read_overflow_mode": {"throw"},
 		"join_use_nulls": {"1"}, "output_format_json_quote_64bit_integers": {"1"},
 	}
