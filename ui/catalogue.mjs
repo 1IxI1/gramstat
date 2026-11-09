@@ -110,9 +110,9 @@ export const CATALOGUE = [
     }),
     chart('stake_changes', 'Stake changes between rounds', 'validator', '%', {
         kind: 'stacked-area', step: true, round: true, share: true, layout: 'full',
-        series: [series('near_reward', 'Increase ≈ reward', 1), series('below_reward', 'Increase < reward'),
+        series: [{ ...series('near_reward', 'Increase ≈ reward', 1), color: '#27956a', emphasis: true, fillOpacity: 0.48 }, series('below_reward', 'Increase < reward'),
             series('above_reward', 'Increase > reward', 3), series('unchanged', 'Unchanged', 4), series('decreased', 'Decreased', 2)],
-        description: 'Each round is compared with the round two places earlier (n−2). Percentages count stake-holder addresses present in both rounds, not validators or amounts of GRAM; multiple validator keys under one address are combined.\nPositive increases are compared with the address’s proportional share of rewards from n−2, based on its remaining stake after penalties. “≈ reward” means within 2% of that reward or 5 GRAM, whichever is greater. Unchanged and decreased stakes are counted separately.\nStake changes can include deposits, withdrawals and redistribution between addresses; they do not prove reinvestment. Missing inputs or unreconciled penalties remain gaps.',
+        description: 'Each round (n) is compared with round n−2 for stake-holder addresses present in both.\n“Increase ≈ reward” means the stake increase matches the estimated reward within 2% or 5 GRAM, whichever is greater.\nReinvestment is estimated from stake changes; deposits and withdrawals can also affect them.',
     }),
     chart('telegram_share', 'Telegram share', 'validator', '%', {
         layout: 'half',

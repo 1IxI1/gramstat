@@ -484,7 +484,7 @@ export class TimeChart {
                     .reverse()
                     .map((point, i) => i && this.config.step ? `V${point[1]}H${point[0]}` : `L${point.join(',')}`)
                     .join(' ');
-                this.svg.append(node('path', { d: `${line} ${base} Z`, fill: item.color, 'fill-opacity': 0.24 }));
+                this.svg.append(node('path', { d: `${line} ${base} Z`, fill: item.color, 'fill-opacity': item.fillOpacity ?? 0.24 }));
                 this.svg.append(
                     node('path', { d: line, stroke: item.color, class: 'series-line', 'stroke-width': 1.2 }),
                 );
@@ -540,7 +540,7 @@ export class TimeChart {
         (this.config.id === 'accounts' ? [...this.config.series].reverse() : this.config.series).forEach((item) => {
             const seriesIndex = this.config.series.indexOf(item);
             const entry = html('div', 'tooltip-row');
-            const label = html('span', 'tooltip-label');
+            const label = html(item.emphasis ? 'strong' : 'span', 'tooltip-label');
             const swatch = html('span', 'swatch');
             swatch.style.setProperty('--series-color', item.color);
             label.append(swatch, document.createTextNode(item.label));

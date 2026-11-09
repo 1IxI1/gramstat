@@ -423,6 +423,12 @@ function render(group, roundsOnly = false, onlyID) {
         state.value.textContent = formatSummary(value, definition.unit);
         const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
+        if (definition.id === 'stake_changes') {
+            const reinvesting = allSeries.find(s => s.id === 'near_reward')?.points.findLast(([, value]) => Number.isFinite(value));
+            state.value.textContent = reinvesting ? String(Math.round(reinvesting[1])) : '—';
+            state.card.querySelector('.readout-unit').textContent = '% are reinvesting';
+            state.detail.textContent = reinvesting ? `in ${periodLabel(reinvesting[0])}` : '';
+        }
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : '') ||
             definition.unavailable ||
@@ -485,7 +491,7 @@ function render(group, roundsOnly = false, onlyID) {
                 });
                 const swatch = element('span', 'swatch');
                 swatch.style.backgroundColor = s.color;
-                item.append(swatch, document.createTextNode(s.label));
+                item.append(swatch, s.emphasis ? element('strong', '', s.label) : document.createTextNode(s.label));
                 state.legend.append(item);
             }
         state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
