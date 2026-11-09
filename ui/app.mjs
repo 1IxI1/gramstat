@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const cards = new Map();
 let readings;
 let loading = true;
+const pendingCharts = new Set();
 let requestId = 0;
 let controller;
 let coverage = [];
@@ -214,10 +215,18 @@ window.addEventListener('popstate', () => {
     } else syncExpandedChart();
 });
 
-function render() {
+function chartGroup(definition) {
+    return definition.section === 'wallet' ? 'wallets' : ['supply', 'inflation', 'accounts'].includes(definition.id) ? definition.id : 'observations';
+}
+
+function render(group, roundsOnly = false) {
     if (!readings) return;
     for (const state of cards.values()) {
         const { definition } = state;
+        const currentGroup = chartGroup(definition);
+        if (group && group !== currentGroup) continue;
+        if (roundsOnly && !definition.round) continue;
+        const loading = pendingCharts.has(currentGroup);
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
@@ -310,6 +319,8 @@ async function load() {
     controller = request;
     const timeout = setTimeout(() => request.abort(), 25000);
     loading = true;
+    pendingCharts.clear();
+    for (const group of ['wallets', 'supply', 'inflation', 'accounts', 'observations']) pendingCharts.add(group);
     supplyData = undefined;
     supplyError = '';
     inflationData = undefined;
@@ -346,38 +357,66 @@ async function load() {
         inflationParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('inflation').chart.surface.clientWidth)))));
         const accountsParams = new URLSearchParams(supplyParams);
         accountsParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('accounts').chart.surface.clientWidth)))));
-        const coverageRequest = getJSON('/api/v1/coverage', request.signal).catch(() => null);
-        const [data, sources, supply, inflation, accounts] = await Promise.all([
-            wideRange
-                ? getJSON(`/api/v1/chain?${new URLSearchParams(range)}`, request.signal).then(async (data) => {
-                    const validators = await getJSON(`/api/v1/validators?${new URLSearchParams(range)}`, request.signal).catch((e) => ({ error: e.message }));
-                    return { ...empty, ...data, rounds: validators.rounds || [], validatorsError: validators.error };
-                })
-                : getJSON(`/api/v1/dashboard?${new URLSearchParams(range)}`, request.signal),
-            coverageRequest,
-            getJSON(`/api/v1/supply?${supplyParams}`, request.signal).catch((e) => ({ error: e.message })),
-            getJSON(`/api/v1/inflation?${inflationParams}`, request.signal).catch((e) => ({ error: e.message })),
-            // Keep cold dashboard loads within the API's four-reader limit.
-            coverageRequest.then(() => getJSON(`/api/v1/accounts?${accountsParams}`, request.signal)).catch((e) => ({ error: e.message })),
-        ]);
-        if (id !== requestId) return;
-        if (data.validatorsError) validatorsError = `Validators unavailable: ${data.validatorsError}`;
-        if (sources) coverage = sources.coverage;
-        if (supply.error) supplyError = `Supply unavailable: ${supply.error}`;
-        else supplyData = supply;
-        if (inflation.error) inflationError = `Inflation unavailable: ${inflation.error}`;
-        else inflationData = inflation;
-        if (accounts.error) accountsError = `Accounts unavailable: ${accounts.error}`;
-        else accountsData = accounts;
-        readings = readObservedMetrics(data);
-        renderRounds();
-        // Start after the other chart reads to respect the four-reader server limit.
         const walletParams = new URLSearchParams(supplyParams);
         walletParams.set('maxPoints', String(Math.max(100, Math.min(1200, Math.round(cards.get(expandedId === 'active_wallets_daily' ? 'active_wallets_daily' : 'activated_wallets').chart.surface.clientWidth)))));
-        const wallets = await getJSON(`/api/v1/wallets?${walletParams}`, request.signal).catch((e) => ({ error: e.message }));
-        if (id !== requestId) return;
-        if (wallets.error) walletsError = `Wallets unavailable: ${wallets.error}`;
-        else walletsData = wallets;
+        const chartTask = (group, path, accept) => async () => {
+            const data = await getJSON(path, request.signal).catch((e) => ({ error: e.message }));
+            if (id !== requestId) return;
+            accept(data);
+            pendingCharts.delete(group);
+            render(group);
+        };
+        // Four workers match the API's cold-reader limit. Wallets starts at once;
+        // each completed group renders only its own charts.
+        const tasks = [
+            chartTask('wallets', `/api/v1/wallets?${walletParams}`, (data) => {
+                if (data.error) walletsError = `Wallets unavailable: ${data.error}`;
+                else walletsData = data;
+            }),
+            chartTask('supply', `/api/v1/supply?${supplyParams}`, (data) => {
+                if (data.error) supplyError = `Supply unavailable: ${data.error}`;
+                else supplyData = data;
+            }),
+            chartTask('inflation', `/api/v1/inflation?${inflationParams}`, (data) => {
+                if (data.error) inflationError = `Inflation unavailable: ${data.error}`;
+                else inflationData = data;
+            }),
+            chartTask('accounts', `/api/v1/accounts?${accountsParams}`, (data) => {
+                if (data.error) accountsError = `Accounts unavailable: ${data.error}`;
+                else accountsData = data;
+            }),
+            async () => {
+                try {
+                    const data = await getJSON(`/api/v1/${wideRange ? 'chain' : 'dashboard'}?${new URLSearchParams(range)}`, request.signal);
+                    if (id !== requestId) return;
+                    readings = readObservedMetrics({ ...empty, ...data });
+                    pendingCharts.delete('observations');
+                    render('observations');
+                    if (wideRange) {
+                        const validators = await getJSON(`/api/v1/validators?${new URLSearchParams(range)}`, request.signal).catch((e) => ({ error: e.message }));
+                        if (id !== requestId) return;
+                        if (validators.error) validatorsError = `Validators unavailable: ${validators.error}`;
+                        readings = readObservedMetrics({ ...empty, ...data, rounds: validators.rounds || [] });
+                        render('observations', true);
+                    }
+                    renderRounds();
+                } catch (e) {
+                    if (id !== requestId) return;
+                    warning(`Data could not be loaded. ${e.message}`);
+                    pendingCharts.delete('observations');
+                    render('observations');
+                }
+            },
+            async () => {
+                const sources = await getJSON('/api/v1/coverage', request.signal).catch(() => null);
+                if (id !== requestId || !sources) return;
+                coverage = sources.coverage;
+                render('coverage');
+            },
+        ];
+        await Promise.all(Array.from({ length: 4 }, async () => {
+            while (tasks.length && id === requestId && !request.signal.aborted) await tasks.shift()();
+        }));
     } catch (e) {
         if (id === requestId)
             warning(`Data could not be loaded. ${e.name === 'AbortError' ? 'Request timed out.' : e.message}`);
@@ -386,7 +425,10 @@ async function load() {
         if (id === requestId) {
             loading = false;
             $('apply').disabled = false;
-            render();
+            if (pendingCharts.size) {
+                pendingCharts.clear();
+                render();
+            }
         }
     }
 }
