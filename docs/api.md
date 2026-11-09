@@ -207,6 +207,12 @@ The `chain` coverage row also exposes nullable `last_complete_day`, the latest
 UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day
 range end no later than this day's end, even when newer blocks are available.
 
+UI theme colors use TON blue (`#0098EA`) and the current official `ton.org`
+dark UI palette: background `#10161F`, surface `#101B2A`, accent `#1EAEFB`,
+text `#D9E6F2`, muted `#93A5B8`, and border `#364459` (verified from
+`https://ton.org/_astro/global.vqBiqSff.css`). The light theme adapts these to
+white surfaces; auxiliary chart categories retain distinct semantic colors.
+
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
 can have partial edge days because shard generation timestamps can straddle the

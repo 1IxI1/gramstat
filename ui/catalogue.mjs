@@ -1,5 +1,5 @@
-export const COLORS = Object.freeze({ blue: '#5b91b1', green: '#5c9980', red: '#c27870', paleBlue: '#9cb8c7' });
-const palette = ['#5b91b1', '#5c9980', '#c27870', '#9b88ad', '#c79a54', '#619d9f'];
+export const COLORS = Object.freeze({ blue: 'var(--blue)', green: '#5c9980', red: '#c27870', paleBlue: 'var(--pale-blue)' });
+const palette = [COLORS.blue, COLORS.green, COLORS.red, '#9b88ad', '#c79a54', '#619d9f'];
 export const colorAt = (i) => palette[i % palette.length];
 const series = (id, label, i = 0) => ({ id, label, color: colorAt(i), demo: false });
 const chart = (id, title, section, unit = '', options = {}) => ({

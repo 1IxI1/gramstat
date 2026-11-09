@@ -14,7 +14,7 @@ function applyTheme() {
     $('theme-toggle').setAttribute('aria-pressed', String(dark));
     $('theme-toggle').textContent = dark ? '☀' : '☾';
     $('theme-toggle').title = dark ? 'Switch to light theme' : 'Switch to dark theme';
-    document.querySelector('meta[name="theme-color"]').content = dark ? '#11191f' : '#ffffff';
+    document.querySelector('meta[name="theme-color"]').content = dark ? '#10161f' : '#ffffff';
 }
 applyTheme();
 systemTheme.addEventListener('change', applyTheme);

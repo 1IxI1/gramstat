@@ -17,14 +17,20 @@
     font-family: Inter, Arial, sans-serif;
     font-synthesis: none;
     font-variant-numeric: tabular-nums;
-    color: light-dark(#27343b, #e0e8ed);
-    background: light-dark(#fff, #11191f);
-    --blue: light-dark(#5b91b1, #83b6d6);
+    color: var(--text);
+    background: var(--background);
+    --background: light-dark(#fff, #10161f);
+    --text: light-dark(#08090a, #d9e6f2);
+    --heading: light-dark(#10161f, #fff);
+    --secondary: light-dark(#536579, #93a5b8);
+    --blue: light-dark(#0098ea, #1eaefb);
+    --link: light-dark(#0079ba, #1eaefb);
+    --pale-blue: light-dark(#79c9f5, #70caff);
     --green: #5c9980;
     --red: #c27870;
-    --muted: light-dark(#849198, #a0afb9);
-    --line: light-dark(#e3e8e9, #33434e);
-    --plot: light-dark(#f7f9f9, #19252e);
+    --muted: light-dark(#64788c, #93a5b8);
+    --line: light-dark(#e3ebf2, #364459);
+    --plot: light-dark(#f4f8fb, #101b2a);
 }
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] { color-scheme: dark; }
@@ -36,29 +42,33 @@
 .time-controls button, .time-picker summary, .time-panel input,
 .time-panel, .wallet-registry, .wallet-registry-heading, .expanded-chart,
 .chart-toggle button[aria-pressed='true'], .skip-link {
-    background: light-dark(#fff, #11191f);
+    background: var(--background);
 }
-.chart-tooltip { background: light-dark(#fffffff7, #1e2c36f7); }
+.chart-tooltip { background: light-dark(#fffffff7, #1d2633f7); }
 .source-status, .chart-status, .chart-description, .wallet-hash-label,
 .chart-explanation, .chart-average, .tooltip-date {
-    color: light-dark(#6a7b84, #aabac5);
+    color: var(--secondary);
 }
 h3, .chart-expand, .chart-tooltip, .chart-toggle button[aria-pressed='true'] {
-    color: light-dark(#53626b, #c8d6df);
+    color: var(--text);
 }
-.chart-expand:hover, .legend-item:hover, .skip-link { color: light-dark(#27343b, #e0e8ed); }
-.wallet-registry-link, .wallet-registry-table a { color: light-dark(#397799, #83b6d6); }
+h1, h2, .readout-value { color: var(--heading); }
+.chart-expand:hover, .legend-item:hover, .skip-link { color: var(--heading); }
+.wallet-registry-link, .wallet-registry-table a, .time-picker summary strong, .calendar-weekdays { color: var(--link); }
 .chart-legend, .tooltip-note, .section-date, .readout-unit, .readout-detail,
 .chart-toggle button, footer, .footer-quote { color: var(--muted); }
 .masthead, .chart-tooltip, .tooltip-total { border-color: var(--line); }
 .axis-label, .chart-empty { fill: var(--muted); }
-.grid-line { stroke: light-dark(#e5ebed, #33434e); }
+.grid-line { stroke: light-dark(#dde7ef, #93a5b82e); }
 .event-marker-label { stroke: var(--plot); }
-.calendar-days button.selected { background: light-dark(#e1edf3, #2a4659); }
+.calendar-days button.selected { background: light-dark(#e0f3ff, #222c3d); }
 .calendar-days button.edge, .calendar-choices button[aria-pressed='true'],
 .time-panel #apply, .activity-tabs button[aria-selected='true'] {
-    color: light-dark(#fff, #11191f);
+    color: #08090a;
+    background: var(--blue);
 }
+.range-selection { fill: #0098ea26; stroke: var(--blue); }
+.chart-cursor { stroke: var(--muted); }
 .chart-toggle { background: var(--plot); }
 .warning { background: light-dark(#fff5e8, #382e20); color: light-dark(#775528, #e7c38c); }
 .warning button { border-color: light-dark(#dec9ab, #806641); }
