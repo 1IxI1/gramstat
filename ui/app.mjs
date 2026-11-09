@@ -253,6 +253,12 @@ for (const definition of CATALOGUE) {
     const detail = element('span', 'readout-detail');
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
     const surface = element('div', 'chart-surface');
+    if (definition.emptyMessage) {
+        surface.classList.add('has-explanation');
+        const explanation = element('div', 'chart-explanation');
+        explanation.append(element('strong', '', definition.emptyMessage.title), element('p', '', definition.emptyMessage.text));
+        surface.append(explanation);
+    }
     if (definition.id === 'active_wallets_daily') {
         const tabs = element('div', 'activity-tabs');
         tabs.setAttribute('role', 'tablist');

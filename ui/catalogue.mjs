@@ -106,10 +106,14 @@ export const CATALOGUE = [
         description: 'Annualized validator staking returns without reinvestment, based on capital locked for two validation rounds. Each round lasts 18 h, 12 min, and 16 s. Rewards are distributed in proportion to each validator’s remaining stake after penalties. Every validator without penalties earns the same percentage return. Penalties reduce the returned stake but are not deducted when calculating this APR.\nAPR = (Rewards / Selected stake) × (365 days / Two-round duration) × 100%',
     }),
     chart('staking_apy', 'Staking APY', 'validator', '%', {
-        unavailable: 'Requires verified returns and an explicit reinvestment model.',
+        unavailable: 'No reinvestment model.',
+        emptyMessage: {
+            title: 'A constant-rate APY can be misleading for TON staking.',
+            text: 'As the charts above show, reinvesting does not increase total rewards in GRAM. Most validators appear to reinvest, as the chart on the right shows. This increases total stake and lowers APR if total rewards stay unchanged.',
+        },
     }),
     chart('stake_changes', 'Stake changes between rounds', 'validator', '%', {
-        kind: 'stacked-area', step: true, round: true, share: true, layout: 'full',
+        kind: 'stacked-area', step: true, round: true, share: true, layout: 'wide',
         defaultHiddenSeries: ['below_reward', 'above_reward', 'unchanged', 'decreased'],
         series: [{ ...series('near_reward', 'Increase ≈ reward', 1), color: '#27956a', emphasis: true, fillOpacity: 0.48 }, series('below_reward', 'Increase < reward'),
             series('above_reward', 'Increase > reward', 3), series('unchanged', 'Unchanged', 4), series('decreased', 'Decreased', 2)],
