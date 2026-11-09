@@ -39,13 +39,14 @@ export const CATALOGUE = [
     }),
     chart('minted', 'Daily issuance', 'gram', 'GRAM', {
         averageUnit: 'GRAM/day',
+        annotations: [SUBSECOND_START],
         kind: 'bar', zero: true,
         description: 'New GRAM issued as block rewards each UTC day.',
     }),
     chart('burned', 'Daily burn', 'gram', 'GRAM', {
         averageUnit: 'GRAM/day',
         description: 'GRAM burned from transaction fees (50% of them) and funds sent to −1:ff…ff each UTC day.',
-        annotations: [BURN_START, SUBSECOND_START],
+        annotations: [BURN_START],
         kind: 'bar',
         zero: true,
     }),
