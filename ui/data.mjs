@@ -1,5 +1,5 @@
 import { CATALOGUE, colorAt, periodDates } from './catalogue.mjs';
-import { formatDate } from './charts.mjs';
+import { formatDate, formatTooltipExact } from './charts.mjs';
 import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
 
 // Exact strings remain in the response and tooltips. Conversion to Number is
@@ -72,7 +72,8 @@ export function inflationSeries(data) {
         const exact = typeof p.annualized_percent === 'string' && /^-?\d+(\.\d+)?$/.test(p.annualized_percent) ? p.annualized_percent : null;
         s.points.push([date, exact === null ? null : Number(exact)]);
         s.exact[date] = exact;
-        s.details[date] = `24h window: ${formatDate(new Date(p.window_from * 1000).toISOString())} — ${formatDate(date)}. Minted: ${decimal(p.minted_24h_nanoton,9) ?? 'unknown'} GRAM. Burned: ${decimal(p.burned_24h_nanoton,9) ?? 'unknown'} GRAM. Supply: ${decimal(p.supply_nanoton,9) ?? 'unknown'} GRAM (MC ${p.supply_mc}).`;
+        const amount = (value) => value === null ? 'unknown' : formatTooltipExact(decimal(value, 9) ?? 'unknown');
+        s.details[date] = `24h window: ${formatDate(new Date(p.window_from * 1000).toISOString())} — ${formatDate(date)}. Minted: ${amount(p.minted_24h_nanoton)} GRAM. Burned: ${amount(p.burned_24h_nanoton)} GRAM. Supply: ${amount(p.supply_nanoton)} GRAM (MC ${p.supply_mc}).`;
     }
     return s;
 }

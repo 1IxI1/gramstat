@@ -8,6 +8,11 @@ export function formatValue(value, unit = '') {
     return `${exactNumber.format(value)}${unit === '%' ? '%' : unit ? ` ${unit}` : ''}`;
 }
 
+// Shorten only display text: the exact decimal strings remain untouched in series data.
+export function formatTooltipExact(value) {
+    return value.replace(/(\.\d*?[1-9])0+$|\.0+$/, '$1');
+}
+
 export function formatSummary(value, unit = '') {
     if (!Number.isFinite(value)) return '—';
     if (unit === '%') return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(value);
@@ -503,7 +508,7 @@ export class TimeChart {
                     'span',
                     'tooltip-value',
                     exact != null
-                        ? `${exact} ${this.config.unit}`
+                        ? `${formatTooltipExact(exact)} ${this.config.unit}`
                         : formatValue(row.values[seriesIndex], this.config.unit),
                 ),
             );

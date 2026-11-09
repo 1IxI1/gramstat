@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CATALOGUE, periodDates } from './catalogue.mjs';
-import { buildRows, formatDate, formatAxisDate, domain } from './charts.mjs';
+import { buildRows, formatDate, formatAxisDate, formatTooltipExact, domain } from './charts.mjs';
 import { decimal, readObservedMetrics, latestChainRange, supplySeries, inflationSeries, dailyAverage, rangeDurationLabel } from './data.mjs';
 
 const fixture = () => ({
@@ -111,6 +111,15 @@ test('x-axis dates include years on long or year-crossing ranges', () => {
     assert.equal(formatAxisDate(date, { span: 7 * 365 * 86400000, time: true }), '15 Feb 2023');
     assert.equal(formatAxisDate(date, { span: 3600000, time: true }), '12:00');
     assert.equal(formatAxisDate(date, { span: 300000, time: true }), '12:00:00');
+});
+
+test('tooltip removes only insignificant decimal zeroes, never rounding exact money', () => {
+    assert.equal(formatTooltipExact('577149.900000000'), '577149.9');
+    assert.equal(formatTooltipExact('100.000000000'), '100');
+    assert.equal(formatTooltipExact('0.000000000'), '0');
+    assert.equal(formatTooltipExact('0.000000001'), '0.000000001');
+    assert.equal(formatTooltipExact('5258373238.061259412'), '5258373238.061259412');
+    assert.equal(formatTooltipExact('-0.120000000000'), '-0.12');
 });
 
 test('default range follows chain indexing rather than newer independent sources', () => {
