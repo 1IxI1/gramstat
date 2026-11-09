@@ -174,7 +174,9 @@ export function readObservedMetrics(data) {
     const put = (id, key, date, raw, scale, detail, partial = false) => {
         const item = metrics[id]?.series.find((s) => s.id === key);
         if (!item) return;
-        const exact = decimal(raw, scale);
+        const exact = scale === 'percent'
+            ? (typeof raw === 'string' && /^\d+(\.\d+)?$/.test(raw) ? raw : null)
+            : decimal(raw, scale);
         const value = exact === null ? null : Number(exact);
         item.points.push([date, Number.isFinite(value) ? value : null]);
         item.exact[date] = exact;
@@ -242,7 +244,7 @@ export function readObservedMetrics(data) {
         if (previousRoundUntil != null && previousRoundUntil < r.utime_since) {
             const gap = new Date(previousRoundUntil * 1000).toISOString();
             roundDates.push(gap);
-            for (const id of ['validator_count', 'countries', 'located']) put(id, 'total', gap, null);
+            for (const id of ['validator_count', 'countries', 'located', 'staking_apr']) put(id, 'total', gap, null);
             for (const key of ['submitted', 'selected', 'remaining', 'reward']) put('stake', key, gap, null);
         }
         const date = new Date(r.utime_since * 1000).toISOString();
@@ -258,6 +260,11 @@ export function readObservedMetrics(data) {
             put('stake', key, date, r[`${key}_nanogram`], 9,
                 key === 'reward' ? 'Accumulated election reward before distribution; principal excluded.' : key === 'remaining' ? stakeDetail : `Election ${r.election_id ?? 'unknown'}; ${key === 'submitted' ? 'accepted applications before selection' : 'maximum observed selected principal'}.`);
         }
+        const duration = (seconds) => Number.isInteger(seconds) && seconds > 0
+            ? `${Math.floor(seconds / 3600)} h, ${Math.floor(seconds % 3600 / 60)} min, ${seconds % 60} s` : 'unknown';
+        const aprDetail = r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
+            : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM. Selected stake: ${decimal(r.selected_nanogram, 9)} GRAM. Round: ${duration(r.utime_until - r.utime_since)}. Two-round cycle: ${duration(r.apr_cycle_seconds)}. APR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
+        put('staking_apr', 'total', date, r.apr_percent, 'percent', aprDetail);
         previousRoundUntil = r.utime_until;
     }
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };

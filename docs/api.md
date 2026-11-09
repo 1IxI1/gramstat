@@ -176,6 +176,18 @@ distribution, from the same verified release result. It excludes principal and
 is plotted as lower-panel bars with a right-hand GRAM axis. It is not an APR or
 a claim about final per-holder credits after rounding and banned positions.
 
+`apr_percent` is the prepared, nullable decimal percentage string (up to 12 decimal
+places), not an APY. Formula: `reward_nanogram / selected_nanogram *
+31,536,000 / apr_cycle_seconds * 100`. The cycle comprises this round and its
+immediate successor, using their verified intervals; `apr_next_utime_until`
+identifies its end. Both rounds must be complete, with no gap or overlap, the
+selected principal must be positive, and a verified release reward must exist.
+A known zero reward yields zero APR; missing inputs yield NULL with `apr_status`.
+The API rechecks both interval proofs, including the successor outside the
+requested date range, and hides stale APR after corrections. This is gross reward
+APR relative to selected capital, without reinvestment, pool fee deductions or
+subtraction of lost principal. It is not an individual depositor's realized yield.
+
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
 can have partial edge days because shard generation timestamps can straddle the

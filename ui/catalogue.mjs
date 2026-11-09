@@ -102,7 +102,8 @@ export const CATALOGUE = [
     }),
     chart('located', 'Validators with coordinates', 'validator', '', { kind: 'step', round: true, integer: true }),
     chart('staking_apr', 'Staking APR', 'validator', '%', {
-        unavailable: 'Verified round returns have not been aggregated yet.',
+        kind: 'step', round: true,
+        description: 'Annualized validator staking returns without reinvestment, based on capital locked for two validation rounds. Each round lasts 18 h, 12 min, and 16 s. Rewards are distributed in proportion to each validator’s remaining stake after penalties. Every validator without penalties earns the same percentage return. Penalties reduce the returned stake but are not deducted when calculating this APR.\nAPR = (Rewards / Selected stake) × (365 days / Two-round duration) × 100%',
     }),
     chart('staking_apy', 'Staking APY', 'validator', '%', {
         unavailable: 'Requires verified returns and an explicit reinvestment model.',

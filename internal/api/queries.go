@@ -96,11 +96,12 @@ formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
+` + aprJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"rounds": `SELECT r.utime_since AS utime_since, r.utime_until AS utime_until,
@@ -112,13 +113,14 @@ formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_a
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_geo_rounds AS g FINAL
  ON r.utime_since = g.utime_since AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
 LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
+` + aprJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"locations": `SELECT g.utime_since, g.total, g.located, g.unknown, g.data_through, g.status,
@@ -151,6 +153,20 @@ UNION ALL SELECT 'accounts',toString(toDate(minOrNull(first_utime),'UTC')),toStr
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime)
 FROM gramstat.accounts_hourly FINAL`,
 }
+
+// Recheck both interval proofs at read time so a corrected/removed successor
+// cannot expose stale APR before the next hourly reconciliation.
+const aprReadySQL = `s.calc_version = 'stake-v3' AND s.apr_status = 'complete'
+ AND r.data_through >= r.utime_until AND n.data_through >= n.utime_until
+ AND n.utime_until <= toUnixTimestamp(now()) AND s.apr_percent IS NOT NULL`
+
+const aprColumnsSQL = `toString(if(` + aprReadySQL + `, s.apr_percent, NULL)) AS apr_percent,
+s.apr_cycle_seconds, s.apr_next_utime_until,
+if(s.apr_status = 'complete' AND NOT coalesce((` + aprReadySQL + `), false), 'stale_intervals', s.apr_status) AS apr_status`
+
+const aprJoinSQL = `LEFT JOIN gramstat.validator_rounds AS n FINAL
+ ON n.utime_since = s.utime_until AND n.utime_until = s.apr_next_utime_until
+ AND n.config34_hash = s.apr_next_config34_hash AND n.roster_digest = s.apr_next_roster_digest`
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {
 	// Keep individual reads within the SELECT-only role's fixed result budget.

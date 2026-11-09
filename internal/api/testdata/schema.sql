@@ -6,7 +6,10 @@ CREATE TABLE gramstat.validator_stake_rounds (
     submitted_nanogram Nullable(Decimal(38,0)), selected_nanogram Nullable(Decimal(38,0)),
     remaining_nanogram Nullable(Decimal(38,0)), unfreeze_utime Nullable(UInt32),
     config34_hash String, roster_digest String, status String, calculated_at DateTime64(6,'UTC'),
-    reward_nanogram Nullable(Decimal(38,0))
+    reward_nanogram Nullable(Decimal(38,0)), calc_version String,
+    apr_percent Nullable(Decimal(76,12)), apr_cycle_seconds Nullable(UInt32),
+    apr_next_utime_until Nullable(UInt32), apr_next_config34_hash Nullable(String),
+    apr_next_roster_digest Nullable(String), apr_status String
 ) ENGINE=ReplacingMergeTree(calculated_at) ORDER BY utime_since;
 CREATE TABLE gramstat.accounts_hourly (
     hour DateTime('UTC'), first_mc UInt32, last_mc UInt32, first_utime UInt32, last_utime UInt32,
