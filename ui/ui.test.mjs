@@ -60,9 +60,10 @@ test('no live chart uses generated data; unsupported metrics stay empty', () => 
     assert.equal(data.metrics.supply.series[0].exact['2026-10-22'], '5258373238.061259412');
 });
 
-test('unknown totals and geo remain unknown, without falling back to subtotals', () => {
+test('Stars purchased shows known quantities while unknown geography stays unknown', () => {
     const data = readObservedMetrics(fixture());
-    assert.equal(data.metrics.stars_quantity.series[0].points[0][1], null);
+    assert.equal(data.metrics.stars_quantity.series[0].points[0][1], 1234);
+    assert.equal(data.metrics.stars_quantity.series[0].partial['2026-10-22'], true);
     assert.equal(data.metrics.stars_known.series[0].points[0][1], 1234);
     assert.equal(data.metrics.countries.series[0].points[0][1], null);
     assert.equal(data.metrics.located.series[0].points[0][1], null);

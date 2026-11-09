@@ -25,6 +25,10 @@ API and deployment documentation:
   receivers and swap users require independently prepared monthly distinct counts.
   Every Activity chart shows an exact-arithmetic mean per displayed series below
   the plot, in units/day or units/month, excluding unknown buckets.
+- Stars purchased displays the known purchased quantity even when some purchase
+  sizes are unknown. Such observations and their averages are marked partial;
+  tooltips explain that unknown sizes are excluded. Monthly totals sum known
+  quantities exactly. Missing source days remain gaps.
 - The page loads `/api/v2/dashboard` once for the selected range, including shared
   Activity date/value columns for whole boundary months. Daily / Monthly toggles
   reuse that response locally. All API requests negotiate lossless GSC1 binary

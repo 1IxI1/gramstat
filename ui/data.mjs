@@ -229,11 +229,13 @@ export function readObservedMetrics(data) {
         if (!dailyIDs.has(r.day)) continue;
         const detail = `${r.is_partial ? 'Partial day. ' : ''}${r.unknown_purchases} purchases with unknown size.`;
         for (const [id, field] of [
-            ['stars_quantity', 'stars_total'],
+            ['stars_quantity', 'known_stars_total'],
             ['stars_known', 'known_stars_total'],
             ['stars_unknown', 'unknown_purchases'],
         ])
-            put(id, 'total', r.day, r[field], 0, detail, Boolean(r.is_partial));
+            put(id, 'total', r.day, r[field], 0,
+                id === 'stars_quantity' ? `Known quantities only; purchases with unknown size are excluded. ${detail}` : detail,
+                Boolean(r.is_partial) || (id === 'stars_quantity' && r.stars_total == null));
     }
     let previousRoundUntil;
     for (const r of data.rounds) {
@@ -314,6 +316,12 @@ export function monthlyActivity(data) {
                 series.points.push([month, exact === null ? null : Number(exact)]);
                 series.partial[month] = partial;
                 series.details[month] = exact === null ? 'Monthly history is being prepared.' : partial ? 'Partial calendar month.' : '';
+                if (definition.id === 'stars_quantity' && exact !== null) {
+                    const counts = days.map((day) => daily.metrics.stars_unknown.series[0].exact[day]);
+                    const unknown = counts.every((v) => typeof v === 'string' && /^\d+$/.test(v))
+                        ? formatTooltipExact(String(counts.reduce((sum, v) => sum + BigInt(v), 0n))) : 'an unknown number of';
+                    series.details[month] = `${end > data.period.to ? 'Partial calendar month. ' : ''}Known quantities only; ${unknown} purchases with unknown size excluded.`;
+                }
             }
             return series;
         }) };

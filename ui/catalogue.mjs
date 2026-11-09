@@ -142,7 +142,7 @@ export const CATALOGUE = [
     chart('stars_quantity', 'Stars purchased', 'activity', 'Stars', {
         kind: 'bar',
         zero: true,
-        note: 'Full quantity is unknown if any purchase has an unrecognized size.',
+        note: 'Known purchased quantities. Purchases with unknown size are excluded; the displayed quantity may be a subtotal.',
     }),
     chart('stars_known', 'Known Stars subtotal', 'activity', 'Stars', {
         kind: 'bar',
