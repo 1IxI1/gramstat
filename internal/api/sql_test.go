@@ -37,7 +37,7 @@ INSERT INTO gramstat.chain_daily_full VALUES('2026-10-21',1,100,0,0,NULL,NULL,1,
 ('2026-10-22',7,NULL,50,0,5258373238061259412,1792627200,0,1,3,'fixture','2026-10-28 00:00:00');
 INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,380,'current','hash','2026-10-22 00:00:00');
 INSERT INTO gramstat.validator_geo_rounds(utime_since,utime_until,total,located,countries,roster_digest,config34_hash,calculated_at) VALUES(1792540800,1792606336,379,378,22,'old','hash','2026-10-22 00:00:00');
-INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540800,900719925474099312345,800719925474099312345,NULL,NULL,'hash','current','missing_result','2026-10-22 00:00:00');
+INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540800,900719925474099312345,800719925474099312345,NULL,NULL,'hash','current','missing_result','2026-10-22 00:00:00',NULL);
 `)
 	for name, query := range queries {
 		if strings.HasPrefix(name, "supply_") || strings.HasPrefix(name, "accounts_") || strings.HasPrefix(name, "wallet_") || name == "inflation_rollup" {
@@ -74,7 +74,7 @@ INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540
 			t.Fatal("stale map published")
 		}
 	}
-	run(`INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540800,1,1,1,1792700000,'wrong-hash','current','complete','2026-10-23 00:00:00');`)
+	run(`INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540800,1,1,1,1792700000,'wrong-hash','current','complete','2026-10-23 00:00:00',900719925474099312345);`)
 	for _, name := range []string{"rounds", "validators"} {
 		b := run(queries[name] + " FORMAT JSON")
 		var result struct {
@@ -85,6 +85,18 @@ INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540
 		}
 		if len(result.Data) != 1 || result.Data[0]["selected_nanogram"] != nil || result.Data[0]["remaining_nanogram"] != nil {
 			t.Fatal("stale stake joined: " + string(b))
+		}
+	}
+	run(`INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540800,1,1,1,1792700000,'hash','current','complete','2026-10-24 00:00:00',900719925474099312345);`)
+	for _, name := range []string{"rounds", "validators"} {
+		var result struct {
+			Data []map[string]any `json:"data"`
+		}
+		if err := json.Unmarshal(run(queries[name]+" FORMAT JSON"), &result); err != nil {
+			t.Fatal(err)
+		}
+		if len(result.Data) != 1 || result.Data[0]["reward_nanogram"] != "900719925474099312345" {
+			t.Fatal("reward lost precision")
 		}
 	}
 	// API projections must not leak source hostnames, raw IPs or internal record IDs.

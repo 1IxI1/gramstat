@@ -105,7 +105,7 @@ export function domain(config, rows) {
     if (config.share) return [0, 100];
     const stacked = config.kind.startsWith('stacked');
     const values = rows.flatMap((row) =>
-        stacked ? (row.total === null ? [] : [row.total]) : row.values.filter(Number.isFinite),
+        stacked ? (row.total === null ? [] : [row.total]) : row.values.filter((value, i) => Number.isFinite(value) && config.series?.[i]?.axis !== 'right'),
     );
     if (!values.length) return [0, 1];
     const minimum = Math.min(...values);
@@ -266,9 +266,12 @@ export class TimeChart {
         const height = this.surface.clientHeight || 273;
         const footerHeight = this.config.averageUnit ? (this.surface.querySelector('.chart-average')?.offsetHeight || 32) : 0;
         const left = 80;
-        const right = width - 24;
+        const secondary = this.config.series.some((s) => s.axis === 'right');
+        const right = width - (secondary ? 80 : 24);
         const top = 27;
         const bottom = height - footerHeight - 41;
+        const rewardTop = bottom - (bottom - top) * 0.27;
+        const primaryBottom = secondary ? rewardTop - 22 : bottom;
         const [minimum, maximum] = domain(this.config, this.rows);
         const timestamps = this.rows.map((r) => Date.parse(r.date));
         const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
@@ -283,14 +286,18 @@ export class TimeChart {
             (this.config.round || this.config.time) && span > 0
                 ? left + ((plottedTime(index) - timeStart) / span) * (right - left)
                 : left + ((index + 0.5) / this.rows.length) * (right - left);
-        const y = (value) => bottom - ((value - minimum) / (maximum - minimum)) * (bottom - top);
+        const y = (value) => primaryBottom - ((value - minimum) / (maximum - minimum)) * (primaryBottom - top);
+        const rewardRows = this.rows.map((row) => ({ values: row.values.filter((_, i) => this.config.series[i].axis === 'right') }));
+        const [, rewardMax] = domain({ kind: 'bar', zero: true }, rewardRows);
+        const rewardY = (value) => bottom - value / rewardMax * (bottom - rewardTop);
         const monthWidth = (index) => Math.max(2,(monthBounds(index)[1]-monthBounds(index)[0])/span*(right-left)*0.68);
-        this.geometry = { width, height, left, right, top, bottom, x, y, monthWidth };
+        this.geometry = { width, height, left, right, top, bottom, primaryBottom, x, y, monthWidth, rewardY };
         this.svg.replaceChildren();
         this.svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
         const hasReadings = this.rows.some((row) => row.values.some(Number.isFinite));
-        if (hasReadings) {
+        const hasPrimary = this.rows.some((row) => row.values.some((v, i) => Number.isFinite(v) && this.config.series[i].axis !== 'right'));
+        if (hasPrimary) {
             const ticks = [minimum, (minimum + maximum) / 2, maximum];
             for (let value of ticks) {
                 if (this.config.integer) value = Math.round(value);
@@ -302,6 +309,18 @@ export class TimeChart {
                         axisNumber(value, maximum - minimum, this.config.unit),
                     ),
                 );
+            }
+        }
+        if (secondary) {
+            this.svg.append(node('text', { x: right, y: rewardTop - 8, 'text-anchor': 'end', class: 'axis-label reward-axis-title' }, this.config.secondaryAxisLabel));
+            if (rewardRows.some((row) => row.values.some(Number.isFinite))) {
+                for (const value of [0, rewardMax]) {
+                    this.svg.append(node('line', { x1: left, x2: right, y1: rewardY(value), y2: rewardY(value), class: 'grid-line' }));
+                    this.svg.append(node('text', { x: right + 9, y: rewardY(value) + 3, class: 'axis-label reward-axis-label' }, axisNumber(value, rewardMax, this.config.unit)));
+                }
+                this.drawSecondaryBars();
+            } else {
+                this.svg.append(node('text', { x: right + 9, y: bottom + 3, class: 'axis-label reward-axis-label' }, '—'));
             }
         }
         const tickIndices = [0, Math.floor((this.rows.length - 1) / 2), this.rows.length - 1];
@@ -381,8 +400,9 @@ export class TimeChart {
     }
 
     drawLines() {
-        const { x, y, bottom } = this.geometry;
+        const { x, y, primaryBottom: bottom } = this.geometry;
         this.config.series.forEach((item, seriesIndex) => {
+            if (item.axis === 'right') return;
             const segments = contiguous(this.rows, (row) => row.values[seriesIndex] !== null);
             for (const segment of segments) {
                 const path = segment
@@ -427,6 +447,22 @@ export class TimeChart {
                     );
                 }
             }
+        });
+    }
+
+    drawSecondaryBars() {
+        const { x, rewardY, left, right, bottom } = this.geometry;
+        this.rows.forEach((row, index) => {
+            const spacing = Math.min(index ? x(index) - x(index - 1) : Infinity,
+                index + 1 < this.rows.length ? x(index + 1) - x(index) : Infinity);
+            const width = Math.max(0.2, Math.min(28, spacing * 0.68));
+            const start = Math.max(left, x(index) - width / 2);
+            const end = Math.min(right, x(index) + width / 2);
+            this.config.series.forEach((item, i) => {
+                if (item.axis !== 'right' || row.values[i] === null) return;
+                this.svg.append(node('rect', { x: start, y: rewardY(row.values[i]), width: Math.max(0, end - start),
+                    height: bottom - rewardY(row.values[i]), fill: item.color, 'fill-opacity': 0.65, class: 'reward-bar' }));
+            });
         });
     }
 
@@ -486,7 +522,7 @@ export class TimeChart {
             const value = row.values[seriesIndex];
             if (value === null) return;
             base = this.config.kind.startsWith('stacked') ? base + value : value;
-            if (!this.config.kind.includes('bar') && (!this.config.kind.startsWith('stacked') || row.total !== null)) {
+            if (item.axis !== 'right' && !this.config.kind.includes('bar') && (!this.config.kind.startsWith('stacked') || row.total !== null)) {
                 this.selection.append(
                     node('circle', {
                         cx: position,

@@ -95,6 +95,7 @@ r.total AS total, r.is_partial AS is_partial, r.data_through AS data_through,
 formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
+toString(s.reward_nanogram) AS reward_nanogram,
 s.unfreeze_utime, s.status AS stake_status
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
@@ -110,6 +111,7 @@ g.status AS geo_status, g.data_through AS geo_data_through,
 formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_at,
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
+toString(s.reward_nanogram) AS reward_nanogram,
 s.unfreeze_utime, s.status AS stake_status
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_geo_rounds AS g FINAL

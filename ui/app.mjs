@@ -411,7 +411,7 @@ function render(group, roundsOnly = false, onlyID) {
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
-        const rows = buildRows(shownDates, series);
+        const rows = buildRows(shownDates, series.filter((s) => s.axis !== 'right'));
         const latest = isWallet || monthly ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
         );

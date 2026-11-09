@@ -90,8 +90,9 @@ export const CATALOGUE = [
     }),
     chart('stake', 'Stake', 'validator', 'GRAM', {
         kind: 'step', round: true, layout: 'wide',
-        series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2)],
-        description: 'Submitted: accepted election applications, including unselected candidates and excess stake.\nSelected: stake retained after selection.\nRemaining: stake left after fines, immediately before release, excluding rewards.',
+        series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2), { ...series('reward', 'Reward', 3), axis: 'right', kind: 'bar' }],
+        secondaryAxisLabel: 'Reward (GRAM)',
+        description: 'Submitted: accepted election applications, including unselected candidates and excess stake.\nSelected: stake retained after elections.\nRemaining: stake left after fines, immediately before release, excluding rewards.',
     }),
     chart('countries', 'Countries', 'validator', '', {
         kind: 'step',

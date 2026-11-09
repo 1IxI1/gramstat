@@ -1,15 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readObservedMetrics } from './data.mjs';
+import { domain } from './charts.mjs';
 
 test('Stake keeps three exact stages on one round axis and gaps in missing history', () => {
     const rounds = [
         { utime_since: 100, utime_until: 200, data_through: 200, total: 5, submitted_nanogram: '900719925474099312345', selected_nanogram: '800719925474099312345', remaining_nanogram: null },
-        { utime_since: 300, utime_until: 400, data_through: 400, total: 5, submitted_nanogram: '1000000000', selected_nanogram: '1000000000', remaining_nanogram: '0', unfreeze_utime: 500 },
+        { utime_since: 300, utime_until: 400, data_through: 400, total: 5, submitted_nanogram: '1000000000', selected_nanogram: '1000000000', remaining_nanogram: '0', reward_nanogram: '900719925474099312345', unfreeze_utime: 500 },
     ];
     const data = readObservedMetrics({ schemaVersion: 2, network: 'mainnet', period: { from: '1970-01-01', to: '1970-01-02' }, chain: [], daily: [], stars: [], rounds });
     const series = data.metrics.stake.series;
-    assert.deepEqual(series.map(s => s.id), ['submitted', 'selected', 'remaining']);
+    assert.deepEqual(series.map(s => s.id), ['submitted', 'selected', 'remaining', 'reward']);
+    assert.equal(series[3].axis, 'right');
+    assert.equal(series[3].exact[data.roundDates[0]], null);
+    assert.equal(series[3].exact[data.roundDates[2]], '900719925474.099312345');
     assert.equal(series[0].exact[data.roundDates[0]], '900719925474.099312345');
     assert.equal(series[1].exact[data.roundDates[0]], '800719925474.099312345');
     assert.equal(series[2].exact[data.roundDates[0]], null);
@@ -19,4 +23,10 @@ test('Stake keeps three exact stages on one round axis and gaps in missing histo
         assert.equal(s.points[1][1], null);
     }
     assert.match(series[2].details[data.roundDates[2]], /rewards excluded/);
+});
+
+test('Reward never changes the primary stake scale', () => {
+    const config = { kind: 'step', series: [{}, { axis: 'right' }] };
+    assert.deepEqual(domain(config, [{ values: [100, 1] }, { values: [200, 1e12] }]),
+        domain({ kind: 'step' }, [{ values: [100] }, { values: [200] }]));
 });

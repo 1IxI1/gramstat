@@ -171,6 +171,10 @@ principal immediately before release, after fines and **without rewards**.
 Stake snapshots join only matching verified intervals, config hashes and rosters.
 Each line can have different historical coverage; missing final results remain
 NULL even for closed rounds. The API role requires SELECT on the new table.
+`reward_nanogram` is the separately recorded accumulated election reward before
+distribution, from the same verified release result. It excludes principal and
+is plotted as lower-panel bars with a right-hand GRAM axis. It is not an APR or
+a claim about final per-holder credits after rounding and banned positions.
 
 Each source can have different coverage and update times. Use `/api/v1/coverage`
 and the timestamps and partial flags on individual records. Bounded chain datasets
