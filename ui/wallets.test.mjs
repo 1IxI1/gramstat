@@ -19,15 +19,16 @@ test('wallet adapter preserves MC ties, exact zero, and missing-day gaps', () =>
     assert.throws(() => walletSeries({ ...data, registry: 'different' }, 'activated_wallets'));
 });
 
-test('monthly activity uses its own coverage and labels the full rolling window', () => {
+test('monthly activity has one point per calendar month and preserves missing months', () => {
     const data = { schemaVersion: 2, registry: WALLET_REGISTRY_SHA256,
-        period: { from: '2024-10-13T00:00:00Z', to: '2024-10-15T00:00:00Z' },
+        period: { from: '2024-09-13T00:00:00Z', to: '2024-11-01T00:00:00Z' },
         coverageDays: ['2024-10-13', '2024-10-14'],
-        active: { mode: 'monthly', intervalSeconds: 86400, windowSeconds: 2592000,
-            coverageDays: ['2024-10-14'], points: [{utime: 1728864000, value: '7'}] } };
+        active: { mode: 'monthly', calendarMonths: true, intervalSeconds: 0, windowSeconds: 0,
+            coverageDays: ['2024-10-01'], points: [{utime: 1727740800, end_utime: 1730419200, value: '7'}] } };
     const series = walletSeries(data, 'active_wallets_daily');
     assert.equal(series.points[0][1], null);
     assert.equal(series.points.at(-1)[1], 7);
-    assert.match(series.detailsByIndex.at(-1), /30-day unique wallets/);
-    assert.match(series.detailsByIndex.at(-1), /Sep|09/);
+    assert.equal(series.points.length, 2);
+    assert.match(series.detailsByIndex.at(-1), /calendar-month unique wallets/);
+    assert.match(series.detailsByIndex.at(-1), /Nov|11/);
 });

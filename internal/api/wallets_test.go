@@ -119,8 +119,8 @@ func TestWalletReaderSQL(t *testing.T) {
 	fixture := `CREATE DATABASE gramstat;
  CREATE TABLE gramstat.wallet_days(source_id String,registry String,day Date,run_id UUID,through_mc UInt32,calculated_at DateTime64(6),history_verified UInt8,activations UInt64) ENGINE=Memory;
  CREATE TABLE gramstat.wallet_counts(source_id String,registry String,day Date,run_id UUID,step UInt32,bucket UInt32,active UInt64) ENGINE=Memory;
- CREATE TABLE gramstat.wallet_monthly(source_id String,registry String,day Date,active UInt64,calculated_at DateTime64(6)) ENGINE=Memory;
- INSERT INTO gramstat.wallet_monthly VALUES('SOURCE','REGISTRY','2024-10-13',7,now64(6));
+ CREATE TABLE gramstat.wallet_months(source_id String,registry String,month Date,active UInt64,calculated_at DateTime64(6)) ENGINE=Memory;
+ INSERT INTO gramstat.wallet_months VALUES('SOURCE','REGISTRY','2024-10-01',7,now64(6));
  INSERT INTO gramstat.wallet_counts VALUES('SOURCE','REGISTRY','2024-10-13','00000000-0000-0000-0000-000000000001',3600,1728777600,3),('SOURCE','REGISTRY','2024-10-13','00000000-0000-0000-0000-000000000001',3600,1728781200,7);
  CREATE TABLE gramstat.wallet_activations_mc(source_id String,registry String,day Date,run_id UUID,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=Memory;
  CREATE TABLE gramstat.wallet_activated_checkpoints(source_id String,registry String,day Date,run_id UUID,step UInt32,bucket UInt32,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=Memory;
@@ -168,6 +168,9 @@ func TestWalletActivityModes(t *testing.T) {
 						t.Fatal(name, mode)
 					}
 					want := "86400"
+					if mode == "monthly" {
+						want = "0"
+					}
 					if mode == "hourly" {
 						want = "3600"
 					}
@@ -199,7 +202,7 @@ func TestWalletActivityModes(t *testing.T) {
 			if result.Active.Mode != mode {
 				t.Fatal(result)
 			}
-			if mode == "monthly" && (result.Active.WindowSeconds != 2592000 || len(result.Active.CoverageDays) != 1) {
+			if mode == "monthly" && (result.Active.WindowSeconds != 0 || result.Active.IntervalSeconds != 0 || len(result.Active.CoverageDays) != 1) {
 				t.Fatal(result)
 			}
 			if mode == "hourly" && (result.Active.WindowSeconds != 3600 || result.Active.IntervalSeconds != 3600 || result.Active.SampleStepSeconds <= 3600) {

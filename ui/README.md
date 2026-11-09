@@ -62,7 +62,8 @@ API and deployment documentation:
   that a particular unverified compiler/revision reproduces their hash.
   `/api/v1/wallets` supplies prepared per-MC cumulative values, daily activations
   and exact activity counts with Hourly / Daily / Monthly tabs (Daily by default).
-  Monthly is a rolling 30-complete-UTC-day unique count with daily points.
+  Monthly shows one exact unique count per complete UTC calendar month.
+  Partial months are omitted; tooltips show the exact month boundaries.
   Wide hourly views sample exact hourly observations; zoom does not change the
   chosen counting window. The tab is retained in the `activity` URL parameter.
   Missing

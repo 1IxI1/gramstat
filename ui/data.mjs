@@ -102,13 +102,19 @@ export function walletSeries(data, id) {
     const definition = CATALOGUE.find((c) => c.id === id);
     const s = { ...definition.series[0], ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] };
     const rows = [...dataset.points];
-    const start = Math.floor(Date.parse(data.period.from) / 86400000) * 86400;
+    const fromDate = new Date(data.period.from);
+    const monthly = dataset.calendarMonths === true;
+    const start = monthly ? Date.UTC(fromDate.getUTCFullYear(),fromDate.getUTCMonth(),1)/1000 : Math.floor(Date.parse(data.period.from) / 86400000) * 86400;
     const end = Date.parse(data.period.to) / 1000;
     const covered = new Set(dataset.coverageDays || data.coverageDays);
-    for (let t = start; t < end; t += 86400) {
+    for (let t = start; t < end;) {
+        const date = new Date(t*1000);
+        const next = monthly ? Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1)/1000 : t+86400;
         if (!covered.has(new Date(t * 1000).toISOString().slice(0, 10))) {
-            rows.push({ utime: t, value: null }, { utime: Math.min(t + 86399, end - 1), value: null });
+            rows.push({ utime: t, value: null });
+            if (!monthly) rows.push({ utime: Math.min(t + 86399, end - 1), value: null });
         }
+        t=next;
     }
     rows.sort((a, b) => a.utime - b.utime || (a.mc_seqno ?? 0) - (b.mc_seqno ?? 0));
     for (const p of rows) {
@@ -116,7 +122,7 @@ export function walletSeries(data, id) {
         const exact = decimal(p.value);
         const detail = exact === null ? 'No covered observations.' : key === 'activated'
             ? `MC ${p.mc_seqno} · ${dataset.intervalSeconds ? `interval ${dataset.intervalSeconds}s` : 'every MC'}`
-            : `${formatDate(new Date((p.utime - (dataset.mode === 'monthly' ? 29 * 86400 : 0)) * 1000).toISOString())} — ${formatDate(new Date((p.utime + dataset.intervalSeconds) * 1000).toISOString())} UTC (end exclusive)${dataset.mode === 'monthly' ? ' · 30-day unique wallets' : ''}`;
+            : `${formatDate(date)} — ${formatDate(new Date((p.end_utime ?? p.utime + dataset.intervalSeconds) * 1000).toISOString())} UTC (end exclusive)${monthly ? ' · calendar-month unique wallets' : ''}`;
         s.points.push([date, exact === null ? null : Number(exact)]);
         s.exact[date] = exact; s.details[date] = detail;
         s.exactByIndex.push(exact); s.detailsByIndex.push(detail);

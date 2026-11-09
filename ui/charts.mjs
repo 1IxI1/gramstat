@@ -274,12 +274,18 @@ export class TimeChart {
         const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
         const timeEnd = this.config.time ? (this.config.rangeEnd ?? timestamps.at(-1)) : timestamps.at(-1);
         const span = timeEnd - timeStart;
+        const monthBounds = (index) => {
+            const date = new Date(timestamps[index]);
+            return [Math.max(timeStart,timestamps[index]), Math.min(timeEnd,Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+1,1))];
+        };
+        const plottedTime = (index) => this.config.calendarMonths ? (monthBounds(index)[0]+monthBounds(index)[1])/2 : timestamps[index];
         const x = (index) =>
             (this.config.round || this.config.time) && span > 0
-                ? left + ((timestamps[index] - timeStart) / span) * (right - left)
+                ? left + ((plottedTime(index) - timeStart) / span) * (right - left)
                 : left + ((index + 0.5) / this.rows.length) * (right - left);
         const y = (value) => bottom - ((value - minimum) / (maximum - minimum)) * (bottom - top);
-        this.geometry = { width, height, left, right, top, bottom, x, y };
+        const monthWidth = (index) => Math.max(2,(monthBounds(index)[1]-monthBounds(index)[0])/span*(right-left)*0.68);
+        this.geometry = { width, height, left, right, top, bottom, x, y, monthWidth };
         this.svg.replaceChildren();
         this.svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
@@ -348,8 +354,9 @@ export class TimeChart {
     drawBars() {
         const { x, y, left, right, bottom } = this.geometry;
         const stacked = this.config.kind === 'stacked-bar';
-        const width = Math.max(2, ((right - left) / this.rows.length) * 0.68);
+        const defaultWidth = Math.max(2, ((right - left) / this.rows.length) * 0.68);
         this.rows.forEach((row, index) => {
+            const width = this.config.calendarMonths ? this.geometry.monthWidth(index) : defaultWidth;
             if (stacked && row.total === null) return;
             let base = 0;
             this.config.series.forEach((item, seriesIndex) => {

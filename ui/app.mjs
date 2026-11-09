@@ -352,9 +352,10 @@ function render(group, roundsOnly = false, onlyID) {
             const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;
             const isActivity = definition.id === 'active_wallets_daily';
             const available = (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
-            const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:'Unique wallets over 30 complete UTC days ending on each displayed day.'}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
-            const missing = isActivity && activityMode === 'monthly' ? 'Each point requires 30 prepared days; incomplete or not-yet-prepared windows are omitted.' : 'History is being prepared.';
-            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
+            const monthly = isActivity && activityMode === 'monthly';
+            const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:'One bar per complete UTC calendar month. Incomplete months are omitted.'}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
+            const missing = 'History is being prepared.';
+            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? `${interval}${available} complete months available.` : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
         if (state.average) {
@@ -371,7 +372,7 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, time: temporal,
+        state.chart.update({ ...definition, series, loading, time: temporal, calendarMonths: isActivity && activityMode === 'monthly',
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),
         }, shownDates);

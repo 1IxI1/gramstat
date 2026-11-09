@@ -25,11 +25,13 @@ const walletActivitySQL = `SELECT max(bucket) AS utime,toString(argMax(active,bu
  AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
  GROUP BY intDiv(bucket,{sample_step:UInt32}) ORDER BY utime`
 
-const walletMonthlySQL = `SELECT toUInt32(toUnixTimestamp(toDateTime(day,'UTC'))) AS utime,
- toString(argMax(active,calculated_at)) AS value FROM gramstat.wallet_monthly
+const walletMonthlySQL = `SELECT toUInt32(toUnixTimestamp(toDateTime(month,'UTC'))) AS utime,
+ toUInt32(toUnixTimestamp(toDateTime(addMonths(month,1),'UTC'))) AS end_utime,
+ toString(argMax(active,calculated_at)) AS value FROM gramstat.wallet_months
  WHERE source_id={source:String} AND registry={registry:String}
- AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
- GROUP BY day ORDER BY day`
+ AND month>=toStartOfMonth(toDate(toDateTime({from_ts:UInt32},'UTC')))
+ AND month<=toStartOfMonth(toDate(toDateTime({to_ts:UInt32}-1,'UTC')))
+ GROUP BY month ORDER BY month`
 
 const walletCountSQL = `SELECT toUInt32(count()) AS count FROM gramstat.wallet_activations_mc
  WHERE source_id={source:String} AND registry={registry:String}
@@ -113,7 +115,8 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		windowSeconds = 3600
 	}
 	if mode == "monthly" {
-		windowSeconds = 30 * 86400
+		// Calendar months have variable length; each point carries end_utime.
+		activityStep, windowSeconds = 0, 0
 	}
 	sampleStep := activityStep
 	if mode == "hourly" {
@@ -170,6 +173,6 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "registry": walletRegistry, "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "coverageDays": dates,
 		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated},
 		"activations": map[string]any{"intervalSeconds": 86400, "points": daily},
-		"active":      map[string]any{"mode": mode, "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
+		"active":      map[string]any{"mode": mode, "calendarMonths": mode == "monthly", "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	return json.Marshal(result)
 }
