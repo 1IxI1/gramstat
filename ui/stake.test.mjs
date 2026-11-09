@@ -8,7 +8,7 @@ test('Stake keeps three exact stages on one round axis and gaps in missing histo
         { utime_since: 300, utime_until: 400, data_through: 400, total: 5, submitted_nanogram: '1000000000', selected_nanogram: '1000000000', remaining_nanogram: '0', unfreeze_utime: 500 },
     ];
     const data = readObservedMetrics({ schemaVersion: 2, network: 'mainnet', period: { from: '1970-01-01', to: '1970-01-02' }, chain: [], daily: [], stars: [], rounds });
-    const series = data.metrics.validator_stake.series;
+    const series = data.metrics.stake.series;
     assert.deepEqual(series.map(s => s.id), ['submitted', 'selected', 'remaining']);
     assert.equal(series[0].exact[data.roundDates[0]], '900719925474.099312345');
     assert.equal(series[1].exact[data.roundDates[0]], '800719925474.099312345');

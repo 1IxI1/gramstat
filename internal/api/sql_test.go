@@ -63,6 +63,9 @@ INSERT INTO gramstat.validator_stake_rounds VALUES(1792540800,1792606336,1792540
 			t.Fatal("stale geo joined: " + string(b))
 		}
 		if name == "rounds" || name == "validators" {
+			if len(result.Data) != 1 || result.Data[0]["utime_since"] != float64(1792540800) || result.Data[0]["utime_until"] != float64(1792606336) || result.Data[0]["data_through"] != float64(0) || result.Data[0]["total"] != float64(380) {
+				t.Fatal("unstable round field names: " + string(b))
+			}
 			if len(result.Data) != 1 || result.Data[0]["submitted_nanogram"] != "900719925474099312345" || result.Data[0]["selected_nanogram"] != "800719925474099312345" || result.Data[0]["remaining_nanogram"] != nil {
 				t.Fatal("stake precision/null lost: " + string(b))
 			}

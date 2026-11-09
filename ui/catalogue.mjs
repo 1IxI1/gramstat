@@ -84,15 +84,11 @@ export const CATALOGUE = [
         layout: 'half', step: true, fill: true, integer: true, registryTerm: 'wallet code',
         description: 'Total unique addresses that have been deployed with a recognized wallet code. Each address is counted once, at its first qualifying wallet deployment, even if it previously hosted a different contract. Outgoing messages are not required. Later deletion, freezing, code changes or redeployment do not remove the address from this total.',
     }),
-    chart('stake', 'Staked GRAM', 'validator', 'GRAM', {
-        layout: 'wide',
-        unavailable: 'Round-level stake series have not been prepared for this API yet.',
-    }),
     chart('validator_count', 'Validators', 'validator', '', {
         kind: 'step', round: true, integer: true,
         description: 'Number of elected validators in each validation round.',
     }),
-    chart('validator_stake', 'Stake', 'validator', 'GRAM', {
+    chart('stake', 'Stake', 'validator', 'GRAM', {
         kind: 'step', round: true, layout: 'wide',
         series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2)],
         description: 'Stake for the same election, aligned to its validation round. Submitted: accepted election applications, including unselected candidates and excess stake. Selected: maximum observed principal retained after selection. Remaining: principal left after fines, immediately before release, excluding rewards. Missing stages remain gaps; final results can lag behind the other lines.',
