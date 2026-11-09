@@ -3,10 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHistoricalDashboardRetainsAllDailyMetrics(t *testing.T) {
@@ -35,5 +38,40 @@ func TestHistoricalDashboardRetainsAllDailyMetrics(t *testing.T) {
 	}
 	if len(result.Daily) != 38100 || !strings.Contains(string(result.Daily[38100-1]), `"9007199254740993"`) {
 		t.Fatal("history truncated or rounded")
+	}
+}
+
+func TestHistoricalActivityReadBatchesWithoutGaps(t *testing.T) {
+	next := "2019-11-15"
+	calls := 0
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("param_from") != next || q.Get("max_result_rows") != "20000" {
+			t.Error(q)
+		}
+		start, _ := time.Parse(time.DateOnly, q.Get("param_from"))
+		end, _ := time.Parse(time.DateOnly, q.Get("param_to"))
+		if end.Sub(start) > 366*24*time.Hour || !start.Before(end) {
+			t.Error("unbounded batch", q)
+		}
+		next = q.Get("param_to")
+		calls++
+		fmt.Fprintf(w, `{"data":[{"day":%q,"value":"9007199254740993"}]}`, q.Get("param_from"))
+	}))
+	defer source.Close()
+	ch, err := NewClickHouse(source.URL, "reader", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := (ClickHouseReader{CH: ch}).Read(context.Background(), "daily", url.Values{"from": {"2019-11-15"}, "to": {"2026-11-09"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]string
+	if err = json.Unmarshal(data, &rows); err != nil {
+		t.Fatal(err)
+	}
+	if next != "2026-11-09" || calls != 7 || len(rows) != 7 || rows[6]["value"] != "9007199254740993" {
+		t.Fatal(next, calls, string(data))
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type Reader interface {
@@ -133,14 +134,43 @@ FROM gramstat.accounts_hourly FINAL`,
 }
 
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {
+	// Keep individual reads within the SELECT-only role's fixed result budget.
+	// The public response still includes every daily observation for the range.
+	if name == "daily" {
+		from, e1 := time.Parse(time.DateOnly, params.Get("from"))
+		to, e2 := time.Parse(time.DateOnly, params.Get("to"))
+		if e1 == nil && e2 == nil && to.Sub(from) > 366*24*time.Hour {
+			var rows []json.RawMessage
+			for start := from; start.Before(to); {
+				end := start.AddDate(0, 0, 366)
+				if end.After(to) {
+					end = to
+				}
+				part, err := c.Read(ctx, name, url.Values{"from": {start.Format(time.DateOnly)}, "to": {end.Format(time.DateOnly)}})
+				if err != nil {
+					return nil, err
+				}
+				var batch []json.RawMessage
+				if err := json.Unmarshal(part, &batch); err != nil {
+					return nil, err
+				}
+				rows = append(rows, batch...)
+				start = end
+			}
+			if rows == nil {
+				return json.RawMessage(`[]`), nil
+			}
+			return json.Marshal(rows)
+		}
+	}
 	query, ok := queries[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown chart query")
 	}
 	p := url.Values{
 		"readonly": {"1"}, "max_execution_time": {"10"}, "max_threads": {"2"},
-		"max_memory_usage": {"268435456"}, "max_result_rows": {"100000"},
-		"max_result_bytes": {"33554432"}, "result_overflow_mode": {"throw"},
+		"max_memory_usage": {"268435456"}, "max_result_rows": {"20000"},
+		"max_result_bytes": {"4194304"}, "result_overflow_mode": {"throw"},
 		"max_rows_to_read": {"2000000"}, "read_overflow_mode": {"throw"},
 		"join_use_nulls": {"1"}, "output_format_json_quote_64bit_integers": {"1"},
 	}

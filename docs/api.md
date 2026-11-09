@@ -135,13 +135,15 @@ GRAMSTAT_CH_PASSWORD=<server-managed secret>
 Use a separate ClickHouse user restricted to the application host, with `readonly=1`
 and SELECT on the tables above plus indexed `blocks` and `account_deltas`. Set its profile limits to match the fixed
 query settings: `max_execution_time=10`, `max_threads=2`,
-`max_memory_usage=268435456`, `max_result_rows=100000`,
-`max_result_bytes=33554432`, `result_overflow_mode='throw'`,
+`max_memory_usage=268435456`, `max_result_rows=20000`,
+`max_result_bytes=4194304`, `result_overflow_mode='throw'`,
 `max_rows_to_read=2000000`, `read_overflow_mode='throw'`,
 `join_use_nulls=1`, `output_format_json_quote_64bit_integers=1`,
 `max_concurrent_queries_for_user=4`. No INSERT/DDL or raw-database grants.
 Wallet counts have an interval-first projection so daily queries do not scan
 the neighboring minute/hour rows across the full history.
+Full-history Activity reads prepared daily rows in at most 366-day batches to
+respect these per-query limits, then returns the complete history in one response.
 
 The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
