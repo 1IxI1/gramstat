@@ -117,13 +117,13 @@ export const CATALOGUE = [
     }),
     chart('jetton_transfers', 'Jetton transfers', 'activity', '', { kind: 'bar', zero: true }),
     chart('nft_transfers', 'NFT transfers', 'activity', '', { kind: 'bar', zero: true }),
+    chart('swaps_total', 'Swaps', 'activity', '', { kind: 'bar', zero: true }),
     chart('jetton_users', 'Jetton senders / receivers', 'activity', '', {
         series: [series('jetton_senders', 'Senders'), series('jetton_receivers', 'Receivers', 1)],
     }),
     chart('nft_users', 'NFT senders / receivers', 'activity', '', {
         series: [series('nft_senders', 'Senders'), series('nft_receivers', 'Receivers', 1)],
     }),
-    chart('swaps_total', 'Swaps', 'activity', '', { kind: 'bar', zero: true }),
     chart('swaps_users', 'Swap users', 'activity'),
     chart('swaps_dex', 'Swaps by DEX', 'activity', '', {
         kind: 'stacked-bar',
@@ -131,7 +131,11 @@ export const CATALOGUE = [
         dynamic: true,
         layout: 'wide',
     }),
-    chart('ton_dns_mints', '.ton DNS mints', 'activity', '', { kind: 'bar', zero: true }),
+    chart('ton_dns_mints', '.ton DNS mints', 'activity', '', {
+        kind: 'bar', zero: true,
+        description: 'Newly minted .ton domain NFTs per UTC day. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',
+        monthlyDescription: 'Newly minted .ton domain NFTs per UTC calendar month. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',
+    }),
     chart('liquid_staking_deposits', 'Liquid staking deposits', 'activity', '', { kind: 'bar', zero: true }),
     chart('lst_amount', 'Liquid staking deposited', 'activity', 'GRAM', {
         kind: 'stacked-bar',

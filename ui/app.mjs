@@ -445,7 +445,7 @@ function render(group, roundsOnly = false, onlyID) {
         }
         state.legend.replaceChildren();
         if (isSection) {
-            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.');
+            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.'));
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
             state.average.replaceChildren(element('span', '', `Avg (${period}):`));
