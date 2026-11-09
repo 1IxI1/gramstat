@@ -260,10 +260,8 @@ export function readObservedMetrics(data) {
             put('stake', key, date, r[`${key}_nanogram`], 9,
                 key === 'reward' ? 'Accumulated election reward before distribution; principal excluded.' : key === 'remaining' ? stakeDetail : `Election ${r.election_id ?? 'unknown'}; ${key === 'submitted' ? 'accepted applications before selection' : 'maximum observed selected principal'}.`);
         }
-        const duration = (seconds) => Number.isInteger(seconds) && seconds > 0
-            ? `${Math.floor(seconds / 3600)} h, ${Math.floor(seconds % 3600 / 60)} min, ${seconds % 60} s` : 'unknown';
         const aprDetail = r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
-            : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM. Selected stake: ${decimal(r.selected_nanogram, 9)} GRAM. Round: ${duration(r.utime_until - r.utime_since)}. Two-round cycle: ${duration(r.apr_cycle_seconds)}. APR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
+            : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM. Selected stake: ${decimal(r.selected_nanogram, 9)} GRAM. APR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
         put('staking_apr', 'total', date, r.apr_percent, 'percent', aprDetail);
         previousRoundUntil = r.utime_until;
     }

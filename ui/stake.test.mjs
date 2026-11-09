@@ -44,7 +44,6 @@ test('APR preserves decimal percentages, two-round proof, zero and missing obser
     assert.deepEqual(s.points.map(p => p[0]), data.roundDates);
     assert.equal(s.exact[data.roundDates[0]], '12.123456789012');
     assert.match(s.details[data.roundDates[0]], /900719925474\.099312345 GRAM/);
-    assert.match(s.details[data.roundDates[0]], /18 h, 12 min, 16 s/);
-    assert.match(s.details[data.roundDates[0]], /36 h, 24 min, 32 s/);
+    assert.match(s.details[data.roundDates[0]], /31,536,000 s \/ 131072 s/);
     assert.match(s.details[data.roundDates[3]], /missing reward/);
 });
