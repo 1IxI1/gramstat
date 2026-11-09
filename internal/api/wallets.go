@@ -36,6 +36,9 @@ const walletActivatedSQL = `WITH if({step:UInt32}>=86400,86400,3600) AS base_ste
  SELECT mc_seqno,utime,activated FROM gramstat.wallet_activations_mc
  WHERE (NOT use_checkpoints OR (modulo({from_ts:UInt32},base_step)!=0 AND utime<inner_from)
  OR (modulo({to_ts:UInt32},base_step)!=0 AND utime>=inner_to))
+ AND (NOT use_checkpoints
+ OR (modulo({from_ts:UInt32},base_step)!=0 AND day=toDate(toDateTime({from_ts:UInt32},'UTC')))
+ OR (modulo({to_ts:UInt32},base_step)!=0 AND day=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))))
  AND source_id={source:String} AND registry={registry:String}
  AND utime>={from_ts:UInt32} AND utime<{to_ts:UInt32}
  AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}

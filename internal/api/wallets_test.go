@@ -140,3 +140,37 @@ func TestWalletReaderSQL(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+func TestWalletPartialEdgesPruneInteriorDays(t *testing.T) {
+	binary, err := exec.LookPath("clickhouse")
+	if err != nil {
+		t.Skip("clickhouse-local unavailable")
+	}
+	setup := `CREATE DATABASE gramstat;
+CREATE TABLE gramstat.wallet_activations_mc (source_id String,registry String,day Date,run_id UUID,mc_seqno UInt32,utime UInt32,activated UInt64)
+ENGINE=MergeTree ORDER BY (source_id,registry,day,run_id,mc_seqno) SETTINGS index_granularity=1024;
+CREATE TABLE gramstat.wallet_activated_checkpoints (source_id String,registry String,day Date,run_id UUID,step UInt32,bucket UInt32,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=Memory;
+INSERT INTO gramstat.wallet_activations_mc SELECT 's','r',toDate('2025-01-01')+toUInt32(intDiv(number,4096)),toUUID('00000000-0000-0000-0000-000000000001'),number+1,toUnixTimestamp('2025-01-01 00:00:00','UTC')+intDiv(number,4096)*86400+modulo(number,4096)*20,number+1 FROM numbers(409600);
+`
+	var tuples []string
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 100; i++ {
+		tuples = append(tuples, fmt.Sprintf("('%s','00000000-0000-0000-0000-000000000001')", start.AddDate(0, 0, i).Format(time.DateOnly)))
+	}
+	args := []string{"local", "--path", t.TempDir(), "--multiquery", "--max_threads", "2", "--param_source", "s", "--param_registry", "r", "--param_step", "86400", "--param_from_ts", fmt.Sprint(start.Unix() + 43200), "--param_to_ts", fmt.Sprint(start.AddDate(0, 0, 99).Unix() + 43200), "--param_published", "[" + strings.Join(tuples, ",") + "]", "--query", setup + walletActivatedSQL + " SETTINGS max_rows_to_read=100000 FORMAT JSON"}
+	out, err := exec.Command(binary, args...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	var result struct {
+		Data []struct {
+			Value string `json:"value"`
+		}
+	}
+	if err = json.Unmarshal(out, &result); err != nil {
+		t.Fatal(err, string(out))
+	}
+	if len(result.Data) != 2 || result.Data[0].Value != "4096" || result.Data[1].Value != "407664" {
+		t.Fatal(string(out))
+	}
+}
