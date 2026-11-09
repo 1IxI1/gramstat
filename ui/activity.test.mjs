@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { monthlyActivity, dailyAverage, readObservedMetrics } from './data.mjs';
+import { periodDates } from './catalogue.mjs';
+
+function fixture() {
+    const period = { from: '2024-02-01', to: '2024-03-01' };
+    const daily = periodDates(period.from, period.to).flatMap((day) => [
+        { metric: 'jetton_transfers', day, value: '9007199254740993', is_partial: 0 },
+        { metric: 'jetton_senders', day, value: '7', is_partial: 0 },
+        { metric: 'liquid_staking_deposits_tonstakers', day, value: '1', amount_nanoton: '1000000001', is_partial: 0 },
+    ]);
+    daily.push({ metric: 'monthly_jetton_senders', day: '2024-02-01', value: '8', is_partial: 0 });
+    return { schemaVersion: 2, network: 'mainnet', period, daily, chain: [], stars: [], rounds: [] };
+}
+
+test('monthly Activity preserves exact calendar sums and uses monthly distinct users', () => {
+    const result = monthlyActivity(fixture());
+    assert.deepEqual(result.dates, ['2024-02-01']);
+    assert.equal(result.metrics.jetton_transfers.series[0].exact['2024-02-01'], String(29n * 9007199254740993n));
+    assert.equal(result.metrics.jetton_users.series[0].exact['2024-02-01'], '8');
+    assert.equal(result.metrics.jetton_users.series[1].exact['2024-02-01'], null);
+    assert.equal(result.metrics.lst_amount.series[0].exact['2024-02-01'], '29.000000029');
+});
+
+test('monthly Activity keeps missing days unknown and marks current partial months', () => {
+    const data = fixture();
+    data.daily = data.daily.filter((r) => !(r.metric === 'jetton_transfers' && r.day === '2024-02-14'));
+    assert.equal(monthlyActivity(data).metrics.jetton_transfers.series[0].exact['2024-02-01'], null);
+    data.period.to = '2024-02-10';
+    const result = monthlyActivity(data);
+    const series = result.metrics.jetton_transfers.series[0];
+    assert.equal(series.exact['2024-02-01'], String(9n * 9007199254740993n));
+    assert.equal(series.partial['2024-02-01'], true);
+    assert.equal(dailyAverage(result.dates, series).partial, true);
+});
+
+test('daily Activity averages preserve partial-day provenance', () => {
+    const data = fixture();
+    data.daily[0].is_partial = 1;
+    const result = readObservedMetrics(data);
+    const avg = dailyAverage(result.dates, result.metrics.jetton_transfers.series[0]);
+    assert.equal(avg.count, 29);
+    assert.equal(avg.partial, true);
+});

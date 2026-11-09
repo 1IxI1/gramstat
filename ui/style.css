@@ -241,6 +241,8 @@ h2 {
     color: #909ba1;
     font-size: 14px;
 }
+#activity > .section-heading { justify-content: flex-start; }
+#activity > .section-heading .section-date { margin-left: auto; }
 .chart-grid {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -374,6 +376,8 @@ h3 {
     overflow-wrap: anywhere;
 }
 .average-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; }
+.activity-average { flex-wrap: wrap; gap: 5px 12px; }
+.activity-average-item { display: inline-flex; align-items: center; gap: 5px; }
 .chart-svg {
     display: block;
     width: 100%;

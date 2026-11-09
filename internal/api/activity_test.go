@@ -75,3 +75,24 @@ func TestHistoricalActivityReadBatchesWithoutGaps(t *testing.T) {
 		t.Fatal(next, calls, string(data))
 	}
 }
+
+func TestActivityRouteReadsOnlyPreparedActivity(t *testing.T) {
+	calls := 0
+	s := New(readerFunc(func(_ context.Context, name string, q url.Values) (json.RawMessage, error) {
+		if name != "daily" && name != "stars" {
+			t.Fatal("unrelated source", name)
+		}
+		calls++
+		return json.RawMessage(`[]`), nil
+	}), logger())
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/activity?from=2019-11-01&to=2026-11-01", nil))
+	if w.Code != 200 || calls != 2 || !strings.Contains(w.Body.String(), `"chain":[]`) {
+		t.Fatal(w.Code, calls, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/activity?from=2026-11-01&to=2026-11-09&sql=bad", nil))
+	if w.Code != 400 || calls != 2 {
+		t.Fatal("invalid input reached source")
+	}
+}

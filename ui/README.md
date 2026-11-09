@@ -18,6 +18,13 @@ API and deployment documentation:
   support the full history (up to ten years), including every prepared daily Activity point.
 - Click or tap a reading to pin its tooltip; pinned values can be selected and
   copied. Click the same reading again, click outside, or press Escape to dismiss.
+- Activity has one Daily / Monthly switch beside its section heading, persisted
+  as `activityInterval` in the URL independently of Active wallets' `activity` mode.
+  Monthly means UTC calendar months, including entire boundary months. Missing
+  daily inputs remain gaps; partial current months are marked. Unique senders,
+  receivers and swap users require independently prepared monthly distinct counts.
+  Every Activity chart shows an exact-arithmetic mean per displayed series below
+  the plot, in units/day or units/month, excluding unknown buckets.
 - Supply, daily fees, daily burning and annual inflation show a green dashed marker at
   protocol burning activation: 2023-06-17 06:33:26 UTC, MC 30410593. The marker
   remains visible within the selected range even when the series is unavailable.

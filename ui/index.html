@@ -57,7 +57,7 @@
             <p id="source-status" class="source-status">Loading source coverage…</p>
             <p class="source-status">
                 Drag across a chart to select a time range. Click a reading to pin its tooltip and copy its text. Supply uses exact UTC times; daily charts use whole UTC days.
-                Activity and validator charts support up to 93 days. Missing history stays empty.
+                Prepared daily charts support the full history. Missing history stays empty.
             </p>
             <div id="warning" class="warning" role="status" hidden>
                 <span id="warning-text"></span><button id="retry" type="button">Retry</button>
@@ -102,9 +102,13 @@
                 <section id="activity" class="analytics-section" aria-labelledby="activity-title">
                     <div class="section-heading">
                         <h2 id="activity-title">Activity</h2>
+                        <div id="activity-interval" class="activity-tabs" role="tablist" aria-label="Activity interval">
+                            <button type="button" id="activity-section-daily" role="tab" aria-controls="activity-charts" aria-selected="true" data-mode="daily">Daily</button>
+                            <button type="button" id="activity-section-monthly" role="tab" aria-controls="activity-charts" aria-selected="false" tabindex="-1" data-mode="monthly">Monthly</button>
+                        </div>
                         <span class="section-date" data-period-label></span>
                     </div>
-                    <div id="activity-charts" class="chart-grid"></div>
+                    <div id="activity-charts" class="chart-grid" role="tabpanel" aria-labelledby="activity-section-daily"></div>
                 </section>
             </main>
             <noscript><p class="warning">Enable JavaScript to view the charts.</p></noscript>

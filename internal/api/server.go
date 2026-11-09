@@ -59,6 +59,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "coverage"
 	case "/api/v1/dashboard":
 		name = "dashboard"
+	case "/api/v1/activity":
+		name = "activity"
 	case "/api/v1/chain":
 		name = "chain"
 	case "/api/v1/validators":
@@ -105,7 +107,7 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || ((name == "dashboard" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || ((name == "dashboard" || name == "activity" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
 	}
@@ -144,7 +146,7 @@ func validate(name string, q url.Values, now time.Time) error {
 		}
 		q.Set("round", strconv.FormatUint(n, 10))
 	}
-	if name == "dashboard" || name == "chain" || name == "validators" {
+	if name == "dashboard" || name == "activity" || name == "chain" || name == "validators" {
 		maxDays := MaxDays
 		if name == "chain" || name == "validators" {
 			maxDays = 3660
@@ -231,10 +233,14 @@ func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, e
 	if name == "chain" || name == "validators" {
 		result["period"] = map[string]string{"from": q.Get("from"), "to": q.Get("to")}
 	}
-	if name == "dashboard" {
+	if name == "dashboard" || name == "activity" {
 		result["period"] = map[string]string{"from": q.Get("from"), "to": q.Get("to")}
 		// Compact, precomputed tables only. The complete response is cached together.
 		for _, source := range []string{"chain", "daily", "stars", "rounds"} {
+			if name == "activity" && (source == "chain" || source == "rounds") {
+				result[source] = json.RawMessage(`[]`)
+				continue
+			}
 			rows, err := s.reader.Read(ctx, source, q)
 			if err != nil {
 				return nil, err

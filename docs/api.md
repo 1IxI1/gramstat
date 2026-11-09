@@ -11,6 +11,15 @@ Gramstat dashboard.
 - `GET /api/v1/dashboard?from=2019-11-15&to=2026-10-28`: UTC `[from,to)`, 1–3660 days.
   `chain`, `daily`, `stars`, `rounds` arrays in a `schemaVersion: 2` response.
   All prepared daily Activity observations are retained across the full history.
+- `GET /api/v1/activity?from=2026-10-01&to=2026-11-10`: the same date limits,
+  returning only prepared `daily` and `stars` data (`chain` and `rounds` are empty).
+  Monthly UI requests cover whole UTC calendar months, capped at tomorrow UTC.
+  Additive counts/amounts are summed exactly from all available days; a missing day
+  leaves the monthly value unknown. Current partial months are marked. Unique
+  addresses use `monthly_jetton_senders`, `monthly_jetton_receivers`,
+  `monthly_nft_senders`, `monthly_nft_receivers`, and `monthly_swaps_users` rows
+  keyed by month start, prepared by the aggregator directly from source actions.
+  Daily distinct counts are never summed to estimate monthly distinct addresses.
 - `GET /api/v1/chain?from=2019-11-15&to=2026-11-01`: UTC `[from,to)`, up to
   3660 days. Returns `chain` and `period`, with one prepared row per day for fees,
   issuance, burning and transactions. Daily values are not downsampled.

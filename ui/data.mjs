@@ -51,6 +51,7 @@ export function walletPeriodLabel(date, id, mode = 'daily') {
 
 export function observationPeriodLabel(date, definition, mode, round) {
     if (definition.section === 'wallet') return walletPeriodLabel(date, definition.id, mode);
+    if (definition.section === 'activity' && mode === 'monthly') return walletPeriodLabel(date, 'active_wallets_daily', mode);
     if (['supply','accounts'].includes(definition.id)) return `as of ${formatDate(date,{seconds:true})} UTC`;
     if (definition.id === 'inflation') return `24h ending ${formatDate(date)} UTC`;
     if (definition.round) return round
@@ -215,14 +216,14 @@ export function readObservedMetrics(data) {
     for (const r of data.daily) {
         if (!dailyIDs.has(r.day)) continue;
         const detail = r.is_partial ? 'Partial day.' : '';
-        put(r.metric, 'total', r.day, r.value, 0, detail);
+        put(r.metric, 'total', r.day, r.value, 0, detail, Boolean(r.is_partial));
         for (const type of ['jetton', 'nft'])
             if ([`${type}_senders`, `${type}_receivers`].includes(r.metric))
-                put(`${type}_users`, r.metric, r.day, r.value, 0, detail);
+                put(`${type}_users`, r.metric, r.day, r.value, 0, detail, Boolean(r.is_partial));
         if (r.metric.startsWith('liquid_staking_deposits_'))
-            put('lst_amount', r.metric.slice('liquid_staking_deposits_'.length), r.day, r.amount_nanoton, 9, detail);
+            put('lst_amount', r.metric.slice('liquid_staking_deposits_'.length), r.day, r.amount_nanoton, 9, detail, Boolean(r.is_partial));
         if (r.metric === 'swaps_total')
-            for (const dex of dexes) put('swaps_dex', dex, r.day, String(r.breakdown?.[dex] ?? '0'), 0, detail);
+            for (const dex of dexes) put('swaps_dex', dex, r.day, String(r.breakdown?.[dex] ?? '0'), 0, detail, Boolean(r.is_partial));
     }
     for (const r of data.stars) {
         if (!dailyIDs.has(r.day)) continue;
@@ -232,7 +233,7 @@ export function readObservedMetrics(data) {
             ['stars_known', 'known_stars_total'],
             ['stars_unknown', 'unknown_purchases'],
         ])
-            put(id, 'total', r.day, r[field], 0, detail);
+            put(id, 'total', r.day, r[field], 0, detail, Boolean(r.is_partial));
     }
     let previousRoundUntil;
     for (const r of data.rounds) {
@@ -252,4 +253,45 @@ export function readObservedMetrics(data) {
         previousRoundUntil = r.utime_until;
     }
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
+}
+
+// Calendar-month sums use exact strings. Unique addresses come only from the
+// independently prepared monthly observations, never the sum of daily uniques.
+export function monthlyActivity(data) {
+    const daily = readObservedMetrics(data);
+    const months = [...new Set(daily.dates.map((d) => `${d.slice(0, 7)}-01`))];
+    const unique = new Map(data.daily.filter((r) => r.metric.startsWith('monthly_')).map((r) => [`${r.metric}/${r.day}`, r]));
+    const metrics = {};
+    for (const definition of CATALOGUE.filter((c) => c.section === 'activity')) {
+        metrics[definition.id] = { series: daily.metrics[definition.id].series.map((source) => {
+            const series = { ...source, points: [], exact: {}, details: {}, partial: {} };
+            for (const month of months) {
+                const start = new Date(`${month}T00:00:00Z`);
+                const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+                const days = periodDates(month, end).filter((d) => d < data.period.to);
+                const uniqueName = ['jetton_users', 'nft_users'].includes(definition.id) ? source.id : definition.id === 'swaps_users' ? 'swaps_users' : null;
+                let exact = null;
+                let partial = end > data.period.to;
+                if (uniqueName) {
+                    const row = unique.get(`monthly_${uniqueName}/${month}`);
+                    exact = decimal(row?.value);
+                    partial ||= Boolean(row?.is_partial);
+                } else if (days.length && days.every((d) => source.exact[d] != null)) {
+                    const scale = definition.unit === 'GRAM' ? 9 : 0;
+                    const sum = days.reduce((total, day) => {
+                        const [whole, fraction = ''] = source.exact[day].split('.');
+                        return total + BigInt(whole + fraction.padEnd(scale, '0'));
+                    }, 0n);
+                    exact = decimal(String(sum), scale);
+                    partial ||= days.some((d) => source.partial?.[d]);
+                }
+                series.exact[month] = exact;
+                series.points.push([month, exact === null ? null : Number(exact)]);
+                series.partial[month] = partial;
+                series.details[month] = exact === null ? 'Monthly history is being prepared.' : partial ? 'Partial calendar month.' : '';
+            }
+            return series;
+        }) };
+    }
+    return { ...daily, metrics, dates: months };
 }

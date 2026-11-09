@@ -1,5 +1,5 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
+import { readObservedMetrics, monthlyActivity, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 
@@ -28,6 +28,59 @@ let activityController;
 let activityLoading = false;
 let activityError = '';
 let rangeLoad = Promise.resolve();
+const sectionModeFromURL = () => new URLSearchParams(location.search).get('activityInterval') === 'monthly' ? 'monthly' : 'daily';
+let sectionMode = sectionModeFromURL();
+let monthlyReadings;
+let sectionLoading = false;
+let sectionError = '';
+let sectionRequest = 0;
+let sectionController;
+const sectionTabs = [...$('activity-interval').querySelectorAll('button')];
+
+function selectSectionMode(mode) {
+    if (sectionMode === mode) return;
+    sectionMode = mode;
+    const url = new URL(location.href);
+    url.searchParams.set('activityInterval', mode);
+    history.pushState(null, '', url);
+    loadSectionActivity();
+}
+
+for (const [i, tab] of sectionTabs.entries()) {
+    tab.onclick = () => selectSectionMode(tab.dataset.mode);
+    tab.onkeydown = (event) => {
+        const index = ['ArrowLeft', 'ArrowRight'].includes(event.key) ? 1-i : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;
+        if (index < 0) return;
+        event.preventDefault(); sectionTabs[index].focus(); selectSectionMode(sectionTabs[index].dataset.mode);
+    };
+}
+
+async function loadSectionActivity() {
+    const id = ++sectionRequest;
+    sectionController?.abort();
+    sectionLoading = sectionMode === 'monthly';
+    sectionError = '';
+    render('activity');
+    if (sectionMode !== 'monthly') return;
+    await rangeLoad;
+    if (id !== sectionRequest || !activeRange) return;
+    const start = new Date(activeRange.from), last = new Date(activeRange.to - 1);
+    const from = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const end = Date.UTC(last.getUTCFullYear(), last.getUTCMonth() + 1, 1);
+    const tomorrow = Math.floor(Date.now()/86400000)*86400000 + 86400000;
+    const to = new Date(Math.min(end, tomorrow)).toISOString().slice(0, 10);
+    const request = new AbortController(); sectionController = request;
+    const timeout = setTimeout(() => request.abort(), 25000);
+    try {
+        const data = await getJSON(`/api/v1/activity?${new URLSearchParams({ from, to })}`, request.signal);
+        if (id === sectionRequest) monthlyReadings = monthlyActivity(data);
+    } catch (e) {
+        if (id === sectionRequest) { monthlyReadings = undefined; sectionError = `Monthly Activity unavailable: ${e.message}`; }
+    } finally {
+        clearTimeout(timeout);
+        if (id === sectionRequest) { sectionLoading = false; render('activity'); }
+    }
+}
 
 function selectActivity(mode) {
     if (mode === activityMode) return;
@@ -205,8 +258,9 @@ for (const definition of CATALOGUE) {
     surface.append(expand);
     let average;
     let averageValue;
-    if (definition.averageUnit) {
+    if (definition.averageUnit || definition.section === 'activity') {
         average = element('div', 'chart-average');
+        if (definition.section === 'activity') average.classList.add('activity-average');
         const dot = element('span', 'average-dot');
         dot.style.backgroundColor = definition.series[0].color;
         dot.setAttribute('aria-hidden', 'true');
@@ -292,6 +346,8 @@ window.addEventListener('popstate', () => {
     const to = q.get('to');
     const changedActivity = activityMode !== activityFromURL();
     activityMode = activityFromURL();
+    const changedSection = sectionMode !== sectionModeFromURL();
+    sectionMode = sectionModeFromURL();
     const fromInput = from?.length === 10 ? `${from}T00:00:00` : from;
     const toInput = to?.length === 10 ? `${to}T23:59:59` : to;
     // datetime-local normalizes away :00 seconds; compare instants, not text.
@@ -300,9 +356,10 @@ window.addEventListener('popstate', () => {
         $('to').value = toInput;
         syncExpandedChart(false);
         load();
-    } else if (changedActivity) {
+    } else if (changedActivity || changedSection) {
         syncExpandedChart(false);
-        loadActivity();
+        if (changedActivity) loadActivity();
+        if (changedSection) loadSectionActivity();
     } else syncExpandedChart();
 });
 
@@ -313,24 +370,32 @@ function chartGroup(definition) {
 function render(group, roundsOnly = false, onlyID) {
     if (!readings) return;
     syncActivityTabs();
+    for (const tab of sectionTabs) {
+        const selected = tab.dataset.mode === sectionMode;
+        tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
+    }
+    $('activity-charts').setAttribute('aria-labelledby', `activity-section-${sectionMode}`);
     for (const state of cards.values()) {
         const { definition } = state;
         if (onlyID && definition.id !== onlyID) continue;
         const currentGroup = chartGroup(definition);
-        if (group && group !== currentGroup) continue;
+        if (group === 'activity' ? definition.section !== 'activity' : group && group !== currentGroup) continue;
         if (roundsOnly && !definition.round) continue;
         const isActivity = definition.id === 'active_wallets_daily';
-        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading);
+        const isSection = definition.section === 'activity';
+        const monthly = isSection && sectionMode === 'monthly';
+        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading) || (isSection && sectionLoading);
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
-        const temporal = isSupply || isInflation || isAccounts || isWallet;
-        const series = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : readings.metrics[definition.id]?.series || [];
-        const dates = temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
+        const temporal = isSupply || isInflation || isAccounts || isWallet || monthly;
+        const observations = monthly ? monthlyReadings : readings;
+        const series = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
+        const dates = monthly ? observations?.dates || [] : temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
-        const latest = isWallet ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
+        const latest = isWallet || monthly ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
         );
         const value = latest
@@ -339,7 +404,7 @@ function render(group, roundsOnly = false, onlyID) {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        const periodLabel = (date) => observationPeriodLabel(date, definition, activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
+        const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : '') ||
@@ -358,7 +423,21 @@ function render(group, roundsOnly = false, onlyID) {
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
-        if (state.average) {
+        if (isSection) {
+            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.');
+            const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
+            const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
+            state.average.replaceChildren(element('span', '', `Avg (${period}):`));
+            for (const s of series) {
+                const avg = dailyAverage(dates, s);
+                const item = element('span', 'activity-average-item');
+                const dot = element('span', 'average-dot'); dot.style.backgroundColor = s.color; dot.setAttribute('aria-hidden', 'true');
+                item.append(dot, document.createTextNode(`${series.length > 1 ? s.label + ': ' : ''}${loading || avg.value === null ? '—' : avg.value + ' ' + unit + (avg.partial ? ' · partial' : '')}`));
+                item.title = `Mean of ${avg.count} available UTC ${monthly ? 'calendar months' : 'days'}. Missing values are excluded; partial buckets are included and marked. Whole calendar buckets are used.`;
+                state.average.append(item);
+            }
+            if (!series.length) state.average.append(document.createTextNode('—'));
+        } else if (state.average) {
             const aggregate = isActivity && series.length && walletsData?.active.average ? {
                 ...walletsData.active.average,
                 total: Math.ceil(activeRange.to/3600000)-Math.floor(activeRange.from/3600000),
@@ -377,7 +456,8 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, periodLabel, time: temporal, calendarMonths: isActivity && activityMode === 'monthly',
+        state.chart.update({ ...definition, series, loading, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+            averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),
         }, shownDates);
@@ -415,11 +495,17 @@ function selection() {
 }
 
 function load() {
+    sectionRequest++;
+    sectionController?.abort();
+    monthlyReadings = undefined;
+    sectionLoading = sectionMode === 'monthly';
+    sectionError = '';
     activityRequest++;
     activityController?.abort();
     activityLoading = false;
     activityError = '';
     rangeLoad = loadRange();
+    if (sectionMode === 'monthly') loadSectionActivity();
     return rangeLoad;
 }
 

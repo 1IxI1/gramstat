@@ -117,7 +117,7 @@ CAST(NULL AS Nullable(UInt32)) AS first_utime, CAST(NULL AS Nullable(UInt32)) AS
 FROM gramstat.chain_daily_full FINAL
 UNION ALL SELECT 'actions', toString(minOrNull(day)), toString(maxOrNull(day)),
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
-FROM gramstat.daily_metrics FINAL
+FROM gramstat.daily_metrics FINAL WHERE NOT startsWith(metric,'monthly_')
 UNION ALL SELECT 'validators', toString(toDate(minOrNull(utime_since), 'UTC')),
 toString(toDate(maxOrNull(utime_since), 'UTC')),
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'), NULL, NULL
