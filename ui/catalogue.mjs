@@ -69,7 +69,8 @@ export const CATALOGUE = [
     chart('transactions', 'Transactions per day', 'gram', '', {
         averageUnit: 'tx/day',
         kind: 'bar', zero: true,
-        description: 'Both masterchain (-1) and basechain (0) transactions.',
+        description: 'Both masterchain (-1) and basechain (0) transactions. Transaction != action or logical event. In TON, average jetton transfer consists of 5 transactions.',
+        descriptionEmphasis: '5 transactions',
     }),
     chart('active_wallets_daily', 'Active wallets', 'wallet', '', {
         layout: 'full', kind: 'bar', zero: true, integer: true, averageUnit: 'wallets/day', registryTerm: 'wallet', registryTerms: ['wallet', 'wallets'],

@@ -413,6 +413,10 @@ function render(group, roundsOnly = false, onlyID) {
             (latest
                 ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
                 : 'No covered observations in this interval.');
+        if (definition.descriptionEmphasis && state.status.textContent === definition.description) {
+            const [before, after] = definition.description.split(definition.descriptionEmphasis);
+            state.status.replaceChildren(document.createTextNode(before), element('em', '', definition.descriptionEmphasis), document.createTextNode(after));
+        }
         if (isWallet) {
             const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;
             const isActivity = definition.id === 'active_wallets_daily';
