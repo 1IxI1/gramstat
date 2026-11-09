@@ -406,8 +406,10 @@ function render(group, roundsOnly = false, onlyID) {
         const isWallet = definition.section === 'wallet';
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly;
         const observations = isSection ? sectionReadings : readings;
-        const series = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
-        const dates = monthly ? observations?.dates || [] : temporal ? (series[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
+        const allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
+        const hiddenSeries = state.hiddenSeries ??= new Set();
+        const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
+        const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series);
         const latest = isWallet || monthly ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
@@ -467,15 +469,26 @@ function render(group, roundsOnly = false, onlyID) {
             state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${unit}${avg.partial ? ' · partial' : ''}`}`;
             state.average.title = loading ? 'Loading values.' : isActivity ? `Mean of ${avg.count} available UTC ${ {hourly:'hours',daily:'days',monthly:'calendar months'}[activityMode] }. Missing buckets are excluded. Whole buckets are used, including those overlapping the selected boundaries. Hourly averages include every prepared hour, even when the plot samples hours.` : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
         }
-        if (series.length > 1)
-            for (const s of isAccounts ? [...series].reverse() : series) {
-                const item = element('span', 'legend-item');
+        if (allSeries.length > 1)
+            for (const s of isAccounts ? [...allSeries].reverse() : allSeries) {
+                const item = element('button', 'legend-item');
+                item.type = 'button';
+                item.dataset.series = s.id;
+                item.setAttribute('aria-pressed', String(!hiddenSeries.has(s.id)));
+                item.title = `${hiddenSeries.has(s.id) ? 'Show' : 'Hide'} ${s.label}`;
+                item.addEventListener('click', () => {
+                    if (hiddenSeries.has(s.id)) hiddenSeries.delete(s.id);
+                    else hiddenSeries.add(s.id);
+                    const focused = document.activeElement === item;
+                    render(undefined, false, definition.id);
+                    if (focused) [...state.legend.children].find((button) => button.dataset.series === s.id)?.focus({ preventScroll: true });
+                });
                 const swatch = element('span', 'swatch');
                 swatch.style.backgroundColor = s.color;
                 item.append(swatch, document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+        state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
             onRange: (from, to) => setRange(from, to),

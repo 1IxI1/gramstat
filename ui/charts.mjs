@@ -323,7 +323,7 @@ export class TimeChart {
                 node(
                     'text',
                     { x: width / 2, y: height / 2, 'text-anchor': 'middle', class: 'chart-empty' },
-                    this.config.loading ? 'Loading readings…' : 'No readings in this period',
+                    this.config.loading ? 'Loading readings…' : this.config.allSeriesHidden ? 'All series hidden' : 'No readings in this period',
                 ),
             );
         } else if (this.config.kind.includes('bar')) this.drawBars();
