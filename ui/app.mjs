@@ -467,7 +467,6 @@ for (const [id,direction] of [['calendar-prev',-1],['calendar-next',1]]) $(id).o
 for (const id of ['from','to']) $(id).addEventListener('change',drawCalendar);
 $('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
 $('geo-round').addEventListener('change', loadLocations);
-$('latest').addEventListener('click', () => loadLatest());
 function indexedBounds() {
     const supply = coverage.find((s) => s.source === 'supply');
     if (supply?.last_utime != null) return { from: supply.first_utime * 1000, to: (supply.last_utime + 1) * 1000 };
@@ -475,7 +474,11 @@ function indexedBounds() {
     if (!range) return null;
     return { from: Date.parse(`${range.from}T00:00:00Z`), to: Date.parse(`${range.to}T00:00:00Z`) + 86400000 };
 }
-for (const [label, seconds] of [['5 minutes',300],['15 minutes',900],['30 minutes',1800],['1 hour',3600],['3 hours',10800],['6 hours',21600],['12 hours',43200],['24 hours',86400],['2 days',172800],['30 days',2592000],['90 days',7776000]]) {
+for (const [label, seconds] of [
+    ['5 minutes', 300], ['1 hour', 3600], ['24 hours', 86400],
+    ['7 days', 7 * 86400], ['30 days', 30 * 86400], ['90 days', 90 * 86400],
+    ['180 days', 180 * 86400], ['1 year', 365 * 86400], ['2 years', 730 * 86400],
+]) {
     const b = element('button', '', `Last ${label}`); b.type = 'button';
     b.onclick = () => loadLatest(seconds);
     $('range-presets').append(b);
@@ -483,7 +486,13 @@ for (const [label, seconds] of [['5 minutes',300],['15 minutes',900],['30 minute
 $('range-search').addEventListener('input', (e) => {
     document.querySelectorAll('.quick-ranges button').forEach((b) => b.hidden = !b.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
 });
-$('range-all').onclick = () => { const b = indexedBounds(); if (b) setRange(b.from, b.to); };
+$('range-all').onclick = () => {
+    const b = indexedBounds();
+    if (b) {
+        const firstDay = coverage.find((s) => s.source === 'chain')?.first_day;
+        setRange(firstDay ? Math.min(b.from, Date.parse(`${firstDay}T00:00:00Z`)) : b.from, b.to);
+    }
+};
 for (const [id, direction] of [['range-prev',-1],['range-next',1]]) $(id).onclick = () => {
     if (!activeRange) return;
     const span = activeRange.to - activeRange.from;
@@ -500,7 +509,7 @@ async function loadLatest(seconds = 7 * 86400) {
     const id = ++requestId;
     controller?.abort();
     loading = true;
-    $('latest').disabled = $('apply').disabled = true;
+    $('apply').disabled = true;
     warning('');
     try {
         const sources = await getJSON('/api/v1/coverage', AbortSignal.timeout(20000));
@@ -512,7 +521,6 @@ async function loadLatest(seconds = 7 * 86400) {
     } catch (e) {
         if (id === requestId) warning(`Data could not be loaded. ${e.message}`);
     } finally {
-        $('latest').disabled = false;
         if (id === requestId) {
             loading = false;
             $('apply').disabled = false;
