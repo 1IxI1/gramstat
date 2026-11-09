@@ -143,8 +143,12 @@ export const CATALOGUE = [
         description: 'Newly minted .ton domain NFTs per UTC day. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',
         monthlyDescription: 'Newly minted .ton domain NFTs per UTC calendar month. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',
     }),
-    chart('liquid_staking_deposits', 'Liquid staking deposits', 'activity', '', { kind: 'bar', zero: true }),
+    chart('liquid_staking_deposits', 'Liquid staking deposits', 'activity', '', {
+        kind: 'bar', zero: true,
+        description: 'Number of successful deposits into Tonstakers, Stakee, KTON, and sGRAM. Counts deposits, not unique depositors.',
+    }),
     chart('lst_amount', 'Liquid stakes deposited', 'activity', 'GRAM', {
+        description: 'Total GRAM deposited into Tonstakers, Stakee, KTON, and sGRAM. Withdrawals are not subtracted. Purchases and transfers of liquid-staking tokens are not counted.',
         kind: 'stacked-bar',
         zero: true,
         layout: 'wide',
