@@ -808,7 +808,12 @@ async function loadLatest(seconds = 90 * 86400) {
         coverage = sources.coverage;
         const range = indexedBounds();
         if (!range) throw new Error('No prepared chain history is available yet.');
-        setRange(Math.max(range.from, range.to - seconds * 1000), range.to);
+        const supply = coverage.find(s => s.source === 'supply');
+        const end = supply?.last_utime != null
+            ? Math.floor(range.to / 86400000) * 86400000
+            : Date.parse(`${coverage.find(s => s.source === 'chain').last_day}T00:00:00Z`);
+        if (end <= range.from) throw new Error('No complete UTC day is available yet.');
+        setRange(Math.max(range.from, end - seconds * 1000), end);
     } catch (e) {
         if (id === requestId) warning(`Data could not be loaded. ${e.message}`);
     } finally {
