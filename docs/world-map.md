@@ -31,8 +31,11 @@ the last included second of each snapshot, rather than round-start dates. Only
 points inside the selected timestamp range are plotted; missing rounds and
 snapshots break the lines. The country count retains the source's observed-country
 definition, which can include validators with a known country but no coordinates.
+Values before **2024-10-01 01:23:19 UTC** are displayed as missing, including in
+tooltips; the selected time axis is retained. The compact plot is 136.5px tall.
 
-The non-draggable `Map snapshot` marker uses the actual displayed snapshot time.
+The non-draggable `Map snapshot` marker uses the actual displayed snapshot time,
+with its label at the bottom of the plot.
 If the latest available snapshot predates a short selection, a labelled left-edge
 marker says `before range`. No marker is shown while the map is loading or when
 the snapshot is unavailable. Dragging a range on this chart uses the shared UTC

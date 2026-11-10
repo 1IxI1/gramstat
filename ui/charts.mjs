@@ -371,7 +371,7 @@ export class TimeChart {
             const marker = node('g', { 'data-event': event.id, class: 'event-marker' });
             marker.append(node('title', {}, `${event.label} · ${formatDate(new Date(at).toISOString(), { seconds: true })} UTC${event.mc == null ? '' : ` · MC ${event.mc}`}`));
             marker.append(node('line', { x1: mx, x2: mx, y1: top, y2: bottom, stroke: event.color, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }));
-            marker.append(node('text', { x: mx + (mx > (left + right) / 2 ? -6 : 6), y: top + 14,
+            marker.append(node('text', { x: mx + (mx > (left + right) / 2 ? -6 : 6), y: event.position === 'bottom' ? bottom - 8 : top + 14,
                 fill: event.color, 'text-anchor': mx > (left + right) / 2 ? 'end' : 'start', class: 'event-marker-label' }, label));
             this.svg.append(marker);
         }

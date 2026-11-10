@@ -191,6 +191,7 @@ a {
 }
 .validator-map { margin-top: 32px; }
 #validator-geo-charts { margin-top: 28px; }
+#validator-geo-charts .chart-surface { height: 136.5px; }
 .geo-readout .readout-value { font-size: 28px; }
 .geo-metric { display: inline-flex; align-items: baseline; gap: 7px; }
 .geo-readout .readout-separator { margin: 0 8px; color: var(--muted); }

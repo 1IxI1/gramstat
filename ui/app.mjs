@@ -451,9 +451,15 @@ function render(group, roundsOnly = false, onlyID) {
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly || definition.time;
         const observations = isSection ? sectionReadings : readings;
         let allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
-        if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => ({
-            ...s, points: s.points.filter(([date]) => Date.parse(date) >= activeRange.from && Date.parse(date) < activeRange.to),
-        }));
+        if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => {
+            const points = s.points.filter(([date]) => Date.parse(date) >= activeRange.from && Date.parse(date) < activeRange.to);
+            const available = date => Date.parse(date) >= definition.historyStart;
+            return {
+                ...s, points: points.map(([date, value]) => [date, available(date) ? value : null]),
+                exact: Object.fromEntries(points.map(([date]) => [date, available(date) ? s.exact[date] : null])),
+                details: Object.fromEntries(points.map(([date]) => [date, available(date) ? s.details[date] : 'Location history is unavailable before 1 Oct 2024 01:23:19 UTC.'])),
+            };
+        });
         const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
@@ -559,7 +565,7 @@ function render(group, roundsOnly = false, onlyID) {
         state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
                 id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
-                label: 'Map snapshot', color: 'var(--text)', clamp: true,
+                label: 'Map snapshot', color: 'var(--text)', clamp: true, position: 'bottom',
             }] : []) : definition.annotations,
             barIntervalSeconds: isActivity && activityMode !== 'monthly' ? (activityMode === 'hourly' ? 3600 : 86400) : undefined,
             averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
