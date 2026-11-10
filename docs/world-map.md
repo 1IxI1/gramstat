@@ -19,12 +19,11 @@ The equirectangular projection is shared with `projectLocation` in
 `ui/validator-map.mjs`: a 1000×500 viewBox, 960×480 world, 20/10 margins.
 Coordinates are never jittered or replaced by country centroids.
 
-The map independently requests `/api/v1/locations?at=<inclusive-end-second>`.
+The map requests `/api/v1/locations?at=<inclusive-end-second>`.
 It displays the latest prepared, roster-matched snapshot whose exclusive
 `data_through` is at most `at + 1`, even for a range shorter than a round.
 This is round-snapshot history, not arbitrary-second reconstruction. The
 snapshot time and round are visible; later observations are never substituted.
-The existing round selector controls only the coordinate table.
 
 Exact coordinate matches share a marker; its size increases with the count.
 Country counts include only plotted validators. Unknown or invalid coordinates

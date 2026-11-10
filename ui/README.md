@@ -84,10 +84,9 @@ API and deployment documentation:
   chosen counting window. The tab is retained in the `activity` URL parameter.
   Missing
   preparation days remain gaps; the status shows partial coverage during backfill.
-- Validators/countries: actual validation rounds, not daily resampling. Location
-  details group coordinates and show unknown/located coverage.
-- The world map below the location table shows the latest available snapshot at
-  or before the selected range end, independently of the table's round selector.
+- Validators/countries: actual validation rounds, not daily resampling.
+- The world map shows the latest available snapshot at or before the selected
+  range end, with unknown/located coverage.
   It uses local, low-detail country outlines and exact-coordinate marker groups.
   Hover/tap or keyboard focus shows country, city and counts; country buttons
   highlight their markers. The snapshot time and unknown coverage stay visible.

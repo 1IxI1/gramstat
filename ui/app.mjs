@@ -606,10 +606,6 @@ async function loadRange() {
     validatorsError = '';
     $('apply').disabled = true;
     warning('');
-    geoRequest++;
-    $('geo-round').replaceChildren();
-    $('geo-round').disabled = true;
-    $('geo-locations').replaceChildren();
     validatorMap.status('Loading locations…', true);
     // Do not retain another date range behind a failed reload.
     try {
@@ -681,7 +677,6 @@ async function loadRange() {
                     sectionLoading = false;
                     pendingCharts.delete('observations');
                     render('observations');
-                    renderRounds();
                 } catch (e) {
                     if (id !== requestId) return;
                     sectionLoading = false;
@@ -718,64 +713,6 @@ async function loadRange() {
     }
 }
 
-function renderRounds() {
-    const list = $('geo-round');
-    list.replaceChildren();
-    for (const [date, r] of Object.entries(readings.roundDetails)) {
-        if (r.located == null) continue;
-        const option = element('option', '', `${formatDate(date)} · ${r.located ?? '?'}/${r.total} located`);
-        option.value = r.utime_since;
-        list.append(option);
-    }
-    list.disabled = !list.options.length;
-    $('geo-locations').replaceChildren();
-    if (list.options.length) {
-        list.selectedIndex = list.options.length - 1;
-        loadLocations();
-    }
-}
-
-let geoRequest = 0;
-async function loadLocations() {
-    const id = ++geoRequest;
-    const round = $('geo-round').value;
-    $('geo-locations').textContent = 'Loading locations…';
-    try {
-        const data = await getJSON(`/api/v1/locations?round=${encodeURIComponent(round)}`, AbortSignal.timeout(20000));
-        if (id !== geoRequest) return;
-        const snapshot = data.locations[0];
-        $('geo-locations').replaceChildren();
-        if (!snapshot) {
-            $('geo-locations').textContent = 'No matching location snapshot.';
-            return;
-        }
-        const clusters = new Map();
-        for (const [country, city, latitude, longitude] of snapshot.points) {
-            const key = JSON.stringify([country, city, latitude, longitude]);
-            clusters.set(key, (clusters.get(key) || 0) + 1);
-        }
-        const caption = element(
-            'p',
-            '',
-            `${snapshot.located}/${snapshot.total} located · ${snapshot.unknown} unknown · updated ${formatDate(snapshot.calculated_at)}`,
-        );
-        const table = element('table', 'locations-table');
-        const head = element('tr');
-        for (const title of ['Country', 'City', 'Coordinates', 'Validators']) head.append(element('th', '', title));
-        table.append(head);
-        for (const [key, count] of [...clusters].sort((a, b) => b[1] - a[1])) {
-            const [country, city, lat, lon] = JSON.parse(key);
-            const row = element('tr');
-            for (const v of [country ?? 'Unknown', city ?? '—', `${lat}, ${lon}`, String(count)])
-                row.append(element('td', '', v));
-            table.append(row);
-        }
-        $('geo-locations').append(caption, table);
-    } catch {
-        if (id === geoRequest) $('geo-locations').textContent = 'Locations temporarily unavailable.';
-    }
-}
-
 $('range-form').addEventListener('submit', (e) => {
     e.preventDefault();
     setRange(Date.parse(`${$('from').value}Z`), Date.parse(`${$('to').value}Z`) + 1000);
@@ -798,7 +735,6 @@ $('calendar-month').onclick = () => { calendarView = 'months'; drawCalendar(); }
 $('calendar-year').onclick = () => { calendarView = 'years'; drawCalendar(); };
 for (const id of ['from','to']) $(id).addEventListener('change',drawCalendar);
 $('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
-$('geo-round').addEventListener('change', loadLocations);
 function indexedBounds() {
     const supply = coverage.find((s) => s.source === 'supply');
     if (supply?.last_utime != null) return { from: supply.first_utime * 1000, to: (supply.last_utime + 1) * 1000 };

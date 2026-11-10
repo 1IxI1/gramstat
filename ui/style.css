@@ -38,7 +38,7 @@
 
 /* Shared surfaces and labels also cover SVG charts and modal views. */
 :root {
-.date-range input, .date-range button, .geo-panel select,
+.date-range input, .date-range button,
 .time-controls button, .time-picker summary, .time-panel input,
 .time-panel, .wallet-registry, .wallet-registry-heading, .expanded-chart,
 .chart-toggle button[aria-pressed='true'], .skip-link {
@@ -97,8 +97,7 @@ a {
     font-size: 17px;
 }
 .date-range input,
-.date-range button,
-.geo-panel select {
+.date-range button {
     font: inherit;
     padding: 9px 12px;
     border: 1px solid var(--line);
@@ -189,26 +188,6 @@ a {
     .wallet-registry-table th:first-child { width: 23%; }
     .wallet-registry-table th:last-child { width: 22%; }
     .wallet-code-hash code { font-size: 11px; }
-}
-.geo-panel {
-    margin-top: 24px;
-    font-size: 17px;
-    overflow-x: auto;
-}
-.geo-panel summary {
-    cursor: pointer;
-    margin-bottom: 12px;
-}
-.locations-table {
-    border-collapse: collapse;
-    width: 100%;
-    max-width: 900px;
-}
-.locations-table th,
-.locations-table td {
-    padding: 7px;
-    text-align: left;
-    border-bottom: 1px solid var(--line);
 }
 .validator-map { margin-top: 32px; }
 .validator-map .chart-heading { align-items: baseline; flex-wrap: wrap; }
