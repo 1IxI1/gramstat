@@ -54,6 +54,11 @@ export function observationPeriodLabel(date, definition, mode, round) {
     if (definition.section === 'activity' && mode === 'monthly') return walletPeriodLabel(date, 'active_wallets_daily', mode);
     if (['supply','accounts','validator_geo'].includes(definition.id)) return `as of ${formatDate(date,{seconds:true})} UTC`;
     if (definition.id === 'inflation') return `24h ending ${formatDate(date)} UTC`;
+    if (definition.id === 'stake_locked') {
+        if (!Number.isInteger(round?.locked_previous) || !Number.isInteger(round?.utime_until))
+            return 'two rounds · interval unavailable';
+        return `two rounds ${formatDate(new Date(round.locked_previous * 1000).toISOString(), { seconds: true })} – ${formatDate(new Date(round.utime_until * 1000).toISOString(), { seconds: true })} UTC`;
+    }
     if (definition.round) return round
         ? `round ${formatDate(date,{seconds:true})} – ${formatDate(new Date(round.utime_until*1000).toISOString(),{seconds:true})} UTC`
         : `round starting ${formatDate(date,{seconds:true})} UTC`;
