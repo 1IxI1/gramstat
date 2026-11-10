@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -28,7 +29,7 @@ func TestQueriesWithRealClickHouse(t *testing.T) {
 	defer cancel()
 	run := func(sql string) []byte {
 		t.Helper()
-		cmd := exec.CommandContext(ctx, binary, "local", "--path", dir, "--max_threads", "2", "--multiquery", "--param_from", "2026-10-21", "--param_to", "2026-10-28", "--param_round", "1792540800", "--join_use_nulls", "1", "--query", sql)
+		cmd := exec.CommandContext(ctx, binary, "local", "--path", dir, "--max_threads", "2", "--multiquery", "--param_from", "2026-10-21", "--param_to", "2026-10-28", "--param_round", "1792540800", "--param_at", "1792700000", "--join_use_nulls", "1", "--query", sql)
 		b, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("%v\n%s", err, b)
@@ -81,7 +82,7 @@ INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id
 				t.Fatal("stake precision/null lost: " + string(b))
 			}
 		}
-		if name == "locations" && len(result.Data) != 0 {
+		if strings.HasPrefix(name, "locations") && len(result.Data) != 0 {
 			t.Fatal("stale map published")
 		}
 	}
@@ -113,5 +114,34 @@ INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id
 	// API projections must not leak source hostnames, raw IPs or internal record IDs.
 	if strings.Contains(queries["locations"], "record_id") {
 		t.Fatal("internal evidence leaked")
+	}
+	// Snapshot choice must respect the inclusive last second, preserve unknown
+	// coverage and reject newer snapshots with a changed roster or interval.
+	run(`INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,roster_digest,config34_hash,calculated_at) VALUES
+ (100,200,2,'a','h','2026-10-22 00:00:00'),(200,300,3,'b','h','2026-10-22 00:00:00'),
+ (300,400,4,'c','h','2026-10-22 00:00:00'),(400,500,5,'d','h','2026-10-22 00:00:00');
+ INSERT INTO gramstat.validator_geo_rounds (utime_since,utime_until,total,located,unknown,data_through,status,roster_digest,config34_hash,calculated_at) VALUES
+ (100,200,2,0,2,200,'missing_observations','a','h','2026-10-22 00:00:00'),
+ (200,300,3,0,3,300,'missing_observations','b','h','2026-10-22 00:00:00'),
+ (300,400,4,0,4,400,'missing_observations','old','h','2026-10-22 00:00:00'),
+ (400,499,5,0,5,499,'missing_observations','d','h','2026-10-22 00:00:00');`)
+	for _, tc := range []struct{ at, since int }{{198, 0}, {199, 100}, {200, 100}, {298, 100}, {299, 200}, {499, 200}} {
+		query := strings.ReplaceAll(queries["locations_at"], "{at:UInt32}", fmt.Sprint(tc.at))
+		var result struct {
+			Data []struct {
+				Since   int `json:"utime_since"`
+				Unknown int `json:"unknown"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(run(query+" FORMAT JSON"), &result); err != nil {
+			t.Fatal(err)
+		}
+		if tc.since == 0 {
+			if len(result.Data) != 0 {
+				t.Fatalf("future snapshot at %d: %v", tc.at, result.Data)
+			}
+		} else if len(result.Data) != 1 || result.Data[0].Since != tc.since || result.Data[0].Unknown == 0 {
+			t.Fatalf("snapshot at %d: %v", tc.at, result.Data)
+		}
 	}
 }

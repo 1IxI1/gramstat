@@ -86,6 +86,12 @@ API and deployment documentation:
   preparation days remain gaps; the status shows partial coverage during backfill.
 - Validators/countries: actual validation rounds, not daily resampling. Location
   details group coordinates and show unknown/located coverage.
+- The world map below the location table shows the latest available snapshot at
+  or before the selected range end, independently of the table's round selector.
+  It uses local, low-detail country outlines and exact-coordinate marker groups.
+  Hover/tap or keyboard focus shows country, city and counts; country buttons
+  highlight their markers. The snapshot time and unknown coverage stay visible.
+  See [`docs/world-map.md`](../docs/world-map.md) for source and time semantics.
 - Source update times and coverage are visible. Unknown values remain empty.
   Unsupported metrics show their missing prerequisites. **No generated/demo
   numbers are used by the live UI.**

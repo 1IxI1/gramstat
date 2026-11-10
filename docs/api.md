@@ -77,6 +77,13 @@ is `ui/wire.mjs`; cross-language tests compare Go encoding with this decoder.
   timestamps and partial-coverage flags are retained; counts are not downsampled.
 - `GET /api/v1/locations?round=<utime_since>`: selected round's coordinate points,
   coverage, cutoff and update timestamp. No raw IP, ADNL or internal record IDs.
+- `GET /api/v1/locations?at=<Unix-second>`: latest prepared location snapshot
+  whose exclusive cutoff is at most `at + 1`. `at` is the inclusive selected
+  end second, no later than today UTC; use exactly one of `at` or `round`.
+  Both variants return `locations`, including the round's `utime_until`.
+  Roster, config hash and round interval must match. The map displays the actual
+  snapshot time and coverage, not an interpolated position at an arbitrary second.
+  Missing snapshots return an empty array; unlocated snapshots retain unknown counts.
 - `GET /api/v1/supply?from=2024-08-01T00:00:00Z&to=2024-08-02T00:00:00Z&maxPoints=800`:
   RFC3339 timestamps, exclusive `to`, second precision, up to ten years.
   `maxPoints` defaults to 800 (100–2000). Returns `points` with `utime`, `mc_seqno`

@@ -174,7 +174,7 @@ func problem(w http.ResponseWriter, status int, message string) {
 
 func validate(name string, q url.Values, now time.Time) error {
 	for k, v := range q {
-		if len(v) != 1 || ((name == "dashboard" || name == "activity" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round") || name == "coverage" {
+		if len(v) != 1 || ((name == "dashboard" || name == "activity" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round" && k != "at") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")
 		}
 	}
@@ -207,11 +207,20 @@ func validate(name string, q url.Values, now time.Time) error {
 		q.Set("maxPoints", strconv.Itoa(budget))
 	}
 	if name == "locations" {
-		n, err := strconv.ParseUint(q.Get("round"), 10, 32)
-		if err != nil || n == 0 || int64(n) > now.Unix() {
-			return fmt.Errorf("round must be a past UInt32 Unix timestamp")
+		if q.Has("round") == q.Has("at") {
+			return fmt.Errorf("provide exactly one of round or at")
 		}
-		q.Set("round", strconv.FormatUint(n, 10))
+		key := "round"
+		ceiling := now.Unix()
+		if q.Has("at") {
+			key = "at"
+			ceiling = now.UTC().Truncate(24*time.Hour).Add(24*time.Hour).Unix() - 1
+		}
+		n, err := strconv.ParseUint(q.Get(key), 10, 32)
+		if err != nil || n == 0 || int64(n) > ceiling {
+			return fmt.Errorf("%s must be a UInt32 Unix timestamp no later than today", key)
+		}
+		q.Set(key, strconv.FormatUint(n, 10))
 	}
 	if name == "dashboard" || name == "activity" || name == "chain" || name == "validators" {
 		maxDays := MaxDays
@@ -318,7 +327,11 @@ func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, e
 			result[source] = rows
 		}
 	} else {
-		rows, err := s.reader.Read(ctx, name, q)
+		source := name
+		if name == "locations" && q.Has("at") {
+			source = "locations_at"
+		}
+		rows, err := s.reader.Read(ctx, source, q)
 		if err != nil {
 			return nil, err
 		}

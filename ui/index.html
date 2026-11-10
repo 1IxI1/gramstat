@@ -98,6 +98,26 @@
                         ></label>
                         <div id="geo-locations"></div>
                     </details>
+                    <article id="validator-map" class="validator-map" aria-labelledby="validator-map-title" aria-busy="true">
+                        <div class="chart-heading">
+                            <h3 id="validator-map-title">Validator map</h3>
+                            <p class="map-summary" aria-live="polite"></p>
+                        </div>
+                        <p class="map-time"></p>
+                        <div class="map-surface">
+                            <svg viewBox="0 0 1000 500" role="group" aria-label="World map of validator locations" aria-describedby="validator-map-description">
+                                <g aria-hidden="true" class="map-geography">
+                                    <use href="./world-map.svg#land" class="map-land" />
+                                    <use href="./world-map.svg#borders" class="map-borders" />
+                                </g>
+                                <g class="map-points"></g>
+                            </svg>
+                            <p class="map-message" role="status">Loading locations…</p>
+                            <div class="map-tooltip" role="status" hidden></div>
+                        </div>
+                        <div class="map-countries" role="group" aria-label="Highlight validators by country"></div>
+                        <p id="validator-map-description" class="chart-description">Latest available round snapshot at or before the selected range end. Dots show approximate GeoIP locations; larger dots represent more validators at the same coordinates. Hover or tap a dot for details, or select a country to highlight it. Unknown locations are not plotted.</p>
+                    </article>
                 </section>
                 <section id="activity" class="analytics-section" aria-labelledby="activity-title">
                     <div class="section-heading">

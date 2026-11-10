@@ -3,6 +3,7 @@ import { readObservedMetrics, expandActivityColumns, monthlyActivity, latestChai
 import { BINARY_TYPE, decodeColumns } from './wire.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
+import { ValidatorMap } from './validator-map.mjs';
 
 const $ = (id) => document.getElementById(id);
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
@@ -258,6 +259,7 @@ function element(tag, className, text) {
 }
 
 const walletRegistry = createWalletRegistry(element);
+const validatorMap = new ValidatorMap($('validator-map'));
 
 for (const definition of CATALOGUE) {
     const card = element('article', `chart-card ${definition.layout || ''}`);
@@ -608,6 +610,7 @@ async function loadRange() {
     $('geo-round').replaceChildren();
     $('geo-round').disabled = true;
     $('geo-locations').replaceChildren();
+    validatorMap.status('Loading locations…', true);
     // Do not retain another date range behind a failed reload.
     try {
         const range = selection();
@@ -659,6 +662,15 @@ async function loadRange() {
                 else accountsData = data;
             }),
             async () => {
+                const at = Math.floor(activeRange.to / 1000) - 1;
+                try {
+                    const data = await getJSON(`/api/v1/locations?at=${at}`, request.signal);
+                    if (id === requestId) validatorMap.update(data.locations[0], at);
+                } catch {
+                    if (id === requestId) validatorMap.status('Locations temporarily unavailable.');
+                }
+            },
+            async () => {
                 try {
                     const data = await getJSON(`/api/v2/dashboard?${new URLSearchParams(range)}`, request.signal);
                     if (id !== requestId) return;
@@ -696,6 +708,7 @@ async function loadRange() {
         clearTimeout(timeout);
         if (id === requestId) {
             loading = false;
+            if ($('validator-map').getAttribute('aria-busy') === 'true') validatorMap.status('Locations temporarily unavailable.');
             $('apply').disabled = false;
             if (pendingCharts.size) {
                 pendingCharts.clear();

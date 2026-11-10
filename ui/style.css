@@ -210,6 +210,30 @@ a {
     text-align: left;
     border-bottom: 1px solid var(--line);
 }
+.validator-map { margin-top: 32px; }
+.validator-map .chart-heading { align-items: baseline; flex-wrap: wrap; }
+.map-summary, .map-time { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.map-time { font-size: 12px; }
+.map-surface { position: relative; background: var(--plot); border: 1px solid var(--line); border-radius: 6px; }
+.map-surface svg { display: block; width: 100%; height: auto; max-height: 600px; }
+.map-geography { pointer-events: none; }
+.map-land { fill: light-dark(#dce6ee, #253548); stroke: light-dark(#b5c6d5, #52647b); stroke-width: 0.5; }
+.map-borders { fill: none; stroke: light-dark(#b5c6d5, #52647b); stroke-width: 0.5; }
+.map-point { fill: var(--blue); fill-opacity: 0.8; stroke: var(--plot); stroke-width: 1; cursor: pointer; }
+.map-point.is-muted { opacity: 0.16; }
+.map-point:hover, .map-point:focus-visible, .map-point.is-active { fill-opacity: 1; stroke: var(--text); stroke-width: 1.5; opacity: 1; outline: none; }
+.map-message { position: absolute; inset: 0; display: grid; place-content: center; margin: 0; padding: 20px; text-align: center; color: var(--text); background: light-dark(#f4f8fbe6, #101b2ae6); }
+.map-message[hidden], .map-tooltip[hidden] { display: none; }
+.map-tooltip { position: absolute; bottom: 10px; left: 10px; max-width: calc(100% - 20px); padding: 10px 14px; border: 1px solid var(--line); border-radius: 4px; background: var(--background); color: var(--text); white-space: pre-line; font-size: 13px; line-height: 1.6; pointer-events: none; }
+.map-countries { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.map-country { padding: 5px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--plot); color: var(--secondary); font-size: 12px; }
+.map-country:hover, .map-country[aria-pressed='true'] { border-color: var(--blue); color: var(--link); }
+.map-country:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media (max-width: 600px) {
+    .map-summary { font-size: 12px; }
+    .map-tooltip { bottom: 4px; left: 4px; padding: 6px 8px; font-size: 11px; }
+    .map-country { padding: 6px 8px; }
+}
 button {
     cursor: pointer;
 }

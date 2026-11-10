@@ -36,6 +36,9 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 		"/api/v1/dashboard?from=2026-02-30&to=2026-03-02", "/api/v1/dashboard?from=2018-01-01&to=2026-10-22",
 		"/api/v1/dashboard?from=2026-10-21&to=2026-10-28&sql=DROP", "/api/v1/coverage?readonly=0",
 		"/api/v1/locations?round=1&round=2", "/api/v1/locations?round=1%3BDROP", "/api/v1/locations?round=4294967296",
+		"/api/v1/locations", "/api/v1/locations?at=1&round=2", "/api/v1/locations?at=1&at=2",
+		"/api/v1/locations?at=0", "/api/v1/locations?at=-1", "/api/v1/locations?at=4294967296",
+		"/api/v1/locations?at=1%3BDROP", "/api/v1/locations?at=1&sql=x", "/api/v1/locations?at=4294967295",
 		"/api/v1/dashboard?from=2026-10-21;to=2026-10-28",
 	} {
 		w := httptest.NewRecorder()
@@ -63,6 +66,20 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 	}
 	if calls.Load() != 4 {
 		t.Fatal("dashboard cache did not reuse complete response")
+	}
+}
+
+func TestLocationsAt(t *testing.T) {
+	s := New(readerFunc(func(_ context.Context, name string, q url.Values) (json.RawMessage, error) {
+		if name != "locations_at" || q.Get("at") != "1792627200" {
+			t.Fatalf("unexpected location read %s %v", name, q)
+		}
+		return json.RawMessage(`[{"utime_since":1792540800,"unknown":2,"points":[]}]`), nil
+	}), logger())
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/locations?at=01792627200", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"locations":[`) || !strings.Contains(w.Body.String(), `"unknown":2`) {
+		t.Fatal(w.Code, w.Body.String())
 	}
 }
 

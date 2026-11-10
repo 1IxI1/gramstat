@@ -16,6 +16,18 @@ type Reader interface {
 
 type ClickHouseReader struct{ CH *ClickHouse }
 
+const locationsFromSQL = `FROM gramstat.validator_geo_rounds AS g FINAL
+INNER JOIN gramstat.validator_rounds AS r FINAL
+ ON r.utime_since = g.utime_since AND r.utime_until = g.utime_until
+ AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
+`
+
+const locationsSQL = `SELECT g.utime_since, g.utime_until, g.total, g.located, g.unknown, g.data_through, g.status,
+formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
+arrayMap(m -> tuple(m.country, m.city, m.latitude, m.longitude),
+ arrayFilter(m -> m.status = 'located', g.members)) AS points
+` + locationsFromSQL
+
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
@@ -125,14 +137,14 @@ LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
 ` + stakeChangesJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
-	"locations": `SELECT g.utime_since, g.total, g.located, g.unknown, g.data_through, g.status,
-formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
-arrayMap(m -> tuple(m.country, m.city, m.latitude, m.longitude),
- arrayFilter(m -> m.status = 'located', g.members)) AS points
-FROM gramstat.validator_geo_rounds AS g FINAL
-INNER JOIN gramstat.validator_rounds AS r FINAL
- ON r.utime_since = g.utime_since AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
-WHERE g.utime_since = {round:UInt32}`,
+	"locations": locationsSQL + `WHERE g.utime_since = {round:UInt32}`,
+	// data_through is exclusive; at is the inclusive last selected second.
+	// Pick the scalar round first, so historical member arrays are not sorted.
+	"locations_at": locationsSQL + `WHERE g.utime_since IN (SELECT g.utime_since
+ ` + locationsFromSQL + `WHERE g.data_through > g.utime_since
+ AND g.data_through <= g.utime_until
+ AND g.data_through <= toUInt64({at:UInt32}) + 1
+ ORDER BY g.data_through DESC, g.utime_since DESC LIMIT 1)`,
 	"coverage": `SELECT 'chain' AS source, toString(minOrNull(day)) AS first_day,
 toString(maxOrNull(day)) AS last_day,
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS updated_at,
