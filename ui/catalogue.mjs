@@ -84,12 +84,8 @@ export const CATALOGUE = [
         layout: 'half', step: true, fill: true, integer: true, registryTerm: 'wallet code',
         description: 'Total unique addresses that have been deployed with a recognized wallet code. Each address is counted once, at its first qualifying wallet deployment, even if it previously hosted a different contract. Outgoing messages are not required. Later deletion, freezing, code changes or redeployment do not remove the address from this total.',
     }),
-    chart('validator_count', 'Validators', 'validator', '', {
-        kind: 'step', round: true, integer: true,
-        description: 'Number of elected validators in each validation round.',
-    }),
     chart('stake', 'Stake', 'validator', 'GRAM', {
-        kind: 'step', round: true, layout: 'wide',
+        kind: 'step', round: true, layout: 'full',
         series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2), { ...series('reward', 'Reward', 3), axis: 'right', kind: 'bar' }],
         secondaryAxisLabel: 'Reward (GRAM)',
         description: 'Submitted: accepted election applications, including unselected candidates and excess stake.\nSelected: stake retained after elections.\nRemaining: stake left after fines, immediately before release, excluding rewards.\nRewards: well, rewards. Accumulated each round and distributed in proportion to each validator\'s stake.',
@@ -105,15 +101,19 @@ export const CATALOGUE = [
         kind: 'step', round: true,
         description: 'Annualized validator staking returns without reinvestment, based on capital locked for two validation rounds. Each round lasts 18 h, 12 min, and 16 s. Rewards are distributed in proportion to each validator’s remaining stake after penalties. Every validator without penalties earns the same percentage return. Penalties reduce the returned stake but are not deducted when calculating this APR.\nAPR = (Rewards / Selected stake) × (365 days / Two-round duration) × 100%',
     }),
+    chart('validator_count', 'Validators', 'validator', '', {
+        kind: 'step', round: true, integer: true,
+        description: 'Number of elected validators in each validation round.',
+    }),
     chart('staking_apy', 'Staking APY', 'validator', '%', {
         unavailable: 'No reinvestment model.',
         emptyMessage: {
             title: 'A constant-rate APY can be misleading for TON staking.',
-            text: 'As the charts above show, reinvesting does not increase total rewards in GRAM. Most validators appear to reinvest, as the chart on the right shows. This increases total stake and lowers APR if total rewards stay unchanged.',
+            text: 'As the chart above shows, reinvesting does not increase total rewards in GRAM. Most validators appear to reinvest, as the chart below shows. This increases total stake and lowers APR if total rewards stay unchanged.',
         },
     }),
     chart('stake_changes', 'Stake changes between rounds', 'validator', '%', {
-        kind: 'stacked-area', step: true, round: true, share: true, layout: 'wide',
+        kind: 'stacked-area', step: true, round: true, share: true, layout: 'full',
         defaultHiddenSeries: ['below_reward', 'above_reward', 'unchanged', 'decreased'],
         series: [{ ...series('near_reward', 'Increase ≈ reward', 1), color: '#27956a', emphasis: true, fillOpacity: 0.48 }, series('below_reward', 'Increase < reward'),
             series('above_reward', 'Increase > reward', 3), series('unchanged', 'Unchanged', 4), series('decreased', 'Decreased', 2)],
