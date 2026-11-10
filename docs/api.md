@@ -229,12 +229,17 @@ record IDs are returned. Long round reads use at most 732-day chunks within the
 existing source result budget; a round crossing a chunk boundary appears once.
 
 The UI replaces Telegram share / Liquid staking share with **Total Stake Locked**:
-three stepped areas (Telegram, Liquid Staking, Others), plus an independent Total
-line. The line preserves known total history when the breakdown is unavailable;
+stepped areas for Telegram, each protocol/`-like` entry in `locked_pool_breakdown`,
+and Others, plus an independent Total line. Confirmed protocol names and
+unconfirmed `-like` categories have separate colors, legend controls and exact
+tooltip rows. Their sum must match `locked_pools_nanogram`; the aggregate is not
+added as another layer. An absent label in a reconciled breakdown is zero;
+missing or unreconciled breakdowns stay unknown. IDs and colors stay stable
+across date ranges. The line preserves known total history when the breakdown is unavailable;
 it is never added into the stack. Tooltip money, including the total and pool-type
 breakdown, is formatted directly from exact decimal strings. Hiding series does
 not renormalize amounts. The chart links to the aggregator's full address registry
-and attribution rules; the agreed two-paragraph description is displayed verbatim.
+and attribution rules; the agreed three-paragraph description is displayed verbatim.
 
 The `chain` coverage row also exposes nullable `last_complete_day`, the latest
 UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day

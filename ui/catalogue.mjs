@@ -2,6 +2,24 @@ export const COLORS = Object.freeze({ blue: 'var(--blue)', green: '#5c9980', red
 const palette = [COLORS.blue, COLORS.green, COLORS.red, '#9b88ad', '#c79a54', '#619d9f'];
 export const colorAt = (i) => palette[i % palette.length];
 const series = (id, label, i = 0) => ({ id, label, color: colorAt(i), demo: false });
+const stakePoolColors = {
+    Tonstakers: '#27956a', 'Tonstakers-like': '#80b59f',
+    Stakee: '#2c92bd', 'Stakee-like': '#85bbd1',
+    Hipo: '#c4873e', 'Hipo-like': '#dfb67d',
+    Bemo: '#bd6782', 'Bemo-like': '#dca2b5',
+    'Whales wsTON': '#6369b6', 'Whales-like': '#a4a8d4',
+};
+// Protocol names and -like labels are distinct prepared categories. Keep their
+// IDs, order and colors stable when the selected date range changes.
+export function stakePoolSeries(labels) {
+    const order = Object.keys(stakePoolColors);
+    const rank = label => order.includes(label) ? order.indexOf(label) : order.length;
+    return [...new Set(labels)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'en')).map(label => {
+        const hash = [...label].reduce((hash, c) => (hash * 31 + c.codePointAt(0)) >>> 0, 0);
+        return { ...series(`pool:${label}`, label), poolLabel: label,
+            color: Object.hasOwn(stakePoolColors, label) ? stakePoolColors[label] : colorAt(hash), fillOpacity: label.endsWith('-like') ? 0.32 : 0.48 };
+    });
+}
 const chart = (id, title, section, unit = '', options = {}) => ({
     id,
     title,
@@ -125,12 +143,11 @@ export const CATALOGUE = [
         kind: 'stacked-area', step: true, round: true, zero: true, layout: 'full', stackTotalLabel: 'Visible total',
         series: [
             { ...series('telegram', 'Telegram', 3), fillOpacity: 0.45 },
-            { ...series('pools', 'Liquid Staking', 1), fillOpacity: 0.4 },
             { ...series('others', 'Others'), color: '#8a9da9', fillOpacity: 0.3 },
             { ...series('total', 'Total'), color: 'var(--text)', overlay: true },
         ],
-        description: 'Selected stake across the current and previous validator rounds. Telegram is identified by historical Telegram Messenger ISP observations. Liquid Staking includes positions held by verified Tonstakers and Stakee controllers, Hipo loan contracts, and the official Whales wsTON proxies, including validators’ own collateral. Others includes all remaining positions.\n\nAlso includes elected positions held by contracts of the same staking types whose affiliation with the named protocols has not been confirmed. These are labelled Tonstakers-like, Hipo-like, or Whales-like.',
-        methodology: 'https://github.com/1IxI1/ton-indexer/blob/8e840cb/docs/gramstat-stake-locked.md',
+        description: 'Stakes remain locked after a validation round ends, so validators need separate funds for consecutive rounds. To show the total capital committed to staking, this chart adds the selected stakes of the current and previous rounds, treating each stake as locked for two full rounds.\n\nLiquid Staking is broken down by protocol and contract type. Protocol names indicate confirmed affiliation; the “-like” suffix indicates a recognized staking contract type whose protocol affiliation has not been confirmed. Amounts include validators’ own collateral.\n\nOthers is the total stake selected by the Elector across both rounds, minus the amounts attributed to Telegram and Liquid Staking.',
+        methodology: 'https://github.com/1IxI1/ton-indexer/blob/04f7478/docs/gramstat-stake-locked.md',
     }),
     chart('jetton_transfers', 'Jetton transfers', 'activity', '', { kind: 'bar', zero: true }),
     chart('nft_transfers', 'NFT transfers', 'activity', '', { kind: 'bar', zero: true }),

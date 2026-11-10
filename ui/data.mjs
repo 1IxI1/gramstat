@@ -1,4 +1,4 @@
-import { CATALOGUE, colorAt, periodDates } from './catalogue.mjs';
+import { CATALOGUE, colorAt, periodDates, stakePoolSeries } from './catalogue.mjs';
 import { formatDate, formatTooltipExact } from './charts.mjs';
 import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
 
@@ -192,6 +192,20 @@ export function validatorGeoSeries(rounds) {
     return series;
 }
 
+function lockedPoolBreakdown(round) {
+    const total = round.locked_total_nanogram;
+    const amounts = ['telegram', 'pools', 'others'].map(key => round[`locked_${key}_nanogram`]);
+    const breakdown = round.locked_pool_breakdown;
+    if (!['complete', 'partial_attribution'].includes(round.locked_status)
+        || decimal(total) === null || amounts.some(v => decimal(v) === null)
+        || amounts.reduce((sum, v) => sum + BigInt(v), 0n) !== BigInt(total)
+        || !breakdown || typeof breakdown !== 'object' || Array.isArray(breakdown)) return null;
+    const values = Object.values(breakdown);
+    if (values.some(v => decimal(v) === null)
+        || values.reduce((sum, v) => sum + BigInt(v), 0n) !== BigInt(round.locked_pools_nanogram)) return null;
+    return breakdown;
+}
+
 export function readObservedMetrics(data) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');
@@ -201,6 +215,9 @@ export function readObservedMetrics(data) {
     const metrics = Object.fromEntries(
         CATALOGUE.map((c) => [c.id, { series: c.series.map((s) => ({ ...s, points: [], exact: {}, details: {} })) }]),
     );
+    const lockedBreakdowns = new Map(data.rounds.map(r => [r.utime_since, lockedPoolBreakdown(r)]));
+    const poolLabels = [...lockedBreakdowns.values()].flatMap(breakdown => Object.keys(breakdown || {}));
+    metrics.stake_locked.series.splice(1, 0, ...stakePoolSeries(poolLabels).map(s => ({ ...s, points: [], exact: {}, details: {} })));
     const dailyIDs = new Set(dates);
     const roundDates = [];
     const roundDetails = {};
@@ -295,12 +312,9 @@ export function readObservedMetrics(data) {
         const aprDetail = r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
             : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM.\nSelected stake: ${decimal(r.selected_nanogram, 9)} GRAM.\nAPR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
         put('staking_apr', 'total', date, r.apr_percent, 'percent', aprDetail);
-        const lockedKeys = ['telegram', 'pools', 'others'];
-        const lockedValues = lockedKeys.map(key => r[`locked_${key}_nanogram`]);
         const lockedTotal = decimal(r.locked_total_nanogram, 9);
-        const splitKnown = ['complete', 'partial_attribution'].includes(r.locked_status)
-            && lockedTotal !== null && lockedValues.every(v => decimal(v) !== null)
-            && lockedValues.reduce((sum, v) => sum + BigInt(v), 0n) === BigInt(r.locked_total_nanogram);
+        const breakdown = lockedBreakdowns.get(r.utime_since);
+        const splitKnown = breakdown != null;
         const amount = raw => decimal(raw, 9) === null ? 'unknown' : `${formatTooltipExact(decimal(raw, 9))} GRAM`;
         const lockedDetail = lockedTotal === null
             ? 'Two adjacent verified rounds with known selected stake are required.'
@@ -308,11 +322,14 @@ export function readObservedMetrics(data) {
                 `Current round: ${amount(r.selected_nanogram)}.`,
                 `Previous round${r.locked_previous ? ` (${formatDate(new Date(r.locked_previous * 1000).toISOString(), { seconds: true })} UTC)` : ''}: ${amount(r.locked_previous_selected_nanogram)}.`,
                 splitKnown ? `Attribution: contract types ${r.locked_typed_positions}/${r.locked_positions}; ISP evidence ${r.locked_isp_observed_positions}/${r.locked_positions}. Others includes unclassified positions.` : 'Category breakdown unavailable; the total is independently known.',
-                ...Object.entries(splitKnown ? r.locked_pool_breakdown || {} : {}).map(([label, raw]) => `${label}: ${amount(raw)}.`),
+                ...(splitKnown ? [`Liquid Staking total: ${amount(r.locked_pools_nanogram)}.`] : []),
             ].join('\n');
-        for (const key of [...lockedKeys, 'total']) {
-            put('stake_locked', key, date, key === 'total' || splitKnown ? r[`locked_${key}_nanogram`] : null, 9,
-                lockedDetail, Boolean(r.locked_is_partial) || (key !== 'total' && r.locked_status === 'partial_attribution'));
+        for (const s of metrics.stake_locked.series) {
+            const raw = s.overlay ? r.locked_total_nanogram : !splitKnown ? null
+                : s.poolLabel ? (Object.hasOwn(breakdown, s.poolLabel) ? breakdown[s.poolLabel] : '0')
+                : r[`locked_${s.id}_nanogram`];
+            put('stake_locked', s.id, date, raw, 9,
+                lockedDetail, Boolean(r.locked_is_partial) || (!s.overlay && r.locked_status === 'partial_attribution'));
         }
         const changeKeys = metrics.stake_changes.series.map(s => s.id);
         const counts = changeKeys.map(key => r[`stake_change_${key}`]);
