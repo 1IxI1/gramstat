@@ -99,7 +99,7 @@ export const CATALOGUE = [
         historyStart: Date.parse('2024-10-01T01:23:19Z'),
         secondaryOverlay: true, primaryAxisLabel: 'Validators', secondaryAxisLabel: 'Countries', rangeTicks: true,
         series: [series('located', 'Validators with coordinates'), { ...series('countries', 'Countries', 1), axis: 'right' }],
-        description: 'Counts at each prepared location snapshot: validators with coordinates on the left axis, observed countries on the right. Missing observations remain gaps. The marker shows the snapshot displayed on the map. Drag across this chart to select a time range; the map follows its end.',
+        description: 'Drag across this chart to select a time range; the map follows its end.',
     }),
     chart('staking_apr', 'Staking APR', 'validator', '%', {
         kind: 'step', round: true,
