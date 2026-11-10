@@ -108,13 +108,14 @@ formatDateTime(r.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS calculated_at,
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `, ` + lockedColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  ON r.utime_since = s.utime_since AND r.utime_until = s.utime_until
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
 ` + aprJoinSQL + `
 ` + stakeChangesJoinSQL + `
+` + lockedJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"rounds": `SELECT r.utime_since AS utime_since, r.utime_until AS utime_until,
@@ -126,7 +127,7 @@ formatDateTime(g.calculated_at, '%Y-%m-%dT%H:%i:%SZ', 'UTC') AS geo_calculated_a
 s.election_id, toString(s.submitted_nanogram) AS submitted_nanogram,
 toString(s.selected_nanogram) AS selected_nanogram, toString(s.remaining_nanogram) AS remaining_nanogram,
 toString(s.reward_nanogram) AS reward_nanogram,
-s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `
+s.unfreeze_utime, s.status AS stake_status, ` + aprColumnsSQL + `, ` + stakeChangesColumnsSQL + `, ` + lockedColumnsSQL + `
 FROM gramstat.validator_rounds AS r FINAL
 LEFT JOIN gramstat.validator_geo_rounds AS g FINAL
  ON r.utime_since = g.utime_since AND r.roster_digest = g.roster_digest AND r.config34_hash = g.config34_hash
@@ -135,6 +136,7 @@ LEFT JOIN gramstat.validator_stake_rounds AS s FINAL
  AND r.roster_digest = s.roster_digest AND r.config34_hash = s.config34_hash
 ` + aprJoinSQL + `
 ` + stakeChangesJoinSQL + `
+` + lockedJoinSQL + `
 WHERE r.utime_since < toUnixTimestamp(toDateTime({to:Date}, 'UTC'))
  AND r.utime_until > toUnixTimestamp(toDateTime({from:Date}, 'UTC')) ORDER BY r.utime_since`,
 	"locations": locationsSQL + `WHERE g.utime_since = {round:UInt32}`,
@@ -168,6 +170,44 @@ UNION ALL SELECT 'accounts',toString(toDate(minOrNull(first_utime),'UTC')),toStr
 formatDateTime(maxOrNull(calculated_at), '%Y-%m-%dT%H:%i:%SZ', 'UTC'),minOrNull(first_utime),maxOrNull(last_utime), NULL
 FROM gramstat.accounts_hourly FINAL`,
 }
+
+const lockedColumnsSQL = `lk.previous_utime_since AS locked_previous,
+toString(lk.previous_selected_nanogram) AS locked_previous_selected_nanogram,
+toString(lk.total_nanogram) AS locked_total_nanogram,
+toString(lk.telegram_nanogram) AS locked_telegram_nanogram,
+toString(lk.pools_nanogram) AS locked_pools_nanogram,
+toString(lk.others_nanogram) AS locked_others_nanogram,
+mapApply((k,v)->(k,toString(v)),lk.pool_breakdown) AS locked_pool_breakdown,
+lk.positions AS locked_positions, lk.typed_positions AS locked_typed_positions,
+lk.isp_observed_positions AS locked_isp_observed_positions,
+lk.data_through AS locked_data_through, lk.is_partial AS locked_is_partial,
+lk.status AS locked_status`
+
+// The predecessor is checked even when outside the requested date range. The
+// API projects only prepared scalar totals; no raw IPs or member evidence arrays.
+const lockedJoinSQL = `LEFT JOIN (
+ SELECT x.utime_since AS utime_since,x.utime_until AS utime_until,
+ x.config34_hash AS config34_hash,x.roster_digest AS roster_digest,
+ x.current_selected_nanogram AS current_selected_nanogram,
+ x.previous_utime_since AS previous_utime_since,x.previous_selected_nanogram AS previous_selected_nanogram,
+ x.total_nanogram AS total_nanogram,x.telegram_nanogram AS telegram_nanogram,
+ x.pools_nanogram AS pools_nanogram,x.others_nanogram AS others_nanogram,
+ x.pool_breakdown AS pool_breakdown,x.positions AS positions,x.typed_positions AS typed_positions,
+ x.isp_observed_positions AS isp_observed_positions,x.data_through AS data_through,
+ x.is_partial AS is_partial,x.status AS status
+ FROM gramstat.validator_stake_locked_rounds AS x FINAL
+ INNER JOIN gramstat.validator_rounds AS lp FINAL
+  ON lp.utime_since=x.previous_utime_since AND lp.utime_until=x.utime_since
+  AND lp.config34_hash=x.previous_config34_hash AND lp.roster_digest=x.previous_roster_digest
+ INNER JOIN gramstat.validator_stake_rounds AS lps FINAL
+  ON lps.utime_since=lp.utime_since AND lps.utime_until=lp.utime_until
+  AND lps.config34_hash=lp.config34_hash AND lps.roster_digest=lp.roster_digest
+ WHERE x.calc_version='stake-locked-v1' AND lp.data_through>=lp.utime_until
+  AND lps.status!='invalid_source' AND lps.selected_nanogram=x.previous_selected_nanogram
+  AND x.total_nanogram=x.current_selected_nanogram+x.previous_selected_nanogram
+ ) AS lk ON lk.utime_since=r.utime_since AND lk.utime_until=r.utime_until
+  AND lk.config34_hash=r.config34_hash AND lk.roster_digest=r.roster_digest
+  AND lk.current_selected_nanogram=s.selected_nanogram AND s.status!='invalid_source'`
 
 // Recheck both interval proofs at read time so a corrected/removed successor
 // cannot expose stale APR before the next hourly reconciliation.
@@ -221,13 +261,19 @@ const stakeChangesJoinSQL = `LEFT JOIN (
 func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Values) (json.RawMessage, error) {
 	// Keep individual reads within the SELECT-only role's fixed result budget.
 	// The public response still includes every daily observation for the range.
-	if name == "daily" || name == "daily_columns" {
+	roundRows := name == "rounds" || name == "validators"
+	if name == "daily" || name == "daily_columns" || roundRows {
+		chunkDays := 366
+		if roundRows {
+			chunkDays = 732
+		} // Far fewer rows than daily metrics; retain the same result budget.
 		from, e1 := time.Parse(time.DateOnly, params.Get("from"))
 		to, e2 := time.Parse(time.DateOnly, params.Get("to"))
-		if e1 == nil && e2 == nil && to.Sub(from) > 366*24*time.Hour {
+		if e1 == nil && e2 == nil && to.Sub(from) > time.Duration(chunkDays)*24*time.Hour {
 			var rows []json.RawMessage
+			seen := map[uint32]bool{}
 			for start := from; start.Before(to); {
-				end := start.AddDate(0, 0, 366)
+				end := start.AddDate(0, 0, chunkDays)
 				if end.After(to) {
 					end = to
 				}
@@ -239,7 +285,21 @@ func (c ClickHouseReader) Read(ctx context.Context, name string, params url.Valu
 				if err := json.Unmarshal(part, &batch); err != nil {
 					return nil, err
 				}
-				rows = append(rows, batch...)
+				for _, row := range batch {
+					if roundRows {
+						var id struct {
+							Since uint32 `json:"utime_since"`
+						}
+						if err := json.Unmarshal(row, &id); err != nil {
+							return nil, err
+						}
+						if seen[id.Since] {
+							continue
+						}
+						seen[id.Since] = true
+					}
+					rows = append(rows, row)
+				}
 				start = end
 			}
 			if rows == nil {

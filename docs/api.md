@@ -210,6 +210,32 @@ outside the requested window. Missing mappings, unreconciled penalty allocation,
 late releases or gaps leave unknown points. The API reads only the prepared
 `gramstat.validator_stake_changes` table (grant SELECT to its read-only role).
 
+### Total Stake Locked
+
+`rounds` and `validators` project the prepared
+`gramstat.validator_stake_locked_rounds` table (the API role needs SELECT).
+`locked_total_nanogram`, `locked_telegram_nanogram`, `locked_pools_nanogram`,
+`locked_others_nanogram` and `locked_previous_selected_nanogram` are nullable
+exact decimal strings. `locked_pool_breakdown` maps protocol/`-like` labels to
+exact decimal strings. `locked_previous` identifies the adjacent prior round;
+coverage fields are `locked_positions`, `locked_typed_positions`,
+`locked_isp_observed_positions`, `locked_data_through`, `locked_is_partial`,
+and `locked_status`.
+
+Both config/roster proofs, adjacency, previous-round completion and both selected
+principal snapshots are rechecked at read time. Source corrections suppress stale
+totals until aggregation catches up. No member arrays, raw IPs or internal evidence
+record IDs are returned. Long round reads use at most 732-day chunks within the
+existing source result budget; a round crossing a chunk boundary appears once.
+
+The UI replaces Telegram share / Liquid staking share with **Total Stake Locked**:
+three stepped areas (Telegram, Liquid Staking, Others), plus an independent Total
+line. The line preserves known total history when the breakdown is unavailable;
+it is never added into the stack. Tooltip money, including the total and pool-type
+breakdown, is formatted directly from exact decimal strings. Hiding series does
+not renormalize amounts. The chart links to the aggregator's full address registry
+and attribution rules; the agreed two-paragraph description is displayed verbatim.
+
 The `chain` coverage row also exposes nullable `last_complete_day`, the latest
 UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day
 range end no later than this day's end, even when newer blocks are available.

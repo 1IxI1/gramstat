@@ -334,6 +334,12 @@ for (const definition of CATALOGUE) {
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
     if (definition.registryTerm) card.append(walletRegistry.description(definition));
+    if (definition.methodology) {
+        const link = element('a', 'chart-description wallet-registry-link', 'Included contracts and attribution rules');
+        link.href = definition.methodology;
+        link.target = '_blank'; link.rel = 'noopener';
+        card.append(link);
+    }
     $(definition.container || `${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
     cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, chart, card, expand, heading, average, averageValue });
@@ -466,11 +472,11 @@ function render(group, roundsOnly = false, onlyID) {
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
         const rows = buildRows(shownDates, series.filter((s) => s.axis !== 'right'));
         const latest = isWallet || monthly ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
-            definition.kind.startsWith('stacked') ? r.total !== null : r.values.some(Number.isFinite),
+            definition.kind.startsWith('stacked') ? r.total !== null || r.values.some((v, i) => series[i].overlay && Number.isFinite(v)) : r.values.some(Number.isFinite),
         );
         const value = latest
             ? definition.kind.startsWith('stacked')
-                ? latest.total
+                ? (series.some(s => s.overlay) ? latest.values[series.findIndex(s => s.overlay)] : latest.total)
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);

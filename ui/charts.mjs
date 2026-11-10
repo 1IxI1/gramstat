@@ -55,8 +55,20 @@ export function buildRows(dates, series) {
             const value = s.ordered && s.points[index]?.[0] === date ? s.points[index][1] : lookup.get(date);
             return Number.isFinite(value) ? value : null;
         });
-        return { date, values, total: sumReadings(values) };
+        return { date, values, total: sumReadings(values.filter((_, i) => !series[i].overlay)) };
     });
+}
+
+// Tooltip totals use the same lossless decimal strings as individual readings.
+export function exactStackTotal(series, date, index) {
+    const values = series.filter(s => !s.overlay).map(s => s.ordered ? s.exactByIndex?.[index] : s.exact?.[date]);
+    if (!values.length || values.some(v => typeof v !== 'string' || !/^\d+(\.\d+)?$/.test(v))) return null;
+    const scale = Math.max(...values.map(v => (v.split('.')[1] || '').length));
+    const sum = values.reduce((sum, v) => {
+        const [whole, fraction = ''] = v.split('.');
+        return sum + BigInt(whole + fraction.padEnd(scale, '0'));
+    }, 0n).toString().padStart(scale + 1, '0');
+    return scale ? `${sum.slice(0, -scale)}.${sum.slice(-scale)}` : sum;
 }
 
 function node(tag, attrs = {}, text) {
@@ -105,7 +117,7 @@ export function domain(config, rows) {
     if (config.share) return [0, 100];
     const stacked = config.kind.startsWith('stacked');
     const values = rows.flatMap((row) =>
-        stacked ? (row.total === null ? [] : [row.total]) : row.values.filter((value, i) => Number.isFinite(value) && config.series?.[i]?.axis !== 'right'),
+        stacked ? [...(row.total === null ? [] : [row.total]), ...row.values.filter((v, i) => config.series?.[i]?.overlay && Number.isFinite(v))] : row.values.filter((value, i) => Number.isFinite(value) && config.series?.[i]?.axis !== 'right'),
     );
     if (!values.length) return [0, 1];
     const minimum = Math.min(...values);
@@ -356,7 +368,7 @@ export class TimeChart {
                 ),
             );
         } else if (this.config.kind.includes('bar')) this.drawBars();
-        else if (this.config.kind === 'stacked-area') this.drawStack();
+        else if (this.config.kind === 'stacked-area') { this.drawStack(); this.drawLines(); }
         else this.drawLines();
 
         const markerStart = this.config.time || !hasReadings
@@ -416,11 +428,12 @@ export class TimeChart {
         this.config.series.forEach((item, seriesIndex) => {
             if (item.axis === 'right' && !this.config.secondaryOverlay) return;
             const y = item.axis === 'right' ? rewardY : primaryY;
+            if (this.config.kind.startsWith('stacked') && !item.overlay) return;
             const segments = contiguous(this.rows, (row) => row.values[seriesIndex] !== null);
             for (const segment of segments) {
                 const path = segment
                     .map((row, i) =>
-                        i && this.config.kind === 'step'
+                        i && (this.config.kind === 'step' || this.config.step)
                             ? `H${x(row.index)}V${y(row.values[seriesIndex])}`
                             : `${i ? 'L' : 'M'}${x(row.index)},${y(row.values[seriesIndex])}`,
                     )
@@ -483,14 +496,15 @@ export class TimeChart {
         const { x, y } = this.geometry;
         const segments = contiguous(this.rows, (row) => row.total !== null);
         this.config.series.forEach((item, seriesIndex) => {
+            if (item.overlay) return;
             for (const segment of segments) {
                 const upper = segment.map((row) => [
                     x(row.index),
-                    y(sumReadings(row.values.slice(0, seriesIndex + 1))),
+                    y(sumReadings(row.values.slice(0, seriesIndex + 1).filter((_, i) => !this.config.series[i].overlay))),
                 ]);
                 const lower = segment.map((row) => [
                     x(row.index),
-                    y(seriesIndex === 0 ? 0 : sumReadings(row.values.slice(0, seriesIndex))),
+                    y(row.values.slice(0, seriesIndex).filter((_, i) => !this.config.series[i].overlay).reduce((sum, v) => sum + v, 0)),
                 ]);
                 const line = upper.map((point, i) => i && this.config.step ? `H${point[0]}V${point[1]}` : `${i ? 'L' : 'M'}${point.join(',')}`).join(' ');
                 const base = lower
@@ -534,12 +548,12 @@ export class TimeChart {
         this.config.series.forEach((item, seriesIndex) => {
             const value = row.values[seriesIndex];
             if (value === null) return;
-            base = this.config.kind.startsWith('stacked') ? base + value : value;
-            if ((item.axis !== 'right' || this.config.secondaryOverlay) && !this.config.kind.includes('bar') && (!this.config.kind.startsWith('stacked') || row.total !== null)) {
+            if (!item.overlay) base = this.config.kind.startsWith('stacked') ? base + value : value;
+            if ((item.axis !== 'right' || this.config.secondaryOverlay) && !this.config.kind.includes('bar') && (item.overlay || !this.config.kind.startsWith('stacked') || row.total !== null)) {
                 this.selection.append(
                     node('circle', {
                         cx: position,
-                        cy: item.axis === 'right' ? this.geometry.rewardY(value) : y(base),
+                        cy: item.axis === 'right' ? this.geometry.rewardY(value) : y(item.overlay ? value : base),
                         r: 3.2,
                         fill: item.color,
                         stroke: '#fff',
@@ -552,7 +566,7 @@ export class TimeChart {
         this.tooltip.replaceChildren(html('strong', 'tooltip-date', this.config.periodLabel?.(row.date) ?? formatDate(row.date, { seconds: this.config.id === 'supply' || this.config.id === 'activated_wallets' || this.config.round })));
         (this.config.id === 'accounts' ? [...this.config.series].reverse() : this.config.series).forEach((item) => {
             const seriesIndex = this.config.series.indexOf(item);
-            const entry = html('div', 'tooltip-row');
+            const entry = html('div', `tooltip-row${item.overlay ? ' tooltip-total' : ''}`);
             const label = html(item.emphasis ? 'strong' : 'span', 'tooltip-label');
             const swatch = html('span', 'swatch');
             swatch.style.setProperty('--series-color', item.color);
@@ -571,11 +585,12 @@ export class TimeChart {
             );
             this.tooltip.append(entry);
         });
-        if (this.config.kind.startsWith('stacked')) {
+        if (this.config.kind.startsWith('stacked') && !this.config.series.some(s => s.overlay)) {
             const total = html('div', 'tooltip-row tooltip-total');
+            const exact = exactStackTotal(this.config.series, row.date, this.selectedIndex);
             total.append(
-                html('span', '', 'Total'),
-                html('span', 'tooltip-value', formatValue(row.total, this.config.unit)),
+                html('span', '', this.config.stackTotalLabel || 'Total'),
+                html('span', 'tooltip-value', exact === null ? formatValue(row.total, this.config.unit) : `${formatTooltipExact(exact)} ${this.config.unit}`),
             );
             this.tooltip.append(total);
         }

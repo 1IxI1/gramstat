@@ -33,7 +33,7 @@ func TestStakeChangesSQLDoesNotBridgeMissingOrStaleHistory(t *testing.T) {
 		}
 		return v.Data
 	}
-	run(schema + stakeChangesFixture + `
+	run(schema + stakeChangesFixture + stakeLockedFixture + `
 INSERT INTO gramstat.validator_rounds (utime_since,utime_until,total,config34_hash,roster_digest,calculated_at,data_through) VALUES
 (1792496128,1792561664,10,'old','old',now64(6),1792561664),
 (1792561664,1792627200,10,'mid','mid',now64(6),1792627200),

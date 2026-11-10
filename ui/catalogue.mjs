@@ -121,13 +121,16 @@ export const CATALOGUE = [
         descriptionStrong: 'Increase ≈ reward',
         descriptionEmphasis: 'these validators are reinvesting',
     }),
-    chart('telegram_share', 'Telegram share', 'validator', '%', {
-        layout: 'half',
-        unavailable: 'Historical validator attribution has not been published.',
-    }),
-    chart('liquid_staking_share', 'Liquid staking share', 'validator', '%', {
-        layout: 'half',
-        unavailable: 'Validator stake attribution is separate from deposit activity.',
+    chart('stake_locked', 'Total Stake Locked', 'validator', 'GRAM', {
+        kind: 'stacked-area', step: true, round: true, zero: true, layout: 'full', stackTotalLabel: 'Visible total',
+        series: [
+            { ...series('telegram', 'Telegram', 3), fillOpacity: 0.45 },
+            { ...series('pools', 'Liquid Staking', 1), fillOpacity: 0.4 },
+            { ...series('others', 'Others'), color: '#8a9da9', fillOpacity: 0.3 },
+            { ...series('total', 'Total'), color: 'var(--text)', overlay: true },
+        ],
+        description: 'Selected stake across the current and previous validator rounds. Telegram is identified by historical Telegram Messenger ISP observations. Liquid Staking includes positions held by verified Tonstakers and Stakee controllers, Hipo loan contracts, and the official Whales wsTON proxies, including validators’ own collateral. Others includes all remaining positions.\n\nAlso includes elected positions held by contracts of the same staking types whose affiliation with the named protocols has not been confirmed. These are labelled Tonstakers-like, Hipo-like, or Whales-like.',
+        methodology: 'https://github.com/1IxI1/ton-indexer/blob/8e840cb/docs/gramstat-stake-locked.md',
     }),
     chart('jetton_transfers', 'Jetton transfers', 'activity', '', { kind: 'bar', zero: true }),
     chart('nft_transfers', 'NFT transfers', 'activity', '', { kind: 'bar', zero: true }),
