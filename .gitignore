@@ -6,3 +6,5 @@
 *.log
 *.test
 .DS_Store
+# Staking observations are served from the aggregator's database.
+/ui/stake-contracts.mjs

@@ -24,11 +24,14 @@ export function createStakeRegistry(element) {
         close.focus();
         if (loaded) return;
         content.replaceChildren(element('p', 'chart-status', 'Loading verified contracts…'));
-        loaded = import('./stake-contracts.mjs');
+        loaded = fetch('/api/v1/staking-contracts', { headers: { Accept: 'application/json' } }).then(response => {
+            if (!response.ok) throw new Error('Staking registry unavailable');
+            return response.json();
+        });
         try {
-            const { STAKE_CONTRACTS, STAKE_REGISTRY_AS_OF } = await loaded;
-            const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(STAKE_REGISTRY_AS_OF));
-            const note = element('p', 'chart-description', `Pool links and on-chain staking-contract code hashes checked ${date}. Expand a group to see the verified holder addresses.`);
+            const { staking_contracts: groups } = await loaded;
+            if (!Array.isArray(groups) || groups.length === 0) throw new Error('No verified staking contracts');
+            const note = element('p', 'chart-description', 'Verified pool links and on-chain staking-contract code hashes. Expand a group to see the verified holder addresses.');
             const table = element('table', 'wallet-registry-table stake-registry-table');
             const head = element('thead'), header = element('tr');
             for (const label of ['Protocol', 'Verified addresses and code']) {
@@ -36,12 +39,14 @@ export function createStakeRegistry(element) {
             }
             head.append(header);
             const body = element('tbody');
-            for (const group of STAKE_CONTRACTS) {
+            for (const group of groups) {
                 const row = element('tr');
                 const name = element('th', '', group.protocol); name.scope = 'row';
                 const values = element('td', 'wallet-code-hash');
                 values.append(element('span', 'wallet-hash-label', 'Pool / treasury'), element('code', '', group.pool),
                     element('span', 'wallet-hash-label', 'Staking contract code hash · hex'), element('code', '', group.codeHash));
+                const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(group.lastCheckedAt));
+                values.append(element('span', 'wallet-hash-label', `Last verification: ${date}`));
                 const details = element('details', 'stake-holder-addresses');
                 details.append(element('summary', '', `Holder addresses (${group.holders.length})`));
                 details.addEventListener('toggle', () => {

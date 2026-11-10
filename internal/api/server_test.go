@@ -39,7 +39,7 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 		"/api/v1/locations", "/api/v1/locations?at=1&round=2", "/api/v1/locations?at=1&at=2",
 		"/api/v1/locations?at=0", "/api/v1/locations?at=-1", "/api/v1/locations?at=4294967296",
 		"/api/v1/locations?at=1%3BDROP", "/api/v1/locations?at=1&sql=x", "/api/v1/locations?at=4294967295",
-		"/api/v1/dashboard?from=2026-10-21;to=2026-10-28",
+		"/api/v1/dashboard?from=2026-10-21;to=2026-10-28", "/api/v1/staking-contracts?sql=x",
 	} {
 		w := httptest.NewRecorder()
 		s.ServeHTTP(w, httptest.NewRequest("GET", target, nil))
@@ -66,6 +66,27 @@ func TestHTTPBoundaryAndExactValues(t *testing.T) {
 	}
 	if calls.Load() != 4 {
 		t.Fatal("dashboard cache did not reuse complete response")
+	}
+}
+
+func TestStakingContractsReadOnlyRegistry(t *testing.T) {
+	var calls int
+	s := New(readerFunc(func(_ context.Context, name string, q url.Values) (json.RawMessage, error) {
+		calls++
+		if name != "staking_contracts" || len(q) != 0 {
+			t.Fatal(name, q)
+		}
+		return json.RawMessage(`[{"protocol":"Hipo","pool":"0:treasury","codeHash":"code","holders":["-1:loan"],"lastCheckedAt":"2026-11-10T12:00:00Z"}]`), nil
+	}), logger())
+	for i := 0; i < 2; i++ {
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/staking-contracts", nil))
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"staking_contracts":[`) || !strings.Contains(w.Body.String(), `"-1:loan"`) {
+			t.Fatal(w.Code, w.Body.String())
+		}
+	}
+	if calls != 1 {
+		t.Fatal("registry not cached", calls)
 	}
 }
 

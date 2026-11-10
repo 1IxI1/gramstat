@@ -40,6 +40,16 @@ func TestQueriesWithRealClickHouse(t *testing.T) {
 		return b
 	}
 	run(schema + stakeChangesFixture + stakeLockedFixture + `
+CREATE TABLE gramstat.validator_stake_affiliations (
+ holder String,family String,protocol String,pool String,code_hash String,
+ verification_version String,checked_at DateTime64(6,'UTC')
+) ENGINE=ReplacingMergeTree(checked_at) ORDER BY (family,holder);
+INSERT INTO gramstat.validator_stake_affiliations VALUES
+ ('loan-a','hipo_controller','Hipo','treasury','code','account-identity-v3','2026-11-10 12:00:00'),
+ ('loan-a','hipo_controller','Hipo','treasury','code','account-identity-v3','2026-11-10 13:00:00'),
+ ('loan-b','hipo_controller','Hipo','treasury','code','account-identity-v3','2026-11-10 12:00:00'),
+ ('loan-b','hipo_controller','','other','code','account-identity-v3','2026-11-10 13:00:00'),
+ ('loan-c','hipo_controller','Hipo','treasury','code','account-identity-v2','2026-11-10 12:00:00');
 INSERT INTO gramstat.chain_daily_full VALUES('2026-10-21',1,100,0,0,NULL,NULL,1,1,3,'fixture','2026-10-28 00:00:00'),
 ('2026-10-22',7,NULL,50,0,5258373238061259412,1792627200,0,1,3,'fixture','2026-10-28 00:00:00'),
 ('2026-10-23',1,100,0,0,NULL,NULL,1,1,3,'fixture','2026-10-28 00:00:00');
@@ -57,6 +67,16 @@ INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id
 		}
 		if err = json.Unmarshal(b, &result); err != nil {
 			t.Fatalf("%s: %v %s", name, err, b)
+		}
+		if name == "staking_contracts" {
+			if len(result.Data) != 1 {
+				t.Fatal("stale or unconfirmed identity published", string(b))
+			}
+			row := result.Data[0]
+			holders, _ := row["holders"].([]any)
+			if len(holders) != 1 || holders[0] != "loan-a" || row["lastCheckedAt"] != "2026-11-10T13:00:00Z" {
+				t.Fatal(string(b))
+			}
 		}
 		if name == "chain" {
 			if len(result.Data) != 3 {

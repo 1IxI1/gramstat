@@ -71,6 +71,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "chain"
 	case "/api/v1/validators":
 		name = "validators"
+	case "/api/v1/staking-contracts":
+		name = "staking_contracts"
 	case "/api/v1/locations":
 		name = "locations"
 	case "/api/v1/supply":
@@ -173,6 +175,9 @@ func problem(w http.ResponseWriter, status int, message string) {
 }
 
 func validate(name string, q url.Values, now time.Time) error {
+	if name == "staking_contracts" && len(q) != 0 {
+		return fmt.Errorf("unexpected parameters")
+	}
 	for k, v := range q {
 		if len(v) != 1 || ((name == "dashboard" || name == "activity" || name == "chain" || name == "validators") && k != "from" && k != "to") || ((name == "supply" || name == "inflation" || name == "accounts" || name == "wallets") && k != "from" && k != "to" && k != "maxPoints" && !(name == "wallets" && k == "activity")) || (name == "locations" && k != "round" && k != "at") || name == "coverage" {
 			return fmt.Errorf("unexpected or repeated parameters")

@@ -240,10 +240,19 @@ it is never added into the stack. Tooltip money, including the total and pool-ty
 breakdown, is formatted directly from exact decimal strings. Hiding series does
 not renormalize amounts. **Verified staking contracts** opens an in-page dialog
 with checked pool/treasury addresses, staking-contract code hashes and expandable
-holder addresses. Its dated data module is generated from the same historical
-account-state checks as the aggregator's identity registry and loaded on demand.
+holder addresses. The dialog loads `GET /api/v1/staking-contracts` on demand;
+there is no source-controlled holder list or generated registry module.
 The agreed three-paragraph description highlights **total capital committed to
 staking** and italicizes *yet* in the unconfirmed-affiliation definition.
+
+`/api/v1/staking-contracts` accepts no parameters and returns `staking_contracts`
+groups with `protocol`, `pool`, `codeHash`, sorted unique `holders`, and UTC
+`lastCheckedAt`. It reads only `gramstat.validator_stake_affiliations FINAL`
+(grant SELECT to the API role), selecting confirmed `account-identity-v3`
+observations. That verification includes local Hipo StateInit address derivation
+in the aggregator. Responses use the same bounded cache as the chart endpoints;
+requests never trigger archive RPC calls. Raw account responses and internal
+verification evidence are not exposed.
 
 The `chain` coverage row also exposes nullable `last_complete_day`, the latest
 UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day
@@ -299,7 +308,7 @@ The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
 `/api/` proxies the loopback service. Static paths are allowlisted; historical
 snapshots, provenance and repository files are not served. Copy only `index.html`,
-`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `wallet-registry.mjs`, `stake-registry.mjs`, `stake-contracts.mjs`, `style.css`, `favicon.svg`
+`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `wallet-registry.mjs`, `stake-registry.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
 Also copy `ui/fonts/` for the self-hosted Inter variable fonts (normal and italic)
 and their SIL Open Font License. These are unmodified Inter v4.1 files from
