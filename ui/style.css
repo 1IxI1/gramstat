@@ -202,6 +202,10 @@ a {
 .wallet-code-hash code { display: block; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; user-select: all; }
 .wallet-hash-label { display: block; font-size: 11px; color: #6a7b84; margin-bottom: 2px; }
 .wallet-hash-label:not(:first-child) { margin-top: 6px; }
+.stake-registry-table th:last-child { width: 80%; }
+.stake-holder-addresses { margin-top: 10px; }
+.stake-holder-addresses summary { cursor: pointer; color: var(--link); }
+.stake-holder-addresses code { margin-top: 8px; }
 @media (max-width: 600px) {
     .wallet-registry { padding: 14px; }
     .wallet-registry-heading { top: -14px; }
@@ -209,6 +213,7 @@ a {
     .wallet-registry-table th, .wallet-registry-table td { padding: 10px 4px; }
     .wallet-registry-table th:first-child { width: 23%; }
     .wallet-registry-table th:last-child { width: 22%; }
+    .stake-registry-table th:last-child { width: 77%; }
     .wallet-code-hash code { font-size: 11px; }
 }
 .validator-map { margin-top: 32px; }

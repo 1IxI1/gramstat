@@ -3,6 +3,7 @@ import { readObservedMetrics, expandActivityColumns, monthlyActivity, latestChai
 import { BINARY_TYPE, decodeColumns } from './wire.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
+import { createStakeRegistry } from './stake-registry.mjs';
 import { ValidatorMap } from './validator-map.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -259,6 +260,7 @@ function element(tag, className, text) {
 }
 
 const walletRegistry = createWalletRegistry(element);
+const stakeRegistry = createStakeRegistry(element);
 const validatorMap = new ValidatorMap($('validator-map'));
 
 for (const definition of CATALOGUE) {
@@ -334,12 +336,7 @@ for (const definition of CATALOGUE) {
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
     if (definition.registryTerm) card.append(walletRegistry.description(definition));
-    if (definition.methodology) {
-        const link = element('a', 'chart-description wallet-registry-link', 'Included contracts and attribution rules');
-        link.href = definition.methodology;
-        link.target = '_blank'; link.rel = 'noopener';
-        card.append(link);
-    }
+    if (definition.stakeRegistry) card.append(stakeRegistry.button());
     $(definition.container || `${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
     cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, chart, card, expand, heading, average, averageValue });
@@ -395,7 +392,7 @@ expandedDialog.addEventListener('cancel', (event) => {
     navigateChart(null);
 });
 document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open) return;
+    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open || stakeRegistry.dialog.open) return;
     event.preventDefault();
     event.stopPropagation();
     navigateChart(null);
