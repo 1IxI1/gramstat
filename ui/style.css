@@ -400,7 +400,8 @@ h2 {
     min-height: 30px;
 }
 .chart-expand:hover { color: #27343b; }
-.expanded-chart .chart-expand { position: static; }
+.expanded-chart .chart-heading { position: relative; padding-right: 44px; }
+.expanded-chart .chart-expand { position: absolute; top: 0; right: 0; }
 body.chart-expanded { overflow: hidden; }
 .expanded-chart {
     width: calc(100vw - 48px);
