@@ -38,7 +38,6 @@ export class ValidatorMap {
         this.svg = panel.querySelector('svg');
         this.points = panel.querySelector('.map-points');
         this.message = panel.querySelector('.map-message');
-        this.summary = panel.querySelector('.map-summary');
         this.time = panel.querySelector('.map-time');
         this.countries = panel.querySelector('.map-countries');
         this.tooltip = panel.querySelector('.map-tooltip');
@@ -88,7 +87,6 @@ export class ValidatorMap {
         this.panel.setAttribute('aria-busy', String(loading));
         this.points.replaceChildren();
         this.countries.replaceChildren();
-        this.summary.textContent = '';
         this.time.textContent = '';
         this.message.textContent = message;
         this.message.hidden = !message;
@@ -128,9 +126,7 @@ export class ValidatorMap {
             });
             this.points.append(point);
         });
-        const knownCountries = [...countries.keys()].filter(Boolean).length;
         this.snapshot = snapshot;
-        this.summary.textContent = `${located} / ${snapshot.total} located · ${knownCountries} countries · ${snapshot.total - located} unknown${snapshot.status !== 'complete' || located < snapshot.total ? ' · partial coverage' : ''}`;
         this.time.textContent = `Snapshot: ${utc(snapshot.data_through - 1)} · Selected: ${utc(at)}`;
         this.time.title = `Round: ${utc(snapshot.utime_since)} — ${utc(snapshot.utime_until)} (exclusive end). Updated: ${snapshot.calculated_at}`;
         if (!located) {

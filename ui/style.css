@@ -198,7 +198,7 @@ a {
 .geo-readout .readout-separator { margin: 0 8px; color: var(--muted); }
 .geo-readout .readout-detail { flex-basis: 100%; margin-left: 0; }
 .validator-map .chart-heading { align-items: baseline; flex-wrap: wrap; }
-.map-summary, .map-time { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.map-time { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .map-time { font-size: 12px; }
 .map-surface { position: relative; background: var(--plot); border: 1px solid var(--line); border-radius: 6px; }
 .map-surface svg { display: block; width: 100%; height: auto; max-height: 600px; }
@@ -216,7 +216,6 @@ a {
 .map-country:hover, .map-country[aria-pressed='true'] { border-color: var(--blue); color: var(--link); }
 .map-country:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 @media (max-width: 600px) {
-    .map-summary { font-size: 12px; }
     .map-tooltip { bottom: 4px; left: 4px; padding: 6px 8px; font-size: 11px; }
     .map-country { padding: 6px 8px; }
 }
