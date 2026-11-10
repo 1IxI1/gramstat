@@ -257,7 +257,7 @@ h1 {
     text-align: center;
     font-size: 28px;
     font-weight: 900;
-    letter-spacing: 0.075em;
+    letter-spacing: normal;
 }
 .demo-key {
     color: #849096;
