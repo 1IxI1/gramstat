@@ -190,6 +190,11 @@ a {
     .wallet-code-hash code { font-size: 11px; }
 }
 .validator-map { margin-top: 32px; }
+#validator-geo-charts { margin-top: 28px; }
+.geo-readout .readout-value { font-size: 28px; }
+.geo-metric { display: inline-flex; align-items: baseline; gap: 7px; }
+.geo-readout .readout-separator { margin: 0 8px; color: var(--muted); }
+.geo-readout .readout-detail { flex-basis: 100%; margin-left: 0; }
 .validator-map .chart-heading { align-items: baseline; flex-wrap: wrap; }
 .map-summary, .map-time { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .map-time { font-size: 12px; }

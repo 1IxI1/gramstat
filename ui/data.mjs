@@ -52,7 +52,7 @@ export function walletPeriodLabel(date, id, mode = 'daily') {
 export function observationPeriodLabel(date, definition, mode, round) {
     if (definition.section === 'wallet') return walletPeriodLabel(date, definition.id, mode);
     if (definition.section === 'activity' && mode === 'monthly') return walletPeriodLabel(date, 'active_wallets_daily', mode);
-    if (['supply','accounts'].includes(definition.id)) return `as of ${formatDate(date,{seconds:true})} UTC`;
+    if (['supply','accounts','validator_geo'].includes(definition.id)) return `as of ${formatDate(date,{seconds:true})} UTC`;
     if (definition.id === 'inflation') return `24h ending ${formatDate(date)} UTC`;
     if (definition.round) return round
         ? `round ${formatDate(date,{seconds:true})} – ${formatDate(new Date(round.utime_until*1000).toISOString(),{seconds:true})} UTC`
@@ -159,6 +159,34 @@ export function walletSeries(data, id) {
     return s;
 }
 
+// Geography is observed at each snapshot's exclusive cutoff, not at round start.
+// A missing round or snapshot breaks both lines rather than carrying positions.
+export function validatorGeoSeries(rounds) {
+    const definition = CATALOGUE.find(c => c.id === 'validator_geo');
+    const series = definition.series.map(s => ({ ...s, points: [], exact: {}, details: {}, partial: {} }));
+    const append = (at, round) => {
+        const date = new Date(at * 1000).toISOString();
+        for (const s of series) {
+            const raw = round?.[s.id];
+            const value = Number.isInteger(raw) && raw >= 0 ? raw : null;
+            s.points.push([date, value]);
+            s.exact[date] = value === null ? null : String(value);
+            s.partial[date] = round?.geo_status !== 'complete';
+            s.details[date] = round
+                ? `Round ${formatDate(new Date(round.utime_since * 1000).toISOString(), { seconds: true })} – ${formatDate(new Date(round.utime_until * 1000).toISOString(), { seconds: true })} UTC. Locations ${round.located ?? '?'}/${round.total}; ${round.geo_status ?? 'unavailable'}.`
+                : 'No location snapshot for this interval.';
+        }
+    };
+    let previousUntil;
+    for (const r of rounds) {
+        if (previousUntil != null && previousUntil < r.utime_since) append(previousUntil, null);
+        const validCutoff = Number.isInteger(r.geo_data_through) && r.geo_data_through > r.utime_since && r.geo_data_through <= r.utime_until;
+        append(validCutoff ? r.geo_data_through - 1 : r.utime_since, validCutoff ? r : null);
+        previousUntil = r.utime_until;
+    }
+    return series;
+}
+
 export function readObservedMetrics(data) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');
@@ -243,7 +271,7 @@ export function readObservedMetrics(data) {
         if (previousRoundUntil != null && previousRoundUntil < r.utime_since) {
             const gap = new Date(previousRoundUntil * 1000).toISOString();
             roundDates.push(gap);
-            for (const id of ['validator_count', 'countries', 'located', 'staking_apr']) put(id, 'total', gap, null);
+            for (const id of ['validator_count', 'staking_apr']) put(id, 'total', gap, null);
             for (const key of ['submitted', 'selected', 'remaining', 'reward']) put('stake', key, gap, null);
             for (const s of metrics.stake_changes.series) put('stake_changes', s.id, gap, null);
         }
@@ -253,8 +281,6 @@ export function readObservedMetrics(data) {
         const detail = `Round until ${formatDate(until, { seconds: true })}. Count through ${formatDate(new Date(r.data_through * 1000).toISOString())}. Locations ${r.located ?? '?'}/${r.total}; ${r.geo_status ?? 'unavailable'}. Geo updated ${r.geo_calculated_at ? formatDate(r.geo_calculated_at) : 'never'}.`;
         roundDetails[date] = { ...r, detail };
         put('validator_count', 'total', date, String(r.total), 0, detail);
-        put('countries', 'total', date, r.countries === null ? null : String(r.countries), 0, detail);
-        put('located', 'total', date, r.located === null ? null : String(r.located), 0, detail);
         const stakeDetail = r.unfreeze_utime == null ? 'Final principal has not been collected.' : `Principal before release on ${formatDate(new Date(r.unfreeze_utime * 1000).toISOString(), { seconds: true })} UTC; rewards excluded.`;
         for (const key of ['submitted', 'selected', 'remaining', 'reward']) {
             put('stake', key, date, r[`${key}_nanogram`], 9,
@@ -282,6 +308,7 @@ export function readObservedMetrics(data) {
         }
         previousRoundUntil = r.utime_until;
     }
+    metrics.validator_geo.series = validatorGeoSeries(data.rounds);
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
 }
 

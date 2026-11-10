@@ -90,6 +90,9 @@ API and deployment documentation:
   It uses local, low-detail country outlines and exact-coordinate marker groups.
   Hover/tap or keyboard focus shows country, city and counts; country buttons
   highlight their markers. The snapshot time and unknown coverage stay visible.
+  Below the map, a full-width chart combines coordinate coverage and countries
+  on labelled left/right axes. Its marker identifies the displayed map snapshot;
+  dragging a range reloads the map at that range's end. There is no time slider.
   See [`docs/world-map.md`](../docs/world-map.md) for source and time semantics.
 - Source update times and coverage are visible. Unknown values remain empty.
   Unsupported metrics show their missing prerequisites. **No generated/demo

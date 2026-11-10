@@ -84,6 +84,7 @@ export class ValidatorMap {
 
     status(message, loading = false) {
         this.hide();
+        this.snapshot = null;
         this.panel.setAttribute('aria-busy', String(loading));
         this.points.replaceChildren();
         this.countries.replaceChildren();
@@ -128,6 +129,7 @@ export class ValidatorMap {
             this.points.append(point);
         });
         const knownCountries = [...countries.keys()].filter(Boolean).length;
+        this.snapshot = snapshot;
         this.summary.textContent = `${located} / ${snapshot.total} located · ${knownCountries} countries · ${snapshot.total - located} unknown${snapshot.status !== 'complete' || located < snapshot.total ? ' · partial coverage' : ''}`;
         this.time.textContent = `Snapshot: ${utc(snapshot.data_through - 1)} · Selected: ${utc(at)}`;
         this.time.title = `Round: ${utc(snapshot.utime_since)} — ${utc(snapshot.utime_until)} (exclusive end). Updated: ${snapshot.calculated_at}`;

@@ -278,6 +278,18 @@ for (const definition of CATALOGUE) {
     const value = element('span', 'readout-value', '—');
     const detail = element('span', 'readout-detail');
     readout.append(value, element('span', 'readout-unit', definition.unit), detail);
+    let secondaryValue;
+    if (definition.id === 'validator_geo') {
+        readout.classList.add('geo-readout');
+        const primaryUnit = readout.querySelector('.readout-unit');
+        primaryUnit.textContent = 'located validators';
+        secondaryValue = element('span', 'readout-value', '—');
+        const primary = element('span', 'geo-metric');
+        const secondary = element('span', 'geo-metric');
+        primary.append(value, primaryUnit);
+        secondary.append(secondaryValue, element('span', 'readout-unit', 'countries'));
+        readout.replaceChildren(primary, element('span', 'readout-separator', '·'), secondary, detail);
+    }
     const surface = element('div', 'chart-surface');
     if (definition.emptyMessage) {
         surface.classList.add('has-explanation');
@@ -322,9 +334,9 @@ for (const definition of CATALOGUE) {
     const status = element('p', 'chart-status');
     card.append(heading, readout, surface, legend, status);
     if (definition.registryTerm) card.append(walletRegistry.description(definition));
-    $(`${definition.section}-charts`).append(card);
+    $(definition.container || `${definition.section}-charts`).append(card);
     const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
-    cards.set(definition.id, { definition, value, detail, legend, status, chart, card, expand, heading, average, averageValue });
+    cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, chart, card, expand, heading, average, averageValue });
 }
 
 const expandedDialog = element('dialog', 'expanded-chart');
@@ -436,9 +448,12 @@ function render(group, roundsOnly = false, onlyID) {
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
-        const temporal = isSupply || isInflation || isAccounts || isWallet || monthly;
+        const temporal = isSupply || isInflation || isAccounts || isWallet || monthly || definition.time;
         const observations = isSection ? sectionReadings : readings;
-        const allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
+        let allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
+        if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => ({
+            ...s, points: s.points.filter(([date]) => Date.parse(date) >= activeRange.from && Date.parse(date) < activeRange.to),
+        }));
         const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
@@ -455,6 +470,13 @@ function render(group, roundsOnly = false, onlyID) {
         state.value.textContent = formatSummary(value, definition.unit);
         const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
+        if (definition.id === 'validator_geo') {
+            const date = dates.at(-1);
+            const lastValue = id => series.find(s => s.id === id)?.points.at(-1)?.[1];
+            state.value.textContent = formatSummary(lastValue('located'));
+            state.secondaryValue.textContent = formatSummary(lastValue('countries'));
+            state.detail.textContent = date ? periodLabel(date) : '';
+        }
         if (definition.id === 'stake_changes') {
             const reinvestingOnly = series.length === 1 && series[0].id === 'near_reward';
             state.card.querySelector('.readout-unit').textContent = reinvestingOnly ? '% are reinvesting' : '%';
@@ -535,6 +557,10 @@ function render(group, roundsOnly = false, onlyID) {
                 state.legend.append(item);
             }
         state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+            annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
+                id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
+                label: 'Map snapshot', color: 'var(--text)', clamp: true,
+            }] : []) : definition.annotations,
             barIntervalSeconds: isActivity && activityMode !== 'monthly' ? (activityMode === 'hourly' ? 3600 : 86400) : undefined,
             averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
             rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
@@ -661,7 +687,10 @@ async function loadRange() {
                 const at = Math.floor(activeRange.to / 1000) - 1;
                 try {
                     const data = await getJSON(`/api/v1/locations?at=${at}`, request.signal);
-                    if (id === requestId) validatorMap.update(data.locations[0], at);
+                    if (id === requestId) {
+                        validatorMap.update(data.locations[0], at);
+                        render(undefined, false, 'validator_geo');
+                    }
                 } catch {
                     if (id === requestId) validatorMap.status('Locations temporarily unavailable.');
                 }

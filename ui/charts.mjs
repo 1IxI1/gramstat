@@ -255,7 +255,7 @@ export class TimeChart {
         if (this.selectedIndex < 0) this.selectedIndex = this.rows.length - 1;
         this.surface.setAttribute(
             'aria-label',
-            `${config.title}${config.series.some((item) => item.demo) ? ', includes demo data' : ''}. ${formatDate(dates[0])} to ${formatDate(dates.at(-1))}.`,
+            `${config.title}${config.series.some((item) => item.demo) ? ', includes demo data' : ''}. ${formatDate(dates[0])} to ${formatDate(dates.at(-1))}. ${(config.annotations || []).map(event => `${event.label}: ${formatDate(new Date(event.utime * 1000).toISOString(), { seconds: true })} UTC.`).join(' ')}`,
         );
         this.hide();
         this.draw();
@@ -265,13 +265,13 @@ export class TimeChart {
         const width = this.surface.clientWidth || 480;
         const height = this.surface.clientHeight || 273;
         const footerHeight = this.config.averageUnit ? (this.surface.querySelector('.chart-average')?.offsetHeight || 32) : 0;
-        const left = 80;
+        const left = this.config.secondaryOverlay && width < 600 ? 48 : 80;
         const secondary = this.config.series.some((s) => s.axis === 'right');
         const right = width - (secondary ? 80 : 24);
         const top = 27;
         const bottom = height - footerHeight - 41;
-        const rewardTop = bottom - (bottom - top) * 0.27;
-        const primaryBottom = secondary ? rewardTop - 22 : bottom;
+        const rewardTop = this.config.secondaryOverlay ? top : bottom - (bottom - top) * 0.27;
+        const primaryBottom = secondary && !this.config.secondaryOverlay ? rewardTop - 22 : bottom;
         const [minimum, maximum] = domain(this.config, this.rows);
         const timestamps = this.rows.map((r) => Date.parse(r.date));
         const timeStart = this.config.time ? (this.config.rangeStart ?? timestamps[0]) : timestamps[0];
@@ -291,7 +291,7 @@ export class TimeChart {
                 : left + ((index + 0.5) / this.rows.length) * (right - left);
         const y = (value) => primaryBottom - ((value - minimum) / (maximum - minimum)) * (primaryBottom - top);
         const rewardRows = this.rows.map((row) => ({ values: row.values.filter((_, i) => this.config.series[i].axis === 'right') }));
-        const [, rewardMax] = domain({ kind: 'bar', zero: true }, rewardRows);
+        const [, rewardMax] = domain({ kind: 'bar', zero: true, integer: this.config.integer }, rewardRows);
         const rewardY = (value) => bottom - value / rewardMax * (bottom - rewardTop);
         const bucketWidth = (index) => span > 0 ? Math.max(0,(bucketBounds(index)[1]-bucketBounds(index)[0])/span*(right-left)*0.68) : 0;
         this.geometry = { width, height, left, right, top, bottom, primaryBottom, x, y, intervalBars, bucketWidth, rewardY };
@@ -300,6 +300,9 @@ export class TimeChart {
 
         const hasReadings = this.rows.some((row) => row.values.some(Number.isFinite));
         const hasPrimary = this.rows.some((row) => row.values.some((v, i) => Number.isFinite(v) && this.config.series[i].axis !== 'right'));
+        if (this.config.primaryAxisLabel) {
+            this.svg.append(node('text', { x: left, y: top - 8, class: 'axis-label primary-axis-title', fill: this.config.series.find(s => s.axis !== 'right')?.color || 'var(--muted)' }, this.config.primaryAxisLabel));
+        }
         if (hasPrimary) {
             const ticks = [minimum, (minimum + maximum) / 2, maximum];
             for (let value of ticks) {
@@ -315,28 +318,32 @@ export class TimeChart {
             }
         }
         if (secondary) {
-            this.svg.append(node('text', { x: right, y: rewardTop - 8, 'text-anchor': 'end', class: 'axis-label reward-axis-title' }, this.config.secondaryAxisLabel));
+            this.svg.append(node('text', { x: right, y: rewardTop - 8, 'text-anchor': 'end', class: 'axis-label reward-axis-title', fill: this.config.secondaryOverlay ? this.config.series.find(s => s.axis === 'right').color : 'var(--muted)' }, this.config.secondaryAxisLabel));
             if (rewardRows.some((row) => row.values.some(Number.isFinite))) {
-                for (const value of [0, rewardMax]) {
-                    this.svg.append(node('line', { x1: left, x2: right, y1: rewardY(value), y2: rewardY(value), class: 'grid-line' }));
+                for (let value of this.config.secondaryOverlay ? [0, rewardMax / 2, rewardMax] : [0, rewardMax]) {
+                    if (this.config.integer) value = Math.round(value);
+                    if (!this.config.secondaryOverlay) this.svg.append(node('line', { x1: left, x2: right, y1: rewardY(value), y2: rewardY(value), class: 'grid-line' }));
                     this.svg.append(node('text', { x: right + 9, y: rewardY(value) + 3, class: 'axis-label reward-axis-label' }, axisNumber(value, rewardMax, this.config.unit)));
                 }
-                this.drawSecondaryBars();
+                if (!this.config.secondaryOverlay) this.drawSecondaryBars();
             } else {
                 this.svg.append(node('text', { x: right + 9, y: bottom + 3, class: 'axis-label reward-axis-label' }, '—'));
             }
         }
         const tickIndices = [0, Math.floor((this.rows.length - 1) / 2), this.rows.length - 1];
         const crossesYear = new Date(timeStart).getUTCFullYear() !== new Date(timeEnd).getUTCFullYear();
-        for (const index of tickIndices) {
-            const tickX = x(index);
+        const ticks = this.config.rangeTicks
+            ? [0, 0.5, 1].map(fraction => ({ at: new Date(timeStart + fraction * Math.max(0, span - 1000)).toISOString(), x: left + fraction * (right - left) }))
+            : tickIndices.map(index => ({ at: this.rows[index].date, x: x(index) }));
+        for (const tick of ticks) {
+            const tickX = tick.x;
             this.svg.append(
                 node(
                     'text',
                     { x: tickX, y: height - footerHeight - 13,
                         'text-anchor': tickX - left < 60 ? 'start' : right - tickX < 60 ? 'end' : 'middle',
                         class: 'axis-label' },
-                    formatAxisDate(this.rows[index].date, { span, time: this.config.time, crossesYear }),
+                    formatAxisDate(tick.at, { span, time: this.config.time, crossesYear }),
                 ),
             );
         }
@@ -358,13 +365,14 @@ export class TimeChart {
             ? (this.config.rangeEnd ?? timestamps.at(-1) + 86400000) : timestamps.at(-1) + 86400000;
         for (const event of this.config.annotations || []) {
             const at = event.utime * 1000;
-            if (at < markerStart || at >= markerEnd || markerEnd <= markerStart) continue;
-            const mx = left + (at - markerStart) / (markerEnd - markerStart) * (right - left);
+            if ((!event.clamp && (at < markerStart || at >= markerEnd)) || markerEnd <= markerStart) continue;
+            const mx = left + (Math.max(markerStart, Math.min(markerEnd, at)) - markerStart) / (markerEnd - markerStart) * (right - left);
+            const label = at < markerStart ? `← ${event.label} (before range)` : at >= markerEnd ? `${event.label} →` : event.label;
             const marker = node('g', { 'data-event': event.id, class: 'event-marker' });
-            marker.append(node('title', {}, `${event.label} · ${formatDate(new Date(at).toISOString(), { seconds: true })} UTC · MC ${event.mc}`));
+            marker.append(node('title', {}, `${event.label} · ${formatDate(new Date(at).toISOString(), { seconds: true })} UTC${event.mc == null ? '' : ` · MC ${event.mc}`}`));
             marker.append(node('line', { x1: mx, x2: mx, y1: top, y2: bottom, stroke: event.color, 'stroke-width': 1.5, 'stroke-dasharray': '6 5' }));
             marker.append(node('text', { x: mx + (mx > (left + right) / 2 ? -6 : 6), y: top + 14,
-                fill: event.color, 'text-anchor': mx > (left + right) / 2 ? 'end' : 'start', class: 'event-marker-label' }, event.label));
+                fill: event.color, 'text-anchor': mx > (left + right) / 2 ? 'end' : 'start', class: 'event-marker-label' }, label));
             this.svg.append(marker);
         }
 
@@ -404,9 +412,10 @@ export class TimeChart {
     }
 
     drawLines() {
-        const { x, y, primaryBottom: bottom } = this.geometry;
+        const { x, y: primaryY, rewardY, primaryBottom: bottom } = this.geometry;
         this.config.series.forEach((item, seriesIndex) => {
-            if (item.axis === 'right') return;
+            if (item.axis === 'right' && !this.config.secondaryOverlay) return;
+            const y = item.axis === 'right' ? rewardY : primaryY;
             const segments = contiguous(this.rows, (row) => row.values[seriesIndex] !== null);
             for (const segment of segments) {
                 const path = segment
@@ -526,11 +535,11 @@ export class TimeChart {
             const value = row.values[seriesIndex];
             if (value === null) return;
             base = this.config.kind.startsWith('stacked') ? base + value : value;
-            if (item.axis !== 'right' && !this.config.kind.includes('bar') && (!this.config.kind.startsWith('stacked') || row.total !== null)) {
+            if ((item.axis !== 'right' || this.config.secondaryOverlay) && !this.config.kind.includes('bar') && (!this.config.kind.startsWith('stacked') || row.total !== null)) {
                 this.selection.append(
                     node('circle', {
                         cx: position,
-                        cy: y(base),
+                        cy: item.axis === 'right' ? this.geometry.rewardY(value) : y(base),
                         r: 3.2,
                         fill: item.color,
                         stroke: '#fff',

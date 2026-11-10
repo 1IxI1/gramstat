@@ -64,8 +64,8 @@ test('Stars purchased shows known quantities while unknown geography stays unkno
     const data = readObservedMetrics(fixture());
     assert.equal(data.metrics.stars_quantity.series[0].points[0][1], 1234);
     assert.equal(data.metrics.stars_quantity.series[0].partial['2026-10-22'], false);
-    assert.equal(data.metrics.countries.series[0].points[0][1], null);
-    assert.equal(data.metrics.located.series[0].points[0][1], null);
+    assert.equal(data.metrics.validator_geo.series[0].points[0][1], null);
+    assert.equal(data.metrics.validator_geo.series[1].points[0][1], null);
     assert.equal(data.roundDates[0], '2026-10-21T00:00:00.000Z');
     assert.equal(CATALOGUE.find((c) => c.id === 'validator_count').kind, 'step');
 });

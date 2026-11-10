@@ -94,13 +94,12 @@ export const CATALOGUE = [
         secondaryAxisLabel: 'Reward (GRAM)',
         description: 'Submitted: accepted election applications, including unselected candidates and excess stake.\nSelected: stake retained after elections.\nRemaining: stake left after fines, immediately before release, excluding rewards.\nRewards: well, rewards. Accumulated each round and distributed in proportion to each validator\'s stake.',
     }),
-    chart('countries', 'Countries', 'validator', '', {
-        kind: 'step',
-        round: true,
-        integer: true,
-        note: 'Observed countries within each validation round. Missing observations can reduce coverage.',
+    chart('validator_geo', 'Validators with coordinates and countries', 'validator', '', {
+        kind: 'step', time: true, integer: true, zero: true, layout: 'full', container: 'validator-geo-charts',
+        secondaryOverlay: true, primaryAxisLabel: 'Validators', secondaryAxisLabel: 'Countries', rangeTicks: true,
+        series: [series('located', 'Validators with coordinates'), { ...series('countries', 'Countries', 1), axis: 'right' }],
+        description: 'Counts at each prepared location snapshot: validators with coordinates on the left axis, observed countries on the right. Missing observations remain gaps. The marker shows the snapshot displayed on the map. Drag across this chart to select a time range; the map follows its end.',
     }),
-    chart('located', 'Validators with coordinates', 'validator', '', { kind: 'step', round: true, integer: true }),
     chart('staking_apr', 'Staking APR', 'validator', '%', {
         kind: 'step', round: true,
         description: 'Annualized validator staking returns without reinvestment, based on capital locked for two validation rounds. Each round lasts 18 h, 12 min, and 16 s. Rewards are distributed in proportion to each validator’s remaining stake after penalties. Every validator without penalties earns the same percentage return. Penalties reduce the returned stake but are not deducted when calculating this APR.\nAPR = (Rewards / Selected stake) × (365 days / Two-round duration) × 100%',

@@ -25,6 +25,19 @@ It displays the latest prepared, roster-matched snapshot whose exclusive
 This is round-snapshot history, not arbitrary-second reconstruction. The
 snapshot time and round are visible; later observations are never substituted.
 
+A full-width history chart below the map combines validators with coordinates
+(left axis) and observed countries (right axis). Points use `geo_data_through - 1`,
+the last included second of each snapshot, rather than round-start dates. Only
+points inside the selected timestamp range are plotted; missing rounds and
+snapshots break the lines. The country count retains the source's observed-country
+definition, which can include validators with a known country but no coordinates.
+
+The non-draggable `Map snapshot` marker uses the actual displayed snapshot time.
+If the latest available snapshot predates a short selection, a labelled left-edge
+marker says `before range`. No marker is shown while the map is loading or when
+the snapshot is unavailable. Dragging a range on this chart uses the shared UTC
+range selector and automatically reloads the map for its inclusive end second.
+
 Exact coordinate matches share a marker; its size increases with the count.
 Country counts include only plotted validators. Unknown or invalid coordinates
 are omitted and counted separately, including an entirely unlocated snapshot.
