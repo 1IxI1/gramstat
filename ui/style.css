@@ -34,7 +34,7 @@
 }
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] { color-scheme: dark; }
-#theme-toggle { margin-right: auto; min-width: 42px; font-size: 20px; line-height: 1; }
+#theme-toggle { margin-right: auto; min-width: 44px; font-size: 19px; line-height: 1; }
 
 /* Shared surfaces and labels also cover SVG charts and modal views. */
 :root {
@@ -105,13 +105,26 @@ a {
     border-radius: 3px;
     color: inherit;
 }
-.time-controls { display: flex; align-items: stretch; justify-content: flex-end; margin-top: 24px; gap: 4px; position: relative; z-index: 10; }
+.time-controls { display: flex; align-items: center; justify-content: flex-end; margin-top: 24px; gap: 12px; position: relative; z-index: 10; }
 .time-controls button, .time-picker summary, .time-panel input {
-    font: inherit; color: inherit; background: white; border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px;
+    font: inherit; color: inherit; background: var(--background); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
 }
+.time-controls > button { height: 44px; transition: background-color .15s, border-color .15s; }
+.time-controls > button:hover, .range-navigation > button:hover, .time-picker summary:hover { background: var(--plot); border-color: var(--blue); }
+.range-navigation { display: flex; align-items: stretch; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 9px; background: var(--background); }
+.range-navigation:focus-within, .range-navigation:has(.time-picker[open]) { border-color: var(--blue); }
+.range-navigation > button, .time-picker summary { border: 0; background: transparent; border-radius: 0; height: 100%; }
+.range-navigation > button { width: 40px; flex: none; padding: 0; font-size: 26px; font-weight: 400; line-height: 1; color: var(--secondary); }
+.range-navigation > button:first-child { border-right: 1px solid var(--line); border-radius: 8px 0 0 8px; }
+.range-navigation > button:last-child { border-left: 1px solid var(--line); border-radius: 0 8px 8px 0; }
 .time-picker { min-width: 0; }
-.time-picker summary { cursor: pointer; list-style: none; line-height: 1.5; }
-.time-picker summary strong { color: var(--blue); font-size: 13px; }
+.time-picker summary { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 0 12px; list-style: none; font-size: 14px; white-space: nowrap; }
+.time-picker summary::-webkit-details-marker { display: none; }
+.time-picker summary::after { content: ''; flex: none; width: 6px; height: 6px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
+.time-picker[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
+#range-label { overflow: hidden; text-overflow: ellipsis; }
+.time-picker summary strong { color: var(--link); font-size: 11px; font-weight: 600; letter-spacing: .04em; }
+#range-out { font-size: 13px; font-weight: 500; white-space: nowrap; }
 .time-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
     grid-template-columns: 1fr 1.2fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
 .range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
@@ -145,11 +158,19 @@ a {
 .event-marker { pointer-events: none; }
 .event-marker-label { font: 12px Inter, Arial, sans-serif; paint-order: stroke; stroke: #f7f9f9; stroke-width: 3px; }
 @media (max-width: 900px) {
-    .time-picker summary { font-size: 13px; padding: 10px 8px; }
-    .time-controls > button { padding: 8px; }
+    .time-picker summary { font-size: 13px; padding: 0 10px; }
     .time-panel { grid-template-columns: minmax(0, 1fr); max-height: 75vh; overflow-y: auto; }
     .quick-ranges { border-left: 0; border-top: 1px solid var(--line); max-height: 220px; }
     .range-calendar { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 680px) {
+    .time-controls { flex-wrap: wrap; gap: 8px; }
+    .time-controls #theme-toggle { margin-right: auto; }
+    .range-navigation { flex-basis: 100%; height: 58px; order: 1; }
+    .time-picker { flex: 1; }
+    .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }
+    #range-label { flex: 1; overflow: visible; text-overflow: clip; text-align: center; line-height: 1.5; }
+    .time-panel { top: calc(100% + 8px); }
 }
 .source-status,
 .chart-status {

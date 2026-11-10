@@ -24,9 +24,10 @@
 
             <div class="time-controls">
                 <button id="theme-toggle" type="button" aria-label="Dark theme" aria-pressed="false" title="Switch theme">☾</button>
-                <button id="range-prev" type="button" aria-label="Previous time range">‹</button>
-                <details id="time-picker" class="time-picker">
-                    <summary><span id="range-label">Select a time range</span> <strong>UTC</strong> ▾</summary>
+                <div class="range-navigation">
+                    <button id="range-prev" type="button" aria-label="Previous time range">‹</button>
+                    <details id="time-picker" class="time-picker">
+                    <summary><span id="range-label">Select a time range</span><strong>UTC</strong></summary>
                     <div class="time-panel">
                         <div class="range-calendar">
                             <div class="calendar-heading">
@@ -57,8 +58,9 @@
                             <button id="range-all" type="button">All time</button>
                         </div>
                     </div>
-                </details>
-                <button id="range-next" type="button" aria-label="Next time range">›</button>
+                    </details>
+                    <button id="range-next" type="button" aria-label="Next time range">›</button>
+                </div>
                 <button id="range-out" type="button" title="Double the visible time span around its center">Zoom out (x2)</button>
             </div>
             <p id="source-status" hidden></p>
