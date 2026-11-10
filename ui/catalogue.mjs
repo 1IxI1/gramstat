@@ -84,8 +84,12 @@ export const CATALOGUE = [
         layout: 'half', step: true, fill: true, integer: true, registryTerm: 'wallet code',
         description: 'Total unique addresses that have been deployed with a recognized wallet code. Each address is counted once, at its first qualifying wallet deployment, even if it previously hosted a different contract. Outgoing messages are not required. Later deletion, freezing, code changes or redeployment do not remove the address from this total.',
     }),
-    chart('stake', 'Stake', 'validator', 'GRAM', {
-        kind: 'step', round: true, layout: 'full',
+    chart('validator_count', 'Validators', 'validator', '', {
+        kind: 'step', round: true, integer: true,
+        description: 'Number of elected validators in each validation round.',
+    }),
+    chart('stake', 'Stake by round', 'validator', 'GRAM', {
+        kind: 'step', round: true, layout: 'wide',
         series: [series('submitted', 'Submitted'), series('selected', 'Selected', 1), series('remaining', 'Remaining', 2), { ...series('reward', 'Reward', 3), axis: 'right', kind: 'bar' }],
         secondaryAxisLabel: 'Reward (GRAM)',
         description: 'Submitted: accepted election applications, including unselected candidates and excess stake.\nSelected: stake retained after elections.\nRemaining: stake left after fines, immediately before release, excluding rewards.\nRewards: well, rewards. Accumulated each round and distributed in proportion to each validator\'s stake.',
@@ -98,12 +102,8 @@ export const CATALOGUE = [
         description: 'Drag across this chart to select a time range; the map follows its end.',
     }),
     chart('staking_apr', 'Staking APR', 'validator', '%', {
-        kind: 'step', round: true,
+        kind: 'step', round: true, layout: 'wide',
         description: 'Annualized validator staking returns without reinvestment, based on capital locked for two validation rounds. Each round lasts 18 h, 12 min, and 16 s. Rewards are distributed in proportion to each validator’s remaining stake after penalties. Every validator without penalties earns the same percentage return. Penalties reduce the returned stake but are not deducted when calculating this APR.\nAPR = (Rewards / Selected stake) × (365 days / Two-round duration) × 100%',
-    }),
-    chart('validator_count', 'Validators', 'validator', '', {
-        kind: 'step', round: true, integer: true,
-        description: 'Number of elected validators in each validation round.',
     }),
     chart('staking_apy', 'Staking APY', 'validator', '%', {
         unavailable: 'No reinvestment model.',
