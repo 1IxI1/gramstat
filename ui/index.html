@@ -27,7 +27,10 @@
                 <div class="range-navigation">
                     <button id="range-prev" type="button" aria-label="Previous time range">‹</button>
                     <details id="time-picker" class="time-picker">
-                    <summary><span id="range-label">Select a time range</span><strong>UTC</strong></summary>
+                    <summary>
+                        <svg class="time-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 6v6H8" /></svg>
+                        <span id="range-label">Select a time range</span><span id="range-complete" hidden>Complete days</span><strong>UTC</strong>
+                    </summary>
                     <div class="time-panel">
                         <div class="range-calendar">
                             <div class="calendar-heading">
@@ -49,19 +52,28 @@
                             <label>From <input id="from" type="datetime-local" step="1" required min="2019-01-01T00:00:00" /></label>
                             <label>To <input id="to" type="datetime-local" step="1" required min="2019-01-01T00:00:00" /></label>
                             <button id="apply" type="submit">Apply time range</button>
+                            <div class="range-info"><p id="range-bounds"></p><p id="range-data-through"></p></div>
                             <h3>Recently used ranges</h3>
                             <div id="recent-ranges"></div>
                         </form>
                         <div class="quick-ranges">
+                            <label class="complete-days" title="Exclude the current incomplete UTC day.">
+                                <input id="complete-days" type="checkbox" role="switch" aria-describedby="complete-days-help" />
+                                <span>Only complete daily periods</span>
+                            </label>
+                            <p id="complete-days-help">Exclude the current incomplete UTC day.</p>
                             <p>Relative to the latest indexed block</p>
                             <div id="range-presets"></div>
                             <button id="range-all" type="button">All time</button>
                         </div>
+                        <p id="range-error" role="alert"></p>
                     </div>
                     </details>
                     <button id="range-next" type="button" aria-label="Next time range">›</button>
+                    <button id="range-out" type="button" aria-label="Zoom out (×2)" title="Zoom out (×2)">
+                        <svg class="time-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" /><path d="m16 16 5 5M7 10.5h7" /></svg>
+                    </button>
                 </div>
-                <button id="range-out" type="button" title="Double the visible time span around its center">Zoom out (x2)</button>
             </div>
             <p id="source-status" hidden></p>
             <div id="warning" class="warning" role="status" hidden>

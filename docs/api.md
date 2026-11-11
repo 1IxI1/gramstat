@@ -255,8 +255,9 @@ requests never trigger archive RPC calls. Raw account responses and internal
 verification evidence are not exposed.
 
 The `chain` coverage row also exposes nullable `last_complete_day`, the latest
-UTC day with `is_partial = 0`. The dashboard's `Last…` presets and initial 90-day
-range end no later than this day's end, even when newer blocks are available.
+UTC day with `is_partial = 0`. The initial 90-day range and ranges with
+**Only complete daily periods** enabled end no later than this day's end.
+Other `Last…` presets include the latest indexed second.
 
 UI theme colors use TON blue (`#0098EA`) and the current official `ton.org`
 dark UI palette: background `#10161F`, surface `#101B2A`, accent `#1EAEFB`,
@@ -308,7 +309,7 @@ The [nginx example](../deploy/nginx.conf) binds port
 **2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
 `/api/` proxies the loopback service. Static paths are allowlisted; historical
 snapshots, provenance and repository files are not served. Copy only `index.html`,
-`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `wallet-registry.mjs`, `stake-registry.mjs`, `style.css`, `favicon.svg`
+`app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `time-ranges.mjs`, `wallet-registry.mjs`, `stake-registry.mjs`, `style.css`, `favicon.svg`
 from this repository's `ui/` into `/opt/gramstat/ui`. Validate with `nginx -t` before reload.
 Also copy `ui/fonts/` for the self-hosted Inter variable fonts (normal and italic)
 and their SIL Open Font License. These are unmodified Inter v4.1 files from
@@ -327,6 +328,20 @@ at most 32 MiB, with a 64-MiB total cache budget. HTTP has a 15-second request d
 rate. Failed loads are not cached as successful zero data. The UI refreshes every
 five minutes while visible and shows per-source freshness and per-point partial
 coverage. Public GET responses can be cached for 60 seconds.
+
+The initial view remains a fixed 90-day interval ending at the last verified
+complete UTC day. Explicit **Last …** presets instead follow the latest indexed
+supply block's second, with an exclusive API end one second later. The picker
+shows exact bounds and the indexed-chain `Data through` timestamp; publication
+timestamps and daily rows are never treated as exact live seconds. Relative
+links use `last=<seconds>` (or `range=all`), so reload and automatic refresh
+resolve against fresh coverage. Fixed `from`/`to` links remain supported.
+**Only complete daily periods**, above the presets, adds `completeDays=1` and
+clips the end to a verified UTC midnight. It does not round to months or alter
+the independent Active wallets / Activity interval selectors. Historical gaps
+and per-source partial flags remain visible. Arrow navigation and the magnifier
+zoom-out control create fixed intervals; automatic refresh does not add browser
+history entries or interrupt an open picker.
 
 ## Verification
 

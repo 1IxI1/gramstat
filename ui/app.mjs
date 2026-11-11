@@ -1,10 +1,11 @@
 import { CATALOGUE } from './catalogue.mjs';
-import { readObservedMetrics, expandActivityColumns, monthlyActivity, latestChainRange, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
+import { readObservedMetrics, expandActivityColumns, monthlyActivity, supplySeries, inflationSeries, accountsSeries, walletSeries, dailyAverage, rangeDurationLabel, observationPeriodLabel } from './data.mjs';
 import { BINARY_TYPE, decodeColumns } from './wire.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 import { createStakeRegistry } from './stake-registry.mjs';
 import { ValidatorMap } from './validator-map.mjs';
+import { RANGE_PRESETS, inputTime, displayTime, indexedTime, resolveTimeRange, defaultTimeRange, timeRangeLabel, timeRangeFromURL, writeTimeRange } from './time-ranges.mjs';
 
 const $ = (id) => document.getElementById(id);
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
@@ -144,9 +145,8 @@ function syncActivityTabs() {
 }
 let validatorsError = '';
 let activeRange;
+let rangeChoice = timeRangeFromURL(new URLSearchParams(location.search));
 const recentRanges = [];
-const inputTime = (ms) => new Date(ms).toISOString().slice(0, 19);
-const displayTime = (ms) => inputTime(ms).replace('T', ' ');
 let calendarMonth;
 let calendarStart = null;
 let calendarView = 'days';
@@ -224,32 +224,67 @@ function drawCalendar() {
 }
 
 function setRange(from, to, remember = true) {
-    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
-    const ceiling = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`) + 86400000;
-    from = Math.max(Date.parse('2019-01-01T00:00:00Z'), Math.floor(from / 1000) * 1000);
-    to = Math.min(ceiling, Math.ceil(to / 1000) * 1000);
-    if (to <= from) return;
-    $('from').value = inputTime(from);
-    $('to').value = inputTime(to - 1000);
+    applyRangeChoice({ kind: 'absolute', from, to, completeDays: $('complete-days').checked }, { remember });
+}
+
+function syncRangeControls(range = activeRange) {
+    if (!range || !rangeChoice) return;
+    $('from').value = inputTime(range.from);
+    $('to').value = inputTime(range.to - 1000);
+    $('range-label').textContent = timeRangeLabel(rangeChoice, range);
+    $('range-complete').hidden = !rangeChoice.completeDays;
+    $('complete-days').checked = rangeChoice.completeDays;
+    const live = rangeChoice.kind !== 'absolute' && !rangeChoice.completeDays;
+    $('range-bounds').textContent = `${displayTime(range.from)} — ${displayTime(range.to - 1000)}${live ? ' (now)' : ''} UTC`;
+    syncIndexedTime();
+    for (const b of $('range-presets').children) b.setAttribute('aria-pressed', String(rangeChoice.kind === 'relative' && Number(b.dataset.seconds) === rangeChoice.seconds));
+    $('range-all').setAttribute('aria-pressed', String(rangeChoice.kind === 'all'));
+}
+
+function syncIndexedTime() {
+    const latest = indexedTime(coverage);
+    $('range-data-through').textContent = latest === null ? 'Data through: unavailable' : `Data through: ${displayTime(latest)} UTC`;
+}
+
+function applyRangeChoice(choice, { remember = true, historyMode, keepOpen = false } = {}) {
+    let range;
+    try {
+        // Keep the requested end when excluding partial days, but normalize
+        // absolute links/recents to the same supported bounds as the inputs.
+        if (choice.kind === 'absolute') choice = { ...choice, ...resolveTimeRange({ ...choice, completeDays: false }, coverage) };
+        range = resolveTimeRange(choice, coverage);
+    }
+    catch (e) {
+        $('range-error').textContent = e.message;
+        $('complete-days').checked = rangeChoice?.completeDays ?? false;
+        if (!$('time-picker').open) warning(e.message);
+        return false;
+    }
+    rangeChoice = choice;
+    syncRangeControls(range);
+    $('range-error').textContent = '';
     const url = new URL(location.href);
-    url.searchParams.set('from', $('from').value);
-    url.searchParams.set('to', $('to').value);
-    if (url.href !== location.href) {
+    writeTimeRange(url.searchParams, choice);
+    if (historyMode !== 'none' && url.href !== location.href) {
         // Initial coverage selection defines the current view; user selections
         // create history entries immediately, independently of fetch completion.
-        if (activeRange) history.pushState(null, '', url);
+        if (historyMode !== 'replace' && activeRange) history.pushState(null, '', url);
         else history.replaceState(null, '', url);
     }
-    $('time-picker').open = false;
+    if (!keepOpen) $('time-picker').open = false;
+    else drawCalendar();
     if (remember) {
-        if (!recentRanges.some((r) => r.from === from && r.to === to)) recentRanges.unshift({ from, to });
+        if (!recentRanges.some(r => JSON.stringify(r.choice) === JSON.stringify(choice))) recentRanges.unshift({ choice, range });
         recentRanges.splice(5);
-        $('recent-ranges').replaceChildren(...recentRanges.map((r) => {
-            const b = element('button', '', `${displayTime(r.from)} — ${displayTime(r.to - 1000)}`);
-            b.type = 'button'; b.onclick = () => setRange(r.from, r.to, false); return b;
+        $('recent-ranges').replaceChildren(...recentRanges.map(({ choice: r, range }) => {
+            const b = element('button', '', `${timeRangeLabel(r, range)}${r.completeDays ? ' · Complete days' : ''}`);
+            b.type = 'button';
+            b.onclick = () => loadLatest(r, { remember: false });
+            return b;
         }));
     }
     load();
+    return true;
 }
 
 function element(tag, className, text) {
@@ -404,20 +439,14 @@ expandedDialog.addEventListener('click', (event) => {
 });
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
-    const from = q.get('from');
-    const to = q.get('to');
+    const choice = timeRangeFromURL(q);
     const changedActivity = activityMode !== activityFromURL();
     activityMode = activityFromURL();
     const changedSection = sectionMode !== sectionModeFromURL();
     sectionMode = sectionModeFromURL();
-    const fromInput = from?.length === 10 ? `${from}T00:00:00` : from;
-    const toInput = to?.length === 10 ? `${to}T23:59:59` : to;
-    // datetime-local normalizes away :00 seconds; compare instants, not text.
-    if (from && to && (Date.parse(`${fromInput}Z`) !== Date.parse(`${$('from').value}Z`) || Date.parse(`${toInput}Z`) !== Date.parse(`${$('to').value}Z`))) {
-        $('from').value = fromInput;
-        $('to').value = toInput;
+    if (JSON.stringify(choice) !== JSON.stringify(rangeChoice)) {
         syncExpandedChart(false);
-        load();
+        loadLatest(choice, { remember: false, historyMode: 'none' });
     } else if (changedActivity || changedSection) {
         syncExpandedChart(false);
         if (changedActivity) loadActivity();
@@ -598,11 +627,9 @@ async function getJSON(path, signal) {
 }
 
 function selection() {
-    const start = Date.parse(`${$('from').value}Z`);
-    const end = Date.parse(`${$('to').value}Z`) + 1000;
-    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) throw new Error('Choose a valid UTC interval.');
-    activeRange = { from: start, to: end };
-    $('range-label').textContent = `${displayTime(start)} — ${displayTime(end - 1000)}`;
+    activeRange = resolveTimeRange(rangeChoice, coverage);
+    syncRangeControls();
+    const { from: start, to: end } = activeRange;
     const from = new Date(start).toISOString().slice(0, 10);
     const to = new Date(Math.ceil(end / 86400000) * 86400000).toISOString().slice(0, 10);
     return { from, to };
@@ -728,6 +755,7 @@ async function loadRange() {
                 const sources = await getJSON('/api/v1/coverage', request.signal).catch(() => null);
                 if (id !== requestId || !sources) return;
                 coverage = sources.coverage;
+                syncIndexedTime();
                 render('coverage');
             },
         ];
@@ -772,29 +800,16 @@ for (const [id,direction] of [['calendar-prev',-1],['calendar-next',1]]) $(id).o
 $('calendar-month').onclick = () => { calendarView = 'months'; drawCalendar(); };
 $('calendar-year').onclick = () => { calendarView = 'years'; drawCalendar(); };
 for (const id of ['from','to']) $(id).addEventListener('change',drawCalendar);
-$('retry').addEventListener('click', () => (readings ? load() : loadLatest()));
-function indexedBounds() {
-    const supply = coverage.find((s) => s.source === 'supply');
-    if (supply?.last_utime != null) return { from: supply.first_utime * 1000, to: (supply.last_utime + 1) * 1000 };
-    const range = latestChainRange(coverage);
-    if (!range) return null;
-    return { from: Date.parse(`${range.from}T00:00:00Z`), to: Date.parse(`${range.to}T00:00:00Z`) + 86400000 };
-}
-for (const [label, seconds] of [
-    ['5 minutes', 300], ['1 hour', 3600], ['24 hours', 86400],
-    ['7 days', 7 * 86400], ['30 days', 30 * 86400], ['90 days', 90 * 86400],
-    ['180 days', 180 * 86400], ['1 year', 365 * 86400], ['2 years', 730 * 86400],
-]) {
+$('retry').addEventListener('click', () => loadLatest(rangeChoice, { remember: false, historyMode: 'replace' }));
+for (const [label, seconds] of RANGE_PRESETS) {
     const b = element('button', '', `Last ${label}`); b.type = 'button';
-    b.onclick = () => loadLatest(seconds);
+    b.dataset.seconds = seconds;
+    b.onclick = () => loadLatest({ kind: 'relative', seconds, completeDays: $('complete-days').checked });
     $('range-presets').append(b);
 }
-$('range-all').onclick = () => {
-    const b = indexedBounds();
-    if (b) {
-        const firstDay = coverage.find((s) => s.source === 'chain')?.first_day;
-        setRange(firstDay ? Math.min(b.from, Date.parse(`${firstDay}T00:00:00Z`)) : b.from, b.to);
-    }
+$('range-all').onclick = () => loadLatest({ kind: 'all', completeDays: $('complete-days').checked });
+$('complete-days').onchange = () => {
+    if (rangeChoice) loadLatest({ ...rangeChoice, completeDays: $('complete-days').checked }, { keepOpen: true });
 };
 for (const [id, direction] of [['range-prev',-1],['range-next',1]]) $(id).onclick = () => {
     if (!activeRange) return;
@@ -808,7 +823,7 @@ $('range-out').onclick = () => {
 };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('time-picker').open = false; });
 document.addEventListener('pointerdown', (e) => { if (!$('time-picker').contains(e.target)) $('time-picker').open = false; });
-async function loadLatest(seconds = 90 * 86400) {
+async function loadLatest(choice = rangeChoice, options = {}) {
     const id = ++requestId;
     controller?.abort();
     loading = true;
@@ -818,19 +833,12 @@ async function loadLatest(seconds = 90 * 86400) {
         const sources = await getJSON('/api/v1/coverage', AbortSignal.timeout(20000));
         if (id !== requestId) return;
         coverage = sources.coverage;
-        const range = indexedBounds();
-        if (!range) throw new Error('No prepared chain history is available yet.');
-        const supply = coverage.find(s => s.source === 'supply');
-        let end = supply?.last_utime != null
-            ? Math.floor(range.to / 86400000) * 86400000
-            : Date.parse(`${coverage.find(s => s.source === 'chain').last_day}T00:00:00Z`);
-        const completeDay = coverage.find(s => s.source === 'chain')?.last_complete_day;
-        if (!completeDay) throw new Error('No confirmed complete UTC day is available yet.');
-        end = Math.min(end, Date.parse(`${completeDay}T00:00:00Z`) + 86400000);
-        if (end <= range.from) throw new Error('No complete UTC day is available yet.');
-        setRange(Math.max(range.from, end - seconds * 1000), end);
+        applyRangeChoice(choice ?? defaultTimeRange(coverage), options);
     } catch (e) {
-        if (id === requestId) warning(`Data could not be loaded. ${e.message}`);
+        if (id === requestId) {
+            warning(`Data could not be loaded. ${e.message}`);
+            $('complete-days').checked = rangeChoice?.completeDays ?? false;
+        }
     } finally {
         if (id === requestId) {
             loading = false;
@@ -838,17 +846,17 @@ async function loadLatest(seconds = 90 * 86400) {
         }
     }
 }
-const params = new URLSearchParams(location.search);
 syncExpandedChart();
 $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
-if (params.has('from') && params.has('to')) {
-    $('from').value = params.get('from').length === 10 ? `${params.get('from')}T00:00:00` : params.get('from');
-    $('to').value = params.get('to').length === 10 ? `${params.get('to')}T23:59:59` : params.get('to');
-    load();
-} else loadLatest();
+if (rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays) applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' });
+else loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
 setInterval(
     () => {
-        if (!loading && !document.hidden) readings ? load() : loadLatest();
+        if (!loading && !document.hidden && !$('time-picker').open) {
+            $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
+            if (!rangeChoice || rangeChoice.kind !== 'absolute' || rangeChoice.completeDays) loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
+            else load();
+        }
     },
     5 * 60 * 1000,
 );

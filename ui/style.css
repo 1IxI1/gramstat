@@ -39,8 +39,7 @@
 /* Shared surfaces and labels also cover SVG charts and modal views. */
 :root {
 .date-range input, .date-range button,
-.time-controls button, .time-picker summary, .time-panel input,
-.time-panel, .wallet-registry, .wallet-registry-heading, .expanded-chart,
+.wallet-registry, .wallet-registry-heading, .expanded-chart,
 .chart-toggle button[aria-pressed='true'], .skip-link {
     background: var(--background);
 }
@@ -105,28 +104,32 @@ a {
     border-radius: 3px;
     color: inherit;
 }
-.time-controls { display: flex; align-items: center; justify-content: flex-end; margin-top: 24px; gap: 12px; position: relative; z-index: 10; }
+.time-controls { display: flex; align-items: center; justify-content: flex-end; margin-top: 24px; gap: 12px; position: relative; z-index: 10;
+    --time-glass: color-mix(in srgb, var(--plot) 88%, transparent);
+    --time-hover: color-mix(in srgb, var(--blue) 12%, transparent); }
 .time-controls button, .time-picker summary, .time-panel input {
-    font: inherit; color: inherit; background: var(--background); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+    font: inherit; color: inherit; background: transparent; border: 0; border-radius: 0; padding: 10px 14px;
 }
-.time-controls > button { height: 44px; transition: background-color .15s, border-color .15s; }
-.time-controls > button:hover, .range-navigation > button:hover, .time-picker summary:hover { background: var(--plot); border-color: var(--blue); }
-.range-navigation { display: flex; align-items: stretch; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 9px; background: var(--background); }
-.range-navigation:focus-within, .range-navigation:has(.time-picker[open]) { border-color: var(--blue); }
+.time-controls > button { height: 44px; background: var(--time-glass); backdrop-filter: blur(16px); transition: background-color .15s; }
+.time-controls > button:hover, .range-navigation > button:hover, .time-picker summary:hover { background: var(--time-hover); }
+.time-controls button:focus-visible, .time-picker summary:focus-visible, .time-panel input:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.range-navigation { display: flex; align-items: stretch; min-width: 0; height: 44px; background: var(--time-glass); }
 .range-navigation > button, .time-picker summary { border: 0; background: transparent; border-radius: 0; height: 100%; }
 .range-navigation > button { width: 40px; flex: none; padding: 0; font-size: 26px; font-weight: 400; line-height: 1; color: var(--secondary); }
-.range-navigation > button:first-child { border-right: 1px solid var(--line); border-radius: 8px 0 0 8px; }
-.range-navigation > button:last-child { border-left: 1px solid var(--line); border-radius: 0 8px 8px 0; }
+.range-navigation > button:first-child { border-right: 1px solid var(--line); }
+.range-navigation > button:not(:first-child) { border-left: 1px solid var(--line); }
 .time-picker { min-width: 0; }
 .time-picker summary { cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 0 12px; list-style: none; font-size: 14px; white-space: nowrap; }
 .time-picker summary::-webkit-details-marker { display: none; }
 .time-picker summary::after { content: ''; flex: none; width: 6px; height: 6px; border: solid var(--muted); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translateY(-2px); transition: transform .15s; }
 .time-picker[open] summary::after { transform: rotate(225deg) translate(-2px, -1px); }
 #range-label { overflow: hidden; text-overflow: ellipsis; }
+#range-complete { font-size: 10px; font-weight: 500; color: var(--secondary); }
+.time-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .time-picker summary strong { color: var(--link); font-size: 11px; font-weight: 600; letter-spacing: .04em; }
-#range-out { font-size: 13px; font-weight: 500; white-space: nowrap; }
+#range-out { display: grid; place-items: center; }
 .time-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
-    grid-template-columns: 1fr 1.2fr 1fr; background: white; border: 1px solid var(--line); box-shadow: 0 8px 30px #27343b20; border-radius: 6px; }
+    grid-template-columns: 1fr 1.2fr 1fr; background: var(--time-glass); backdrop-filter: blur(20px); box-shadow: 0 8px 30px #27343b20; }
 .range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .calendar-title { display: flex; align-items: baseline; justify-content: center; gap: 4px; min-width: 0; }
@@ -135,7 +138,7 @@ a {
 .calendar-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; }
 .calendar-choices button { border: 0; padding: 10px 3px; background: transparent; cursor: pointer; }
 .calendar-choices button:hover:not(:disabled) { background: var(--plot); }
-.calendar-choices button[aria-pressed='true'] { background: var(--blue); color: white; border-radius: 5px; }
+.calendar-choices button[aria-pressed='true'] { background: var(--blue); color: white; }
 .calendar-choices button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .range-calendar [hidden] { display: none; }
 .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
@@ -143,16 +146,29 @@ a {
 .calendar-days button { padding: 9px 0; border: 0; border-radius: 0; font-size: 14px; }
 .calendar-days button.outside { color: #9aa5ab; }
 .calendar-days button.selected { background: #e1edf3; }
-.calendar-days button.edge { background: var(--blue); color: white; border-radius: 4px; }
+.calendar-days button.edge { background: var(--blue); color: white; }
 .range-calendar p { font-size: 13px; color: var(--muted); }
 .time-panel form, .quick-ranges { padding: 22px; min-width: 0; }
 .time-panel label { display: block; margin: 16px 0; }
 .time-panel label input { display: block; width: 100%; margin-top: 8px; min-width: 0; }
-.time-panel #apply { background: var(--blue); color: white; margin-bottom: 24px; }
-.quick-ranges { border-left: 1px solid var(--line); max-height: 460px; overflow-y: auto; }
+.time-panel input[type='datetime-local'] { background: color-mix(in srgb, var(--background) 65%, transparent); }
+.time-panel #apply { background: var(--blue); color: white; margin-bottom: 8px; }
+.range-info { color: var(--secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 24px; }
+.range-info p { margin: 6px 0; }
+.quick-ranges { border-left: 1px solid var(--line); }
 .quick-ranges p { font-size: 13px; color: var(--muted); }
+.time-panel .complete-days { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; line-height: 1.5; cursor: pointer; }
+.time-panel .complete-days input { appearance: none; flex: none; width: 30px; height: 18px; margin: 0; padding: 3px; background: var(--muted); cursor: pointer; }
+.complete-days input::before { content: ''; display: block; width: 12px; height: 12px; background: var(--background); transition: transform .15s; }
+.time-panel .complete-days input:checked { background: var(--blue); }
+.complete-days input:checked::before { transform: translateX(12px); }
+#complete-days-help { margin: 6px 0 20px; font-size: 12px; line-height: 1.5; }
+#range-presets { max-height: 380px; overflow-y: auto; }
 .quick-ranges button, #recent-ranges button { display: block; border: none; text-align: left; width: 100%; }
-.quick-ranges button:hover, #recent-ranges button:hover { background: var(--plot); }
+.quick-ranges button:hover, #recent-ranges button:hover { background: var(--time-hover); }
+.quick-ranges button[aria-pressed='true'] { color: var(--link); background: var(--time-hover); }
+#range-error { grid-column: 1 / -1; margin: 0; padding: 12px 22px; color: var(--red); font-size: 13px; }
+#range-error:empty { display: none; }
 #recent-ranges button { font-size: 13px; }
 .range-selection { fill: #5b91b133; stroke: #5b91b1; pointer-events: none; }
 .event-marker { pointer-events: none; }
@@ -160,7 +176,8 @@ a {
 @media (max-width: 900px) {
     .time-picker summary { font-size: 13px; padding: 0 10px; }
     .time-panel { grid-template-columns: minmax(0, 1fr); max-height: 75vh; overflow-y: auto; }
-    .quick-ranges { border-left: 0; border-top: 1px solid var(--line); max-height: 220px; }
+    .quick-ranges { border-left: 0; border-bottom: 1px solid var(--line); grid-row: 1; }
+    #range-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
     .range-calendar { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 @media (max-width: 680px) {
@@ -170,7 +187,10 @@ a {
     .time-picker { flex: 1; }
     .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }
     #range-label { flex: 1; overflow: visible; text-overflow: clip; text-align: center; line-height: 1.5; }
-    .time-panel { top: calc(100% + 8px); }
+    .time-picker summary { flex-wrap: wrap; gap: 4px; padding: 4px 8px; }
+    .time-picker summary .time-icon { display: none; }
+    #range-complete { order: 1; flex-basis: 100%; text-align: center; }
+    .time-panel { top: calc(100% + 8px); max-height: min(65dvh, calc(100dvh - 260px)); }
 }
 .source-status,
 .chart-status {
