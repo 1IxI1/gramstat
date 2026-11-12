@@ -115,7 +115,11 @@ a {
 .page-navigation a:hover { color: var(--heading); background: var(--time-hover); }
 .page-navigation a[aria-current='page'] { color: var(--link); background: var(--background); box-shadow: 0 1px 3px #0002; }
 .page-navigation a:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-.brand-dock { flex: none; height: 44px; margin-right: auto; }
+.brand-dock { position: relative; flex: none; height: 44px; margin-right: auto; }
+.brand-parked { position: absolute; top: 0; left: 0; display: flex; align-items: center; gap: 12px; height: 44px;
+    color: var(--heading); font-size: 28px; font-weight: 900; white-space: nowrap;
+    transform: scale(.7); transform-origin: left center; pointer-events: none; opacity: 0; }
+.brand-parked img { width: 27px; height: 27px; }
 .scroll-brand { position: fixed; top: 0; left: 0; z-index: 11;
     color: var(--heading); font-size: 28px; font-weight: 900; letter-spacing: normal; line-height: normal;
     transform-origin: top left; pointer-events: none; will-change: transform; }
@@ -201,6 +205,7 @@ a {
     html { scroll-padding-top: 150px; }
     .page-navigation a { font-size: 12px; padding: 9px 7px; }
     .scroll-brand { font-size: 26px; }
+    .brand-parked { gap: 14px; font-size: 26px; transform: scale(.55); }
     .range-navigation { flex-basis: 100%; height: auto; min-height: 58px; order: 1; }
     .time-picker { flex: 1; }
     .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }
