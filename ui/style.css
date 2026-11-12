@@ -122,13 +122,16 @@ a {
 .scroll-brand.motion-ready { transition: transform 420ms cubic-bezier(.2, .7, .2, 1); }
 .scroll-brand img { display: block; width: 27px; height: 27px; flex: none; }
 .scroll-brand-text { position: relative; display: block; }
-.scroll-brand-full { display: block; opacity: var(--brand-full-opacity, 1); }
-.scroll-brand-short { position: absolute; top: 50%; left: 0; width: max-content; opacity: var(--brand-short-opacity, 0); transform: translateY(-50%); }
-.scroll-brand.motion-ready .scroll-brand-full { transition: opacity 170ms ease-out; }
-.scroll-brand.motion-ready .scroll-brand-short { transition: opacity 190ms ease-out 160ms; }
+.scroll-brand-word { display: inline-block; white-space: nowrap; }
+.scroll-brand-fold, .scroll-brand-tail { display: inline-block; overflow: hidden; white-space: pre; vertical-align: bottom; }
+.scroll-brand-tail { width: 0; }
+.scroll-brand.motion-ready .scroll-brand-text { transition: transform 420ms cubic-bezier(.2, .7, .2, 1); }
+.scroll-brand.motion-ready .scroll-brand-fold { transition: width 420ms cubic-bezier(.2, .7, .2, 1), opacity 420ms cubic-bezier(.2, .7, .2, 1); }
+.scroll-brand.motion-ready .scroll-brand-tail { transition: width 420ms cubic-bezier(.2, .7, .2, 1); }
+.scroll-brand.motion-ready .scroll-brand-space { transition: font-size 420ms cubic-bezier(.2, .7, .2, 1); }
 .masthead.brand-animated > img, .masthead.brand-animated > h1 { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
-    .scroll-brand.motion-ready, .scroll-brand.motion-ready .scroll-brand-full, .scroll-brand.motion-ready .scroll-brand-short { transition: none; }
+    .scroll-brand.motion-ready, .scroll-brand.motion-ready .scroll-brand-text, .scroll-brand.motion-ready .scroll-brand-fold, .scroll-brand.motion-ready .scroll-brand-tail, .scroll-brand.motion-ready .scroll-brand-space { transition: none; }
 }
 .time-controls button, .time-picker summary, .time-panel input {
     font: inherit; color: inherit; background: transparent; border: 0; border-radius: 0; padding: 10px 14px;
