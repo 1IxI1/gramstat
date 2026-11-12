@@ -1,13 +1,13 @@
-export const COLORS = Object.freeze({ blue: 'var(--blue)', green: '#5c9980', red: '#c27870', paleBlue: 'var(--pale-blue)' });
-const palette = [COLORS.blue, COLORS.green, COLORS.red, '#9b88ad', '#c79a54', '#619d9f'];
+export const COLORS = Object.freeze({ blue: 'var(--chart-blue)', green: '#5c9980', red: '#c27870', paleBlue: 'var(--pale-blue)' });
+const palette = [COLORS.blue, COLORS.green, COLORS.red, '#9b88ad', 'light-dark(#a37741, #c79a54)', 'light-dark(#4b8789, #619d9f)'];
 export const colorAt = (i) => palette[i % palette.length];
 const series = (id, label, i = 0) => ({ id, label, color: colorAt(i), demo: false });
 const stakePoolColors = {
-    Tonstakers: '#27956a', 'Tonstakers-like': '#80b59f',
-    Stakee: '#2c92bd', 'Stakee-like': '#85bbd1',
-    Hipo: '#c4873e', 'Hipo-like': '#dfb67d',
-    Bemo: '#bd6782', 'Bemo-like': '#dca2b5',
-    'Whales wsTON': '#6369b6', 'Whales-like': '#a4a8d4',
+    Tonstakers: '#27956a', 'Tonstakers-like': 'light-dark(#468d70, #80b59f)',
+    Stakee: '#2c92bd', 'Stakee-like': 'light-dark(#4488a5, #85bbd1)',
+    Hipo: 'light-dark(#a2763c, #c4873e)', 'Hipo-like': 'light-dark(#9f783f, #dfb67d)',
+    Bemo: '#bd6782', 'Bemo-like': 'light-dark(#ad617e, #dca2b5)',
+    'Whales wsTON': '#6369b6', 'Whales-like': 'light-dark(#747aad, #a4a8d4)',
 };
 // Protocol names and -like labels are distinct prepared categories. Keep their
 // IDs, order and colors stable when the selected date range changes.
@@ -73,8 +73,8 @@ export const CATALOGUE = [
         layout: 'wide',
         kind: 'stacked-area', step: true, integer: true, zero: true,
         series: [
-            { ...series('frozen', 'Frozen'), color: '#65b5e5' },
-            { ...series('uninit', 'Uninitialized'), color: '#d9b83f' },
+            { ...series('frozen', 'Frozen'), color: 'light-dark(#4288b0, #65b5e5)' },
+            { ...series('uninit', 'Uninitialized'), color: 'light-dark(#94710a, #d9b83f)' },
             { ...series('active', 'Active'), color: '#5c9980' },
         ],
         description: [

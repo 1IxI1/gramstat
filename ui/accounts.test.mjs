@@ -11,7 +11,7 @@ test('Accounts preserve zeros, deletions and same-second state transitions', () 
     ]});
     const rows=buildRows(series[0].points.map((p)=>p[0]),series);
     assert.deepEqual(series.map((s) => s.label), ['Frozen', 'Uninitialized', 'Active']);
-    assert.deepEqual(series.map((s) => s.color), ['#65b5e5', '#d9b83f', '#5c9980']);
+    assert.deepEqual(series.map((s) => s.color), ['light-dark(#4288b0, #65b5e5)', 'light-dark(#94710a, #d9b83f)', '#5c9980']);
     assert.deepEqual(rows[0].values,[0,1,7]);
     assert.deepEqual(rows[1].values,[0,0,7]);
     assert.equal(rows[0].total,8);

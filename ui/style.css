@@ -24,8 +24,9 @@
     --heading: light-dark(#10161f, #fff);
     --secondary: light-dark(#536579, #93a5b8);
     --blue: light-dark(#0098ea, #1eaefb);
+    --chart-blue: light-dark(#0079ba, #1eaefb);
     --link: light-dark(#0079ba, #1eaefb);
-    --pale-blue: light-dark(#79c9f5, #70caff);
+    --pale-blue: light-dark(#237caa, #70caff);
     --green: #5c9980;
     --red: #c27870;
     --muted: light-dark(#64788c, #93a5b8);
@@ -144,7 +145,7 @@ a {
 .calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; }
 .calendar-weekdays { color: var(--blue); font-size: 12px; margin-bottom: 8px; }
 .calendar-days button { padding: 9px 0; border: 0; border-radius: 0; font-size: 14px; }
-.calendar-days button.outside { color: #9aa5ab; }
+.calendar-days button.outside { color: var(--secondary); }
 .calendar-days button.selected { background: #e1edf3; }
 .calendar-days button.edge { background: var(--blue); color: white; }
 .range-calendar p { font-size: 13px; color: var(--muted); }
@@ -402,7 +403,7 @@ h2 {
 .activity-tabs { display: flex; flex-shrink: 0; gap: 2px; padding: 3px; border-radius: 7px; background: var(--plot); }
 .activity-tabs button { border: 0; border-radius: 5px; padding: 5px 8px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
 .activity-tabs button[aria-selected='true'] { background: light-dark(#0079ba, #1eaefb); color: light-dark(#fff, #08090a); }
-.activity-tabs button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.activity-tabs button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 #chart-active_wallets_daily .chart-heading { flex-wrap: wrap; justify-content: flex-start; }
 .chart-expand {
     position: absolute;
@@ -581,7 +582,8 @@ h3 {
     font: inherit;
     cursor: pointer;
 }
-.legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
+.legend-item[aria-pressed='false'] { text-decoration: line-through; }
+.legend-item[aria-pressed='false'] .swatch { opacity: 0.45; }
 .legend-item:hover { color: #27343b; }
 .legend-item:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .swatch {
