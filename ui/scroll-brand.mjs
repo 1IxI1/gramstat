@@ -36,11 +36,8 @@ const parts = [
 });
 
 let geometry;
-let shownProgress;
 let frame = 0;
-let previousFrame = 0;
 const clamp = value => Math.max(0, Math.min(1, value));
-const ease = value => value * value * (3 - 2 * value);
 
 function measure() {
     // If the copy changes, leave the original heading visible instead of
@@ -94,20 +91,19 @@ function measure() {
 }
 
 function render(progress) {
-    const { x, start, end, height, scale: compactScale } = geometry;
-    const t = ease(progress);
-    const size = 1 - (1 - compactScale) * t;
+    const { x, start, height, scale: compactScale } = geometry;
+    const size = 1 - (1 - compactScale) * progress;
     const dockRect = dock.getBoundingClientRect();
     const dockY = dockRect.top + (dockRect.height - height * compactScale) / 2;
     const edgeY = scrollY < start ? start - scrollY : Math.min(8, scrollY - start);
     const settle = clamp((progress - 0.8) / 0.2);
     const y = edgeY + (dockY - edgeY) * settle;
-    const left = x + (dockRect.left - x) * t;
+    const left = x + (dockRect.left - x) * progress;
     brand.style.transform = `translate3d(${left}px, ${y}px, 0) scale(${size})`;
     brand.style.opacity = dockRect.bottom <= 0 ? '0' : '1';
     for (const part of parts) {
-        const px = part.startX + (part.endX - part.startX) * t;
-        const py = part.startY + (part.endY - part.startY) * t;
+        const px = part.startX + (part.endX - part.startX) * progress;
+        const py = part.startY + (part.endY - part.startY) * progress;
         part.node.style.transform = `translate3d(${px}px, ${py}px, 0)`;
         part.node.style.opacity = part.incoming ? String(clamp((progress - 0.35) / 0.35))
             : part.to ? '1' : String(1 - clamp(progress / 0.55));
@@ -116,21 +112,11 @@ function render(progress) {
     masthead.classList.add('brand-animated');
 }
 
-function tick(now) {
+function tick() {
     frame = 0;
     if (!geometry) return;
-    const target = clamp((scrollY - geometry.start) / Math.max(1, geometry.end - geometry.start));
-    if (shownProgress === undefined) shownProgress = target;
-    else {
-        // A wheel event can arrive after a long idle period. Don't treat that
-        // idle time as animation time or the first frame will jump halfway.
-        const elapsed = Math.min(24, now - (previousFrame || now));
-        shownProgress += (target - shownProgress) * (1 - Math.exp(-elapsed / 175));
-        if (Math.abs(target - shownProgress) < 0.001) shownProgress = target;
-    }
-    previousFrame = now;
-    render(shownProgress);
-    if (shownProgress !== target) schedule();
+    // No time-based easing: fast and slow scrolling map to the same frame.
+    render(clamp((scrollY - geometry.start) / Math.max(1, geometry.end - geometry.start)));
 }
 
 function schedule() {
