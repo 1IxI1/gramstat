@@ -45,6 +45,9 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 	calls := 0
 	s := New(readerFunc(func(_ context.Context, name string, p url.Values) (json.RawMessage, error) {
 		calls++
+		if name == "wallet_activation_state" {
+			return json.RawMessage(`[]`), nil
+		}
 		if name == "wallet_days" {
 			return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","activations":"2"}]`), nil
 		}
@@ -72,7 +75,7 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 	}), logger())
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/wallets?from=2024-10-13T00:00:00Z&to=2024-10-13T00:10:00Z", nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"value":"9007199254740993"`) || !strings.Contains(w.Body.String(), `"value":"0"`) || calls != 5 {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"value":"9007199254740993"`) || !strings.Contains(w.Body.String(), `"value":"0"`) || calls != 6 {
 		t.Fatal(w.Code, w.Body.String(), calls)
 	}
 	for _, extra := range []string{"&source=evil", "&registry=evil", "&step=1", "&activity=weekly", "&activity=daily&activity=hourly"} {
@@ -83,7 +86,7 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 		}
 	}
 	s = New(readerFunc(func(_ context.Context, name string, _ url.Values) (json.RawMessage, error) {
-		if name != "wallet_days" && name != "wallet_active_days" {
+		if name != "wallet_days" && name != "wallet_active_days" && name != "wallet_activation_state" {
 			t.Fatal("read unavailable rows", name)
 		}
 		return json.RawMessage(`[]`), nil
@@ -101,7 +104,7 @@ func TestWalletReaderSQL(t *testing.T) {
 		t.Skip("clickhouse-local unavailable")
 	}
 	dir := t.TempDir()
-	p := []string{"--param_source", walletSource, "--param_registry", walletRegistry, "--param_from_ts", "1728777600", "--param_to_ts", "1728864000", "--param_published", "[('2024-10-13','00000000-0000-0000-0000-000000000001')]"}
+	p := []string{"--param_source", walletSource, "--param_registry", walletRegistry, "--param_from_ts", "1728777600", "--param_to_ts", "1728864000", "--param_published", "[('2024-10-13','00000000-0000-0000-0000-000000000001')]", "--param_live_base", "0", "--param_live_end", "0"}
 	run := func(q, step string) []map[string]any {
 		t.Helper()
 		args := append([]string{"local", "--path", dir, "--max_threads", "2", "--multiquery", "--param_step", step, "--param_sample_step", "60", "--query", q}, p...)
@@ -132,7 +135,7 @@ func TestWalletReaderSQL(t *testing.T) {
  INSERT INTO gramstat.wallet_activated_checkpoints VALUES('SOURCE','REGISTRY','2024-10-13','00000000-0000-0000-0000-000000000001',86400,1728777600,11,1728777601,5);`
 	fixture = strings.ReplaceAll(strings.ReplaceAll(fixture, "SOURCE", walletSource), "REGISTRY", walletRegistry)
 	fixture = strings.ReplaceAll(fixture, "ENGINE=Memory", "ENGINE=MergeTree ORDER BY tuple()")
-	run(fixture+`ALTER TABLE gramstat.wallet_days ADD COLUMN complete_before UInt32 DEFAULT toUnixTimestamp(toDateTime(day+1,'UTC'));
+	run(fixture+walletStreamFixtureSQL+`ALTER TABLE gramstat.wallet_days ADD COLUMN complete_before UInt32 DEFAULT toUnixTimestamp(toDateTime(day+1,'UTC'));
 CREATE TABLE gramstat.wallet_live_days(source_id String,registry String,day Date,run_id UUID,through_mc UInt32,calculated_at DateTime64(6),complete_before UInt32) ENGINE=MergeTree ORDER BY tuple();
 INSERT INTO gramstat.wallet_live_days SELECT source_id,registry,day,toUUID('00000000-0000-0000-0000-000000000003'),through_mc+100,now64(6),complete_before-43200 FROM gramstat.wallet_days;`, "0")
 	if r := run(walletDaysSQL+" FORMAT JSON", "0"); len(r) != 1 || r[0]["activations"] != "2" {
@@ -177,6 +180,8 @@ func TestWalletActivityModes(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			s := New(readerFunc(func(_ context.Context, name string, p url.Values) (json.RawMessage, error) {
 				switch name {
+				case "wallet_activation_state":
+					return json.RawMessage(`[]`), nil
 				case "wallet_active_days":
 					return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","complete_before":1728864000},{"day":"2024-10-14","run_id":"00000000-0000-0000-0000-000000000001","complete_before":1728950400}]`), nil
 				case "wallet_days":
@@ -250,7 +255,7 @@ INSERT INTO gramstat.wallet_activations_mc SELECT 's','r',toDate('2025-01-01')+t
 	for i := 0; i < 100; i++ {
 		tuples = append(tuples, fmt.Sprintf("('%s','00000000-0000-0000-0000-000000000001')", start.AddDate(0, 0, i).Format(time.DateOnly)))
 	}
-	args := []string{"local", "--path", t.TempDir(), "--multiquery", "--max_threads", "2", "--param_source", "s", "--param_registry", "r", "--param_step", "86400", "--param_from_ts", fmt.Sprint(start.Unix() + 43200), "--param_to_ts", fmt.Sprint(start.AddDate(0, 0, 99).Unix() + 43200), "--param_published", "[" + strings.Join(tuples, ",") + "]", "--query", setup + walletActivatedSQL + " SETTINGS max_rows_to_read=100000 FORMAT JSON"}
+	args := []string{"local", "--path", t.TempDir(), "--multiquery", "--max_threads", "2", "--param_source", "s", "--param_registry", "r", "--param_step", "86400", "--param_from_ts", fmt.Sprint(start.Unix() + 43200), "--param_to_ts", fmt.Sprint(start.AddDate(0, 0, 99).Unix() + 43200), "--param_published", "[" + strings.Join(tuples, ",") + "]", "--param_live_base", "0", "--param_live_end", "0", "--query", setup + walletStreamFixtureSQL + walletActivatedSQL + " SETTINGS max_rows_to_read=100000 FORMAT JSON"}
 	out, err := exec.Command(binary, args...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("%v: %s", err, out)

@@ -5,12 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"time"
 )
 
 const walletRegistry = "fc96280e446129a605659a022311bba1d0d6bef9a03960be77c86a259dc876f9"
 const walletSource = "mainnet-wallets-v1"
+
+const walletActivationStateSQL = `SELECT base_mc,from_utime,through_mc,to_utime
+ FROM gramstat.wallet_activation_stream_state WHERE source_id={source:String} AND registry={registry:String}
+ ORDER BY through_mc DESC LIMIT 1`
+
+const walletLiveActivationsSQL = `SELECT day,toString(argMax(s.activations,s.through_mc)) AS activations,
+ argMax(s.complete_before,s.through_mc) AS complete_before
+ FROM gramstat.wallet_activation_stream_state s WHERE source_id={source:String} AND registry={registry:String}
+ AND s.through_mc<={live_end:UInt32} AND s.activations IS NOT NULL
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ GROUP BY day ORDER BY day`
+
+const walletStreamFilterSQL = ` source_id={source:String} AND registry={registry:String}
+ AND mc_seqno>{live_base:UInt32} AND mc_seqno<={live_end:UInt32}
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ AND day NOT IN arrayMap(x -> x.1,{published:Array(Tuple(Date,String))})`
 
 const walletDaysSQL = `SELECT day,toString(argMax(d.run_id,tuple(through_mc,calculated_at,d.run_id))) AS run_id,
  toString(argMax(d.activations,tuple(through_mc,calculated_at,d.run_id))) AS activations
@@ -48,11 +65,14 @@ const walletMonthlySQL = `SELECT toUInt32(toUnixTimestamp(toDateTime(month,'UTC'
  AND month<=toStartOfMonth(toDate(toDateTime({to_ts:UInt32}-1,'UTC')))
  GROUP BY month ORDER BY month`
 
-const walletCountSQL = `SELECT toUInt32(count()) AS count FROM gramstat.wallet_activations_mc
+const walletCountSQL = `SELECT toUInt32(uniqExact(mc_seqno)) AS count FROM (
+ SELECT mc_seqno FROM gramstat.wallet_activations_mc
  WHERE source_id={source:String} AND registry={registry:String}
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
  AND utime>={from_ts:UInt32} AND utime<{to_ts:UInt32}
- AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}`
+ AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
+ UNION ALL SELECT mc_seqno FROM gramstat.wallet_activation_stream WHERE ` + walletStreamFilterSQL + `
+ AND utime>={from_ts:UInt32} AND utime<{to_ts:UInt32})`
 
 const walletActivatedSQL = `WITH if({step:UInt32}>=86400,86400,3600) AS base_step,
  ({step:UInt32}>=3600 AND modulo({step:UInt32},base_step)=0) AS use_checkpoints,
@@ -73,7 +93,20 @@ const walletActivatedSQL = `WITH if({step:UInt32}>=86400,86400,3600) AS base_ste
  SELECT mc_seqno,utime,activated FROM gramstat.wallet_activated_checkpoints
  WHERE use_checkpoints AND step=base_step AND bucket>=inner_from AND bucket<inner_to
  AND source_id={source:String} AND registry={registry:String}
- AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
+  AND (day,toString(run_id)) IN {published:Array(Tuple(Date,String))}
+ UNION ALL
+ SELECT mc_seqno,utime,activated FROM gramstat.wallet_activation_stream
+ WHERE ` + walletStreamFilterSQL + `
+ AND (NOT use_checkpoints OR (modulo({from_ts:UInt32},base_step)!=0 AND utime<inner_from)
+ OR (modulo({to_ts:UInt32},base_step)!=0 AND utime>=inner_to))
+ AND (NOT use_checkpoints
+ OR (modulo({from_ts:UInt32},base_step)!=0 AND day=toDate(toDateTime({from_ts:UInt32},'UTC')))
+ OR (modulo({to_ts:UInt32},base_step)!=0 AND day=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))))
+ AND utime>={from_ts:UInt32} AND utime<{to_ts:UInt32}
+ UNION ALL
+ SELECT mc_seqno,utime,activated FROM gramstat.wallet_activation_stream_checkpoints
+ WHERE ` + walletStreamFilterSQL + `
+ AND use_checkpoints AND step=base_step AND bucket>=inner_from AND bucket<inner_to
  )
  SELECT max(p.mc_seqno) AS mc_seqno,argMax(p.utime,p.mc_seqno) AS utime,toString(argMax(p.activated,p.mc_seqno)) AS value
  FROM points p GROUP BY if({step:UInt32}=0,toUInt64(p.mc_seqno),toUInt64(intDiv(p.utime,greatest({step:UInt32},1)))) ORDER BY mc_seqno`
@@ -83,6 +116,32 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	to, _ := time.Parse(time.RFC3339, q.Get("to"))
 	budget, _ := strconv.Atoi(q.Get("maxPoints"))
 	p := url.Values{"source": {walletSource}, "registry": {walletRegistry}, "from_ts": {strconv.FormatInt(from.Unix(), 10)}, "to_ts": {strconv.FormatInt(to.Unix(), 10)}}
+	p.Set("live_base", "0")
+	p.Set("live_end", "0")
+	state, err := s.reader.Read(ctx, "wallet_activation_state", p)
+	if err != nil {
+		return nil, err
+	}
+	var stream []struct {
+		Base uint32 `json:"base_mc"`
+		MC   uint32 `json:"through_mc"`
+		From uint32 `json:"from_utime"`
+		To   uint32 `json:"to_utime"`
+	}
+	if err = json.Unmarshal(state, &stream); err != nil {
+		return nil, err
+	}
+	if len(stream) > 1 {
+		return nil, fmt.Errorf("ambiguous wallet stream state")
+	}
+	if len(stream) == 1 {
+		v := stream[0]
+		if v.Base == 0 || v.MC < v.Base || v.To < v.From {
+			return nil, fmt.Errorf("invalid wallet stream state")
+		}
+		p.Set("live_base", strconv.FormatUint(uint64(v.Base), 10))
+		p.Set("live_end", strconv.FormatUint(uint64(v.MC), 10))
+	}
 	days, err := s.reader.Read(ctx, "wallet_days", p)
 	if err != nil {
 		return nil, err
@@ -120,6 +179,46 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		daily = append(daily, map[string]any{"utime": date.Unix(), "value": d.Activations})
 	}
 	p.Set("published", published+"]")
+	activatedDates := append([]string{}, dates...)
+	dailyDates := append([]string{}, dates...)
+	if len(stream) == 1 {
+		seen := map[string]bool{}
+		for _, d := range dates {
+			seen[d] = true
+		}
+		for start := max(int64(stream[0].From)/86400, from.Unix()/86400) * 86400; start < to.Unix() && start <= int64(stream[0].To); start += 86400 {
+			d := time.Unix(start, 0).UTC().Format(time.DateOnly)
+			if !seen[d] {
+				activatedDates = append(activatedDates, d)
+			}
+		}
+		sort.Strings(activatedDates)
+		b, e := s.reader.Read(ctx, "wallet_live_activations", p)
+		if e != nil {
+			return nil, e
+		}
+		var live []struct {
+			Day    string `json:"day"`
+			Value  string `json:"activations"`
+			Before uint32 `json:"complete_before"`
+		}
+		if e = json.Unmarshal(b, &live); e != nil {
+			return nil, e
+		}
+		for _, d := range live {
+			if seen[d.Day] {
+				continue
+			}
+			day, e := time.Parse(time.DateOnly, d.Day)
+			if e != nil || int64(d.Before) <= day.Unix() || int64(d.Before) > day.AddDate(0, 0, 1).Unix() {
+				return nil, fmt.Errorf("invalid live activation cutoff")
+			}
+			dailyDates = append(dailyDates, d.Day)
+			daily = append(daily, map[string]any{"utime": day.Unix(), "value": d.Value, "end_utime": d.Before, "is_partial": int64(d.Before) < day.AddDate(0, 0, 1).Unix()})
+		}
+		sort.Strings(dailyDates)
+		sort.Slice(daily, func(i, j int) bool { return daily[i]["utime"].(int64) < daily[j]["utime"].(int64) })
+	}
 	mode := q.Get("activity")
 	if mode == "" {
 		mode = "daily"
@@ -142,7 +241,7 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	activatedStep := supplyInterval(to.Unix()-from.Unix(), budget)
 	activated, activity := json.RawMessage(`[]`), json.RawMessage(`[]`)
 	var activityAverage any
-	if len(coverage) > 0 {
+	if len(activatedDates) > 0 {
 		if to.Sub(from) <= 48*time.Hour {
 			counts, e := s.reader.Read(ctx, "wallet_count", p)
 			if e != nil {
@@ -278,8 +377,8 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		}
 	}
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "registry": walletRegistry, "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "coverageDays": dates,
-		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated},
-		"activations": map[string]any{"intervalSeconds": 86400, "points": daily},
+		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated, "coverageDays": activatedDates},
+		"activations": map[string]any{"intervalSeconds": 86400, "points": daily, "coverageDays": dailyDates},
 		"active":      map[string]any{"mode": mode, "average": activityAverage, "calendarMonths": mode == "monthly", "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	return json.Marshal(result)
 }

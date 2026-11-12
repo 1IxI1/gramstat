@@ -52,6 +52,21 @@ test('wallet adapter preserves MC ties, exact zero, and missing-day gaps', () =>
     assert.throws(() => walletSeries({ ...data, registry: 'different' }, 'activated_wallets'));
 });
 
+test('live cumulative and daily activations have their own coverage and retain MC ties', () => {
+    const data={schemaVersion:2,registry:WALLET_REGISTRY_SHA256,coverageDays:[],
+        period:{from:'2026-11-12T00:00:00Z',to:'2026-11-12T01:00:00Z'},
+        activated:{intervalSeconds:0,coverageDays:['2026-11-12'],points:[
+            {utime:1794441660,mc_seqno:11,value:'9007199254740994'},
+            {utime:1794441660,mc_seqno:12,value:'9007199254740995'}]},
+        activations:{intervalSeconds:86400,coverageDays:['2026-11-12'],points:[{utime:1794441600,value:'2',end_utime:1794441900,is_partial:true}]}};
+    const cumulative=walletSeries(data,'activated_wallets');
+    assert.deepEqual(cumulative.exactByIndex,['9007199254740994','9007199254740995']);
+    assert.match(cumulative.detailsByIndex[1],/MC 12/);
+    const daily=walletSeries(data,'activations');
+    assert.equal(daily.points.length,1);
+    assert.equal(daily.partial[daily.points[0][0]],true);
+});
+
 test('monthly activity has one point per calendar month and preserves missing months', () => {
     const data = { schemaVersion: 2, registry: WALLET_REGISTRY_SHA256,
         period: { from: '2024-09-13T00:00:00Z', to: '2024-11-01T00:00:00Z' },

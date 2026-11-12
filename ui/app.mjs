@@ -588,7 +588,8 @@ function render(group, roundsOnly = false, onlyID) {
             const hourly = isActivity && activityMode === 'hourly';
             const unit = hourly ? 3600000 : 86400000;
             const totalPeriods = activeRange ? Math.ceil(activeRange.to / unit) - Math.floor(activeRange.from / unit) : 0;
-            const available = hourly ? walletsData?.active.average?.count ?? walletsData?.active.points.length ?? 0 : (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
+            const dataset = isActivity ? walletsData?.active : definition.id === 'activated_wallets' ? walletsData?.activated : walletsData?.activations;
+            const available = hourly ? walletsData?.active.average?.count ?? walletsData?.active.points.length ?? 0 : (dataset?.coverageDays ?? walletsData?.coverageDays)?.length ?? 0;
             const monthly = isActivity && activityMode === 'monthly';
             const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:''}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
             const missing = 'History is being prepared.';

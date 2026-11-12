@@ -11,6 +11,8 @@ import (
 func TestCurrentWalletHoursDoNotRequireClosedDayOrInventFutureZeroes(t *testing.T) {
 	s := New(readerFunc(func(_ context.Context, name string, p url.Values) (json.RawMessage, error) {
 		switch name {
+		case "wallet_activation_state":
+			return json.RawMessage(`[]`), nil
 		case "wallet_days":
 			return json.RawMessage(`[]`), nil
 		case "wallet_active_days":

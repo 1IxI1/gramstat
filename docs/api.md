@@ -126,8 +126,16 @@ is `ui/wire.mjs`; cross-language tests compare Go encoding with this decoder.
    `sum` and integer `count` across every covered hour, so the displayed mean is
    independent of plot sampling. Missing hours are excluded rather than zeroed.
    Daily/monthly activity and activations retain all buckets beyond the target
-   point budget. Boundary buckets are whole aligned intervals. `coverageDays`
-  identifies prepared days, `registry` identifies the frozen code registry.
+    point budget. Boundary buckets are whole aligned intervals. Root `coverageDays`
+    identifies certified closed days; each dataset's `coverageDays` can additionally
+    include its verified live coverage. `registry` identifies the frozen code registry.
+    Cumulative activations read the committed `wallet_activation_stream` MC prefix
+    and its hour/day checkpoints alongside closed-day publications. MC ties and
+    integer-string precision are preserved. Uncommitted points/checkpoints are
+    excluded, and a certified closed day supersedes its streamed points.
+    Current daily activations come from `wallet_activation_stream_state`, with
+    `end_utime` and `is_partial`; their UTC day uses transaction time, not MC time.
+    Grant SELECT on all three stream tables to the API role.
     Hourly/daily active-wallet points also carry exclusive `end_utime` and
     `is_partial`. The current hour/day ends at the certified shard-time horizon,
     and future buckets are absent. `active.coverageDays` is independent of
