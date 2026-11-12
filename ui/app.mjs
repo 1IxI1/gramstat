@@ -4,6 +4,7 @@ import { BINARY_TYPE, decodeColumns } from './wire.mjs';
 import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 import { createStakeRegistry } from './stake-registry.mjs';
+import { ACTION_TYPES, excludedActionTypes, totalActionSeries, createActionLegend } from './action-types.mjs';
 import { ValidatorMap } from './validator-map.mjs';
 import { RANGE_PRESETS, inputTime, displayTime, indexedTime, resolveTimeRange, defaultTimeRange, timeRangeLabel, timeRangeFromURL, writeTimeRange } from './time-ranges.mjs';
 
@@ -33,6 +34,7 @@ window.addEventListener('storage', event => {
     }
 });
 const cards = new Map();
+let excludedActions = excludedActionTypes(new URLSearchParams(location.search));
 const pageLinks = [...document.querySelectorAll('.page-navigation a')];
 const chartPage = (id) => {
     const definition = CATALOGUE.find((chart) => chart.id === id);
@@ -470,7 +472,7 @@ expandedDialog.addEventListener('cancel', (event) => {
     navigateChart(null);
 });
 document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open || stakeRegistry.dialog.open) return;
+    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open || stakeRegistry.dialog.open || expandedDialog.querySelector('.action-legend[open]')) return;
     event.preventDefault();
     event.stopPropagation();
     navigateChart(null);
@@ -482,6 +484,7 @@ expandedDialog.addEventListener('click', (event) => {
 });
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
+    excludedActions = excludedActionTypes(q);
     showPage(pageFromURL());
     const choice = timeRangeFromURL(q);
     const changedActivity = activityMode !== activityFromURL();
@@ -495,7 +498,7 @@ window.addEventListener('popstate', () => {
         syncExpandedChart(false);
         if (changedActivity) loadActivity();
         if (changedSection) loadSectionActivity();
-    } else syncExpandedChart();
+    } else { syncExpandedChart(); render(undefined, false, 'actions_total'); }
 });
 
 function chartGroup(definition) {
@@ -536,6 +539,8 @@ function render(group, roundsOnly = false, onlyID) {
                 details: Object.fromEntries(points.map(([date]) => [date, available(date) ? s.details[date] : 'Location history is unavailable before 1 Oct 2024 01:23:19 UTC.'])),
             };
         });
+        const isTotalActions = definition.id === 'actions_total';
+        if (isTotalActions) allSeries = totalActionSeries(allSeries, excludedActions);
         const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
@@ -595,13 +600,13 @@ function render(group, roundsOnly = false, onlyID) {
             const missing = 'History is being prepared.';
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
-        state.legend.replaceChildren();
+        if (!isTotalActions) state.legend.replaceChildren();
         if (isSection) {
             if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.'));
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
             state.average.replaceChildren(element('span', '', `Avg (${period}):`));
-            for (const s of series) {
+            for (const s of isTotalActions ? series.filter(s => s.overlay) : series) {
                 const avg = dailyAverage(dates, s);
                 const item = element('span', 'activity-average-item');
                 const dot = element('span', 'average-dot'); dot.style.backgroundColor = s.color; dot.setAttribute('aria-hidden', 'true');
@@ -621,7 +626,19 @@ function render(group, roundsOnly = false, onlyID) {
             state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${unit}${avg.partial ? ' · partial' : ''}`}`;
             state.average.title = loading ? 'Loading values.' : isActivity ? `Mean of ${avg.count} available UTC ${ {hourly:'hours',daily:'days',monthly:'calendar months'}[activityMode] }. Missing buckets are excluded. Whole buckets are used, including those overlapping the selected boundaries. Hourly averages include every prepared hour, even when the plot samples hours.` : `Mean of ${avg.count} available UTC-day totals out of ${avg.total} displayed days. Missing values are excluded; partial day totals are included and marked partial. Intraday selections use whole UTC-day totals, as shown in the chart.`;
         }
-        if (allSeries.length > 1)
+        if (isTotalActions) {
+            state.syncActionLegend ??= createActionLegend(state.legend, () => excludedActions, () => {
+                const url = new URL(location.href);
+                const excluded = ACTION_TYPES.filter(type => excludedActions.has(type));
+                if (excluded.length) url.searchParams.set('excludeActions', excluded.join(','));
+                else url.searchParams.delete('excludeActions');
+                history.replaceState(null, '', url);
+                render(undefined, false, definition.id);
+            });
+            state.syncActionLegend();
+            if (excludedActions.size && latest) state.detail.textContent += ' · selected types';
+        }
+        if (!isTotalActions && allSeries.length > 1)
             for (const s of isAccounts ? [...allSeries].reverse() : allSeries) {
                 const item = element('button', 'legend-item');
                 item.type = 'button';
@@ -640,7 +657,7 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, s.emphasis ? element('strong', '', s.label) : document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart?.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+        state.chart?.update({ ...definition, series, loading, allSeriesHidden: isTotalActions ? excludedActions.size === ACTION_TYPES.length : allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
                 id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
                 label: 'Map snapshot', color: 'var(--text)', clamp: true, position: 'bottom',

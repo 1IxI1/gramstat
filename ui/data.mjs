@@ -1,6 +1,7 @@
 import { CATALOGUE, colorAt, periodDates, stakePoolSeries } from './catalogue.mjs';
 import { formatDate, formatTooltipExact } from './charts.mjs';
 import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
+import { actionTypeReadings } from './action-types.mjs';
 
 // Exact strings remain in the response and tooltips. Conversion to Number is
 // restricted to display coordinates; null and missing rows never become zero.
@@ -353,6 +354,7 @@ export function readObservedMetrics(data) {
         previousRoundUntil = r.utime_until;
     }
     metrics.validator_geo.series = validatorGeoSeries(data.rounds);
+    metrics.actions_total.series = actionTypeReadings(data.daily, dates);
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
 }
 

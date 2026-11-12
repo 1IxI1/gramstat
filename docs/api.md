@@ -10,7 +10,7 @@ Gramstat dashboard.
   `rounds`, plus `activity` columns sharing one `dates` axis. Activity includes
   complete boundary calendar months, capped at tomorrow UTC. Its `metrics`
   vectors contain exact `values`, nullable `amounts`, `partial` flags and optional
-  DEX `breakdown` vectors; Stars has `total`, `known`, `unknown`, `partial` vectors.
+   categorical `breakdown` vectors; Stars has `total`, `known`, `unknown`, `partial` vectors.
   Missing rows are null, observed zeros remain zero. `monthly_` metrics are the
   independently prepared unique-address counts. The UI slices Daily to the
   selected range and calculates Monthly from the prefetched months with the same
@@ -21,6 +21,23 @@ lossless **GSC1** binary representation, and `Accept-Encoding: gzip`. Without th
 binary Accept header, responses remain JSON (v1 contracts are unchanged).
 Representations are cached separately and advertise `Vary: Accept, Accept-Encoding`.
 `Server-Timing: prepare` reports server preparation/cache time, excluding download.
+
+### Total actions
+
+`actions_total_v1` is an additive daily metric. `value` is the exact total and
+`breakdown` maps each included action type to its exact count (integer strings).
+Successful operations are counted only when they have no ancestor in the frozen
+included-type registry. Technical calls, deployments, unknown types, validator
+elections and technical wrappers are excluded. Existing transfer metrics retain
+their independent nesting rules and must not be summed to reconstruct this total.
+
+The UI validates the total against the complete breakdown, groups types into
+categories and filters locally. `excludeActions=renew_dns,change_dns` preserves
+excluded types in shareable UI URLs. Total follows the visible stack. Filtering
+does not restore children suppressed by included ancestors. Missing source days
+remain unknown; missing types within a prepared day are zero. Monthly totals
+sum covered daily counts exactly. Historical reclassification outside the normal
+refresh window currently requires an explicit aggregator rebuild.
 
 ### GSC1 transport
 
