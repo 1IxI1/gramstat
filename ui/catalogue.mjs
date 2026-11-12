@@ -156,8 +156,8 @@ export const CATALOGUE = [
     }),
     chart('actions_total', 'Total actions', 'activity', '', {
         kind: 'stacked-area', zero: true, integer: true, layout: 'full', tooltipSort: 'value-desc', tooltipShare: true,
-        description: 'Successful recognized operations per UTC day. Nested operations are counted only when none of their ancestors is an included operation type. Technical calls, deployments, unknown operations and validator elections are excluded. Categories can be expanded to select individual types; Total is the sum of selected types. Filtering does not reclassify nested operations.',
-        monthlyDescription: 'Successful recognized operations per UTC calendar month, summed from covered daily counts. Total is the sum of selected types; filtering does not reclassify nested operations.',
+        description: 'Successful recognized operations per UTC day. Nested operations are counted only when none of their ancestors is an included operation type. Technical calls, deployments, unknown operations and validator elections are excluded. Categories can be expanded to select individual types; Total is the sum of selected types.',
+        monthlyDescription: 'Successful recognized operations per UTC calendar month, summed from covered daily counts. Total is the sum of selected types.',
     }),
     chart('jetton_transfers', 'Jetton transfers', 'activity', '', { kind: 'bar', zero: true }),
     chart('nft_transfers', 'NFT transfers', 'activity', '', { kind: 'bar', zero: true }),
