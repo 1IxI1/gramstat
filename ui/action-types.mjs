@@ -87,7 +87,12 @@ export function createActionLegend(host, getExcluded, onChange) {
     };
     host.classList.add('action-category-legend');
     const all = make('button', 'action-select-all', 'Select all'); all.type = 'button';
-    all.addEventListener('click', () => { getExcluded().clear(); onChange(); });
+    all.addEventListener('click', () => {
+        const excluded = getExcluded();
+        if (excluded.size === 0) for (const type of ACTION_TYPES) excluded.add(type);
+        else excluded.clear();
+        onChange();
+    });
     const controls = [], menus = [];
     const position = ({ dropdown, panel }) => {
         if (!dropdown.open) return;
@@ -141,7 +146,7 @@ export function createActionLegend(host, getExcluded, onChange) {
     });
     return () => {
         const excluded = getExcluded();
-        all.disabled = excluded.size === 0;
+        all.textContent = excluded.size === 0 ? 'Select none' : 'Select all';
         for (const { input, types, category } of controls) {
             const enabled = types.filter(type => !excluded.has(type)).length;
             input.checked = enabled === types.length;
