@@ -110,8 +110,8 @@ a {
     background: var(--background); border-bottom: 1px solid var(--line);
     --time-glass: color-mix(in srgb, var(--plot) 88%, transparent);
     --time-hover: color-mix(in srgb, var(--blue) 12%, transparent); }
-.page-navigation { display: flex; align-items: center; margin-right: auto; gap: 3px; background: var(--plot); border-radius: 6px; padding: 3px; }
-.page-navigation a { display: block; padding: 9px 12px; color: var(--secondary); text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 4px; white-space: nowrap; }
+.page-navigation { display: flex; align-items: center; margin-right: auto; gap: 3px; background: var(--plot); padding: 3px; }
+.page-navigation a { display: block; padding: 9px 12px; color: var(--secondary); text-decoration: none; font-size: 14px; font-weight: 600; white-space: nowrap; }
 .page-navigation a:hover { color: var(--heading); background: var(--time-hover); }
 .page-navigation a[aria-current='page'] { color: var(--link); background: var(--background); box-shadow: 0 1px 3px #0002; }
 .page-navigation a:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
