@@ -585,13 +585,14 @@ function render(group, roundsOnly = false, onlyID) {
             state.status.replaceChildren(...parts);
         }
         if (isWallet) {
-            const totalDays = activeRange ? Math.ceil(activeRange.to / 86400000) - Math.floor(activeRange.from / 86400000) : 0;
-            const isActivity = definition.id === 'active_wallets_daily';
-            const available = (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
+            const hourly = isActivity && activityMode === 'hourly';
+            const unit = hourly ? 3600000 : 86400000;
+            const totalPeriods = activeRange ? Math.ceil(activeRange.to / unit) - Math.floor(activeRange.from / unit) : 0;
+            const available = hourly ? walletsData?.active.average?.count ?? walletsData?.active.points.length ?? 0 : (isActivity ? walletsData?.active.coverageDays : walletsData?.coverageDays)?.length ?? 0;
             const monthly = isActivity && activityMode === 'monthly';
             const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:''}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
             const missing = 'History is being prepared.';
-            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalDays ? `${available} of ${totalDays} UTC days available. ${missing}` : '' : missing}`);
+            state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
         state.legend.replaceChildren();
         if (isSection) {

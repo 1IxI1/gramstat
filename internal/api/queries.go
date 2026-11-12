@@ -31,6 +31,7 @@ arrayMap(m -> tuple(m.country, m.city, m.latitude, m.longitude),
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"wallet_active_days": walletActiveDaysSQL,
 	"staking_contracts": `SELECT protocol,pool,code_hash AS codeHash,
  arraySort(groupUniqArray(holder)) AS holders,
  formatDateTime(max(checked_at),'%Y-%m-%dT%H:%i:%SZ','UTC') AS lastCheckedAt

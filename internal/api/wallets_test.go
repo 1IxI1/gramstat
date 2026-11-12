@@ -52,6 +52,8 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 			t.Fatal(p)
 		}
 		switch name {
+		case "wallet_active_days":
+			return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","complete_before":1728864000}]`), nil
 		case "wallet_count":
 			return json.RawMessage(`[{"count":2}]`), nil
 		case "wallet_activated":
@@ -70,7 +72,7 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 	}), logger())
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/wallets?from=2024-10-13T00:00:00Z&to=2024-10-13T00:10:00Z", nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"value":"9007199254740993"`) || !strings.Contains(w.Body.String(), `"value":"0"`) || calls != 4 {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"value":"9007199254740993"`) || !strings.Contains(w.Body.String(), `"value":"0"`) || calls != 5 {
 		t.Fatal(w.Code, w.Body.String(), calls)
 	}
 	for _, extra := range []string{"&source=evil", "&registry=evil", "&step=1", "&activity=weekly", "&activity=daily&activity=hourly"} {
@@ -81,7 +83,7 @@ func TestWalletEndpointAndPublicationBinding(t *testing.T) {
 		}
 	}
 	s = New(readerFunc(func(_ context.Context, name string, _ url.Values) (json.RawMessage, error) {
-		if name != "wallet_days" {
+		if name != "wallet_days" && name != "wallet_active_days" {
 			t.Fatal("read unavailable rows", name)
 		}
 		return json.RawMessage(`[]`), nil
@@ -130,7 +132,9 @@ func TestWalletReaderSQL(t *testing.T) {
  INSERT INTO gramstat.wallet_activated_checkpoints VALUES('SOURCE','REGISTRY','2024-10-13','00000000-0000-0000-0000-000000000001',86400,1728777600,11,1728777601,5);`
 	fixture = strings.ReplaceAll(strings.ReplaceAll(fixture, "SOURCE", walletSource), "REGISTRY", walletRegistry)
 	fixture = strings.ReplaceAll(fixture, "ENGINE=Memory", "ENGINE=MergeTree ORDER BY tuple()")
-	run(fixture, "0")
+	run(fixture+`ALTER TABLE gramstat.wallet_days ADD COLUMN complete_before UInt32 DEFAULT toUnixTimestamp(toDateTime(day+1,'UTC'));
+CREATE TABLE gramstat.wallet_live_days(source_id String,registry String,day Date,run_id UUID,through_mc UInt32,calculated_at DateTime64(6),complete_before UInt32) ENGINE=MergeTree ORDER BY tuple();
+INSERT INTO gramstat.wallet_live_days SELECT source_id,registry,day,toUUID('00000000-0000-0000-0000-000000000003'),through_mc+100,now64(6),complete_before-43200 FROM gramstat.wallet_days;`, "0")
 	if r := run(walletDaysSQL+" FORMAT JSON", "0"); len(r) != 1 || r[0]["activations"] != "2" {
 		t.Fatal(r)
 	}
@@ -155,6 +159,17 @@ func TestWalletReaderSQL(t *testing.T) {
 	if r := run(walletActivatedSQL+" FORMAT JSON", "86400"); len(r) != 1 || r[0]["mc_seqno"] != float64(11) {
 		t.Fatal(r)
 	}
+	if r := run(walletActiveDaysSQL+" FORMAT JSON", "3600"); len(r) != 1 || r[0]["run_id"] != "00000000-0000-0000-0000-000000000001" {
+		t.Fatal("partial replaced complete day", r)
+	}
+	for i := range p {
+		if p[i] == "--param_to_ts" {
+			p[i+1] = "1728950400"
+		}
+	}
+	if r := run(walletActiveDaysSQL+" FORMAT JSON", "3600"); len(r) != 2 || r[1]["run_id"] != "00000000-0000-0000-0000-000000000003" || r[1]["complete_before"] != float64(1728907200) {
+		t.Fatal("current day lost", r)
+	}
 }
 
 func TestWalletActivityModes(t *testing.T) {
@@ -162,6 +177,8 @@ func TestWalletActivityModes(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			s := New(readerFunc(func(_ context.Context, name string, p url.Values) (json.RawMessage, error) {
 				switch name {
+				case "wallet_active_days":
+					return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","complete_before":1728864000},{"day":"2024-10-14","run_id":"00000000-0000-0000-0000-000000000001","complete_before":1728950400}]`), nil
 				case "wallet_days":
 					return json.RawMessage(`[{"day":"2024-10-13","run_id":"00000000-0000-0000-0000-000000000001","activations":"2"},{"day":"2024-10-14","run_id":"00000000-0000-0000-0000-000000000001","activations":"3"}]`), nil
 				case "wallet_activated":

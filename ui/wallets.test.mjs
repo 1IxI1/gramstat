@@ -9,6 +9,21 @@ test('activity mean uses every hour rather than sampled plot points', () => {
     assert.equal(mean.value, '5.00');
     assert.equal(mean.count, 2);
     assert.equal(mean.partial, true);
+    assert.equal(dailyAverage([], {}, {sum:'10',count:2,total:2,partial:true}).partial, true);
+});
+
+test('current wallet hours retain partial zeroes and their certified end independently of closed-day coverage', () => {
+    const data = { schemaVersion:2, registry:WALLET_REGISTRY_SHA256,
+        period:{from:'2026-11-12T00:00:00Z',to:'2026-11-12T01:30:00Z'},coverageDays:[],
+        active:{mode:'hourly',intervalSeconds:3600,coverageDays:['2026-11-12'],points:[
+            {utime:1794441600,value:'42',end_utime:1794445200,is_partial:false},
+            {utime:1794445200,value:'0',end_utime:1794447000,is_partial:true},
+        ]} };
+    const series=walletSeries(data,'active_wallets_daily');
+    assert.deepEqual(series.points.map(p=>p[1]),[42,0]);
+    assert.equal(series.partial[series.points[1][0]],true);
+    assert.match(series.detailsByIndex[1],/01:30:00 UTC.*partial/);
+    assert.equal(dailyAverage(series.points.map(p=>p[0]),series).partial,true);
 });
 
 test('observation captions distinguish days, hours, months, instants and round bounds', () => {

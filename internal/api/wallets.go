@@ -16,7 +16,20 @@ const walletDaysSQL = `SELECT day,toString(argMax(d.run_id,tuple(through_mc,calc
  toString(argMax(d.activations,tuple(through_mc,calculated_at,d.run_id))) AS activations
  FROM gramstat.wallet_days d WHERE source_id={source:String} AND registry={registry:String} AND history_verified=1
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
- GROUP BY day ORDER BY day`
+  GROUP BY day ORDER BY day`
+
+const walletActiveDaysSQL = `SELECT day,
+ toString(argMax(d.run_id,tuple(d.complete_before,d.through_mc,d.calculated_at,d.run_id))) AS run_id,
+ max(d.complete_before) AS complete_before FROM (
+ SELECT day,run_id,through_mc,calculated_at,
+ least(complete_before,toUInt32(toUnixTimestamp(toDateTime(day+1,'UTC')))) AS complete_before
+ FROM gramstat.wallet_days WHERE source_id={source:String} AND registry={registry:String} AND history_verified=1
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ UNION ALL
+ SELECT day,run_id,through_mc,calculated_at,complete_before FROM gramstat.wallet_live_days
+ WHERE source_id={source:String} AND registry={registry:String}
+ AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
+ ) d GROUP BY day ORDER BY day`
 
 const walletActivityFilterSQL = ` WHERE source_id={source:String} AND registry={registry:String} AND step={step:UInt32}
  AND bucket>=intDiv({from_ts:UInt32},{step:UInt32})*{step:UInt32} AND bucket<{to_ts:UInt32}
@@ -150,6 +163,47 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		if err != nil {
 			return nil, err
 		}
+	}
+	activeDates := dates
+	cutoffs := map[string]uint32{}
+	if mode != "monthly" {
+		b, err := s.reader.Read(ctx, "wallet_active_days", p)
+		if err != nil {
+			return nil, err
+		}
+		var days []struct {
+			Day    string `json:"day"`
+			Run    string `json:"run_id"`
+			Before uint32 `json:"complete_before"`
+		}
+		if err = json.Unmarshal(b, &days); err != nil {
+			return nil, err
+		}
+		activeDates = []string{}
+		published = "["
+		for i, d := range days {
+			day, e := time.Parse(time.DateOnly, d.Day)
+			if e != nil || int64(d.Before) <= day.Unix() || int64(d.Before) > day.AddDate(0, 0, 1).Unix() {
+				return nil, fmt.Errorf("invalid activity cutoff")
+			}
+			if len(d.Run) != 36 {
+				return nil, fmt.Errorf("invalid activity publication ID")
+			}
+			for _, c := range d.Run {
+				if !(c == '-' || c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+					return nil, fmt.Errorf("invalid activity publication ID")
+				}
+			}
+			if i > 0 {
+				published += ","
+			}
+			published += "('" + d.Day + "','" + d.Run + "')"
+			activeDates = append(activeDates, d.Day)
+			cutoffs[d.Day] = d.Before
+		}
+		p.Set("published", published+"]")
+	}
+	if len(activeDates) > 0 {
 		p.Set("step", strconv.FormatInt(activityStep, 10))
 		query := "wallet_activity"
 		if mode == "monthly" {
@@ -174,10 +228,43 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 			if len(totals) != 1 {
 				return nil, fmt.Errorf("missing wallet activity totals")
 			}
-			activityAverage = totals[0]
+			activityAverage = map[string]any{"sum": totals[0].Sum, "count": totals[0].Count}
 		}
 	}
-	activeDates := dates
+	if mode != "monthly" {
+		var points []struct {
+			Utime   uint32 `json:"utime"`
+			Value   string `json:"value"`
+			End     uint32 `json:"end_utime"`
+			Partial bool   `json:"is_partial"`
+		}
+		if err = json.Unmarshal(activity, &points); err != nil {
+			return nil, err
+		}
+		partial := false
+		for i := range points {
+			point := &points[i]
+			day := time.Unix(int64(point.Utime), 0).UTC().Format(time.DateOnly)
+			before := cutoffs[day]
+			if before <= point.Utime {
+				return nil, fmt.Errorf("wallet activity exceeds publication cutoff")
+			}
+			point.End = min(point.Utime+uint32(activityStep), before)
+			point.Partial = point.End < point.Utime+uint32(activityStep)
+			partial = partial || point.Partial
+		}
+		if points == nil {
+			activity = json.RawMessage(`[]`)
+		} else {
+			activity, err = json.Marshal(points)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if totals, ok := activityAverage.(map[string]any); ok {
+			totals["partial"] = partial
+		}
+	}
 	if mode == "monthly" {
 		var points []struct {
 			Utime uint32 `json:"utime"`

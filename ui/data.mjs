@@ -29,6 +29,7 @@ export function dailyAverage(dates, series, aggregate) {
         sum = BigInt(aggregate.sum) * 1000000000n;
         count = aggregate.count;
         total = aggregate.total;
+        partial = Boolean(aggregate.partial);
     }
     if (!count) return { value: null, count, total, partial: true };
     const denominator = BigInt(count) * 1000000000n;
@@ -134,7 +135,7 @@ export function walletSeries(data, id) {
     const dataset = data[key];
     if (!Array.isArray(dataset?.points)) throw new Error('Incomplete wallet response.');
     const definition = CATALOGUE.find((c) => c.id === id);
-    const s = { ...definition.series[0], ordered: true, points: [], exact: {}, details: {}, exactByIndex: [], detailsByIndex: [] };
+    const s = { ...definition.series[0], ordered: true, points: [], exact: {}, details: {}, partial: {}, exactByIndex: [], detailsByIndex: [] };
     const rows = [...dataset.points];
     const fromDate = new Date(data.period.from);
     const monthly = dataset.calendarMonths === true;
@@ -156,9 +157,10 @@ export function walletSeries(data, id) {
         const exact = decimal(p.value);
         const detail = exact === null ? 'No covered observations.' : key === 'activated'
             ? `MC ${p.mc_seqno} · ${dataset.intervalSeconds ? `interval ${dataset.intervalSeconds}s` : 'every MC'}`
-            : `${formatDate(date)} — ${formatDate(new Date((p.end_utime ?? p.utime + dataset.intervalSeconds) * 1000).toISOString())} UTC (end exclusive)${monthly ? ' · calendar-month unique wallets' : ''}`;
+            : `${formatDate(date)} — ${formatDate(new Date((p.end_utime ?? p.utime + dataset.intervalSeconds) * 1000).toISOString(), { seconds: Boolean(p.is_partial) })} UTC (end exclusive)${monthly ? ' · calendar-month unique wallets' : ''}${p.is_partial ? ' · partial' : ''}`;
         s.points.push([date, exact === null ? null : Number(exact)]);
         s.exact[date] = exact; s.details[date] = detail;
+        s.partial[date] = Boolean(p.is_partial);
         s.exactByIndex.push(exact); s.detailsByIndex.push(detail);
     }
     return s;

@@ -128,7 +128,16 @@ is `ui/wire.mjs`; cross-language tests compare Go encoding with this decoder.
    Daily/monthly activity and activations retain all buckets beyond the target
    point budget. Boundary buckets are whole aligned intervals. `coverageDays`
   identifies prepared days, `registry` identifies the frozen code registry.
-   Hourly/daily series bind to the same published run per day; monthly counts
+    Hourly/daily active-wallet points also carry exclusive `end_utime` and
+    `is_partial`. The current hour/day ends at the certified shard-time horizon,
+    and future buckets are absent. `active.coverageDays` is independent of
+    closed-day activation coverage. Sampled `active.average.partial` preserves
+    the partial-hour flag. The UI reports hourly coverage in hours, not days.
+    Active series select one committed run per day from `wallet_days` and
+    `wallet_live_days`, preferring the furthest certified cutoff. The API role
+    needs SELECT on `gramstat.wallet_live_days`; raw messages are never read by
+    the API. Current-day publication cannot certify a complete calendar month.
+    Monthly counts
    retain all contributing verified day versions in `wallet_months`.
    The API role needs SELECT on that scalar table. Unverified preparations are
   excluded and missing days are gaps. The source epoch is fixed server-side;
