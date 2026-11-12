@@ -110,11 +110,20 @@ a {
     background: var(--background); border-bottom: 1px solid var(--line);
     --time-glass: color-mix(in srgb, var(--plot) 88%, transparent);
     --time-hover: color-mix(in srgb, var(--blue) 12%, transparent); }
-.page-navigation { display: flex; align-items: center; margin-right: auto; gap: 3px; background: var(--plot); padding: 3px; }
+.page-navigation { display: flex; align-items: center; gap: 3px; background: var(--plot); padding: 3px; }
 .page-navigation a { display: block; padding: 9px 12px; color: var(--secondary); text-decoration: none; font-size: 14px; font-weight: 600; white-space: nowrap; }
 .page-navigation a:hover { color: var(--heading); background: var(--time-hover); }
 .page-navigation a[aria-current='page'] { color: var(--link); background: var(--background); box-shadow: 0 1px 3px #0002; }
 .page-navigation a:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.brand-dock { flex: none; height: 44px; margin-right: auto; }
+.scroll-brand { position: fixed; top: 0; left: 0; z-index: 11; display: flex; align-items: center; gap: 12px;
+    color: var(--heading); font-size: 28px; font-weight: 900; letter-spacing: normal; line-height: normal;
+    transform-origin: top left; pointer-events: none; will-change: transform; }
+.scroll-brand img { display: block; width: 27px; height: 27px; flex: none; }
+.scroll-brand-text { position: relative; display: block; }
+.scroll-brand-full { display: block; opacity: var(--brand-full-opacity, 1); }
+.scroll-brand-short { position: absolute; top: 50%; left: 0; width: max-content; opacity: var(--brand-short-opacity, 0); transform: translateY(-50%); }
+.masthead.brand-animated > img, .masthead.brand-animated > h1 { opacity: 0; }
 .time-controls button, .time-picker summary, .time-panel input {
     font: inherit; color: inherit; background: transparent; border: 0; border-radius: 0; padding: 10px 14px;
 }
@@ -191,7 +200,9 @@ a {
 @media (max-width: 680px) {
     .time-controls { flex-wrap: wrap; gap: 8px; }
     html { scroll-padding-top: 150px; }
-    .range-navigation { flex-basis: 100%; height: 58px; order: 1; }
+    .page-navigation a { font-size: 12px; padding: 9px 7px; }
+    .scroll-brand { gap: 14px; font-size: 26px; }
+    .range-navigation { flex-basis: 100%; height: auto; min-height: 58px; order: 1; }
     .time-picker { flex: 1; }
     .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }
     #range-label { flex: 1; overflow: visible; text-overflow: clip; text-align: center; line-height: 1.5; }
@@ -199,6 +210,15 @@ a {
     .time-picker summary .time-icon { display: none; }
     #range-complete { order: 1; flex-basis: 100%; text-align: center; }
     .time-panel { top: calc(100% + 8px); max-height: min(65dvh, calc(100dvh - 260px)); }
+}
+@media (max-width: 400px) {
+    .time-controls { gap: 4px; }
+    .page-navigation a { padding-inline: 3px; }
+    #theme-toggle { min-width: 36px; padding-inline: 8px; }
+}
+@media print {
+    .scroll-brand { display: none; }
+    .masthead.brand-animated > img, .masthead.brand-animated > h1 { opacity: 1; }
 }
 .source-status,
 .chart-status {
