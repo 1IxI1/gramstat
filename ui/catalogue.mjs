@@ -155,7 +155,7 @@ export const CATALOGUE = [
         stakeRegistry: true,
     }),
     chart('actions_total', 'Total actions', 'activity', '', {
-        kind: 'stacked-area', step: true, zero: true, integer: true, layout: 'full',
+        kind: 'stacked-area', zero: true, integer: true, layout: 'full',
         description: 'Successful recognized operations per UTC day. Nested operations are counted only when none of their ancestors is an included operation type. Technical calls, deployments, unknown operations and validator elections are excluded. Categories can be expanded to select individual types; Total is the sum of selected types. Filtering does not reclassify nested operations.',
         monthlyDescription: 'Successful recognized operations per UTC calendar month, summed from covered daily counts. Total is the sum of selected types; filtering does not reclassify nested operations.',
     }),
