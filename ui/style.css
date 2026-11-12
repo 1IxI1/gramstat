@@ -57,7 +57,7 @@ h1, h2, .readout-value { color: var(--heading); }
 .wallet-registry-link, .wallet-registry-table a, .time-picker summary strong, .calendar-weekdays { color: var(--link); }
 .chart-legend, .tooltip-note, .section-date, .readout-unit, .readout-detail,
 .chart-toggle button, footer, .footer-quote { color: var(--muted); }
-.masthead, .chart-tooltip, .tooltip-total { border-color: var(--line); }
+.chart-tooltip, .tooltip-total { border-color: var(--line); }
 .axis-label, .chart-empty { fill: var(--muted); }
 .grid-line { stroke: light-dark(#dde7ef, #93a5b82e); }
 .event-marker-label { stroke: var(--plot); }
@@ -304,7 +304,6 @@ a,
     justify-content: center;
     gap: 12px;
     padding-bottom: 23px;
-    border-bottom: 1px solid #dce1e2;
 }
 .masthead-logo { width: 27px; height: 27px; flex: none; }
 h1 {
