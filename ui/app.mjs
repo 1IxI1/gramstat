@@ -724,7 +724,10 @@ async function loadRange() {
     controller?.abort();
     const request = new AbortController();
     controller = request;
-    const timeout = setTimeout(() => request.abort(), 25000);
+    // The full-history type breakdown is still compact, but on a slow link its
+    // transfer competes with the other chart groups and starts in a later wave.
+    // Keep range changes immediately cancellable without cutting off that body.
+    const timeout = setTimeout(() => request.abort(), 75000);
     loading = true;
     pendingCharts.clear();
     for (const group of ['wallets', 'supply', 'inflation', 'accounts', 'observations']) pendingCharts.add(group);
