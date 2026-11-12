@@ -116,23 +116,13 @@ a {
 .page-navigation a[aria-current='page'] { color: var(--link); background: var(--background); box-shadow: 0 1px 3px #0002; }
 .page-navigation a:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .brand-dock { flex: none; height: 44px; margin-right: auto; }
-.scroll-brand { position: fixed; top: 0; left: 0; z-index: 11; display: flex; align-items: center; gap: 12px;
+.scroll-brand { position: fixed; top: 0; left: 0; z-index: 11;
     color: var(--heading); font-size: 28px; font-weight: 900; letter-spacing: normal; line-height: normal;
     transform-origin: top left; pointer-events: none; will-change: transform; }
-.scroll-brand.motion-ready { transition: transform 420ms cubic-bezier(.2, .7, .2, 1); }
-.scroll-brand img { display: block; width: 27px; height: 27px; flex: none; }
-.scroll-brand-text { position: relative; display: block; }
-.scroll-brand-word { display: inline-block; white-space: nowrap; }
-.scroll-brand-fold, .scroll-brand-tail { display: inline-block; overflow: hidden; white-space: pre; vertical-align: bottom; }
-.scroll-brand-tail { width: 0; }
-.scroll-brand.motion-ready .scroll-brand-text { transition: transform 420ms cubic-bezier(.2, .7, .2, 1); }
-.scroll-brand.motion-ready .scroll-brand-fold { transition: width 420ms cubic-bezier(.2, .7, .2, 1), opacity 420ms cubic-bezier(.2, .7, .2, 1); }
-.scroll-brand.motion-ready .scroll-brand-tail { transition: width 420ms cubic-bezier(.2, .7, .2, 1); }
-.scroll-brand.motion-ready .scroll-brand-space { transition: font-size 420ms cubic-bezier(.2, .7, .2, 1); }
+.scroll-brand img { position: absolute; top: 0; left: 0; width: 27px; height: 27px; }
+.scroll-brand-part, .scroll-brand-probe { position: absolute; top: 0; left: 0; white-space: pre; }
+.scroll-brand-probe { visibility: hidden; }
 .masthead.brand-animated > img, .masthead.brand-animated > h1 { opacity: 0; }
-@media (prefers-reduced-motion: reduce) {
-    .scroll-brand.motion-ready, .scroll-brand.motion-ready .scroll-brand-text, .scroll-brand.motion-ready .scroll-brand-fold, .scroll-brand.motion-ready .scroll-brand-tail, .scroll-brand.motion-ready .scroll-brand-space { transition: none; }
-}
 .time-controls button, .time-picker summary, .time-panel input {
     font: inherit; color: inherit; background: transparent; border: 0; border-radius: 0; padding: 10px 14px;
 }
@@ -210,7 +200,7 @@ a {
     .time-controls { flex-wrap: wrap; gap: 8px; }
     html { scroll-padding-top: 150px; }
     .page-navigation a { font-size: 12px; padding: 9px 7px; }
-    .scroll-brand { gap: 14px; font-size: 26px; }
+    .scroll-brand { font-size: 26px; }
     .range-navigation { flex-basis: 100%; height: auto; min-height: 58px; order: 1; }
     .time-picker { flex: 1; }
     .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }

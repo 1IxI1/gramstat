@@ -1,135 +1,142 @@
-// Keep the semantic H1 in the document. A visual copy moves from its original
-// position into the sticky controls as the heading scrolls out of view.
+// The real H1 stays in the document. Its visual copy animates as independent
+// glyph groups, so abbreviation never changes layout or clips half-words.
 const masthead = document.querySelector('.masthead');
 const title = masthead.querySelector('h1');
 const icon = masthead.querySelector('.masthead-logo');
 const controls = document.querySelector('.time-controls');
 const dock = controls.querySelector('.brand-dock');
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 const brand = document.createElement('div');
 brand.className = 'scroll-brand';
 brand.setAttribute('aria-hidden', 'true');
 brand.style.visibility = 'hidden';
 const mark = icon.cloneNode();
-const text = document.createElement('span');
-text.className = 'scroll-brand-text';
-// The visible wordmark folds its long words into T + O + N + Stats. The
-// original H1 remains unchanged for screen readers and non-JS visitors.
-const folds = [];
-const stems = ['T', 'O', 'N', 'Stat'];
-const remainders = ['he', 'pen', 'etwork', 'istics'];
-const shrinkingSpaces = [];
-let tail;
-for (const [i, initial] of stems.entries()) {
-    const word = document.createElement('span');
-    word.className = 'scroll-brand-word';
-    word.append(document.createTextNode(initial));
-    const fold = document.createElement('span');
-    fold.className = 'scroll-brand-fold';
-    fold.textContent = remainders[i];
-    folds.push(fold);
-    word.append(fold);
-    if (i === 3) {
-        tail = document.createElement('span');
-        tail.className = 'scroll-brand-tail';
-        tail.textContent = 's';
-        word.append(tail);
-    }
-    text.append(word);
-    if (i < 3) {
-        const space = document.createElement('span');
-        space.className = 'scroll-brand-space';
-        space.textContent = ' ';
-        if (i < 2) shrinkingSpaces.push(space);
-        text.append(space);
-    }
-}
-brand.append(mark, text);
+brand.append(mark);
 document.body.append(brand);
 
+const compact = 'TON Stats';
+// Source spans, then their destinations in the compact wordmark. The long
+// pieces slide left and fade; the surviving letters move continuously.
+const parts = [
+    { text: 'T', from: [0, 1], to: [0, 1] },
+    { text: 'he ', from: [1, 4] },
+    { text: 'O', from: [4, 5], to: [1, 2] },
+    { text: 'pen ', from: [5, 9] },
+    { text: 'N', from: [9, 10], to: [2, 3] },
+    { text: 'etwork ', from: [10, 17] },
+    { text: 'Stat', from: [17, 21], to: [4, 8] },
+    { text: 'istics', from: [21, 27] },
+    { text: 's', to: [8, 9], incoming: true },
+].map(part => {
+    const node = document.createElement('span');
+    node.className = 'scroll-brand-part';
+    node.textContent = part.text;
+    brand.append(node);
+    return { ...part, node };
+});
+
+let geometry;
+let shownProgress;
 let frame = 0;
-let brandHeight = 0;
-let controlMargin = 0;
-let initialized = false;
-let foldWidths;
-let tailWidth;
-let fullFontSize;
-let compactTextShift;
+let previousFrame = 0;
+const clamp = value => Math.max(0, Math.min(1, value));
+const ease = value => value * value * (3 - 2 * value);
+
 function measure() {
+    // If the copy changes, leave the original heading visible instead of
+    // showing a stale abbreviation.
+    if (title.textContent !== 'The Open Network Statistics') return;
     const titleRect = title.getBoundingClientRect();
     const iconRect = icon.getBoundingClientRect();
-    const compactScale = innerWidth <= 680 ? 0.55 : 0.7;
-    // Word fragments have slightly different kerning from a single text node.
-    // Reserve that difference so the desktop headline stays on one line.
-    text.style.width = `${titleRect.width + (titleRect.height < 40 ? 8 : 0)}px`;
-    text.style.height = `${titleRect.height}px`;
+    const sourceText = title.firstChild;
     const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+    probe.className = 'scroll-brand-probe';
+    probe.textContent = compact;
     brand.append(probe);
-    const width = value => { probe.textContent = value; return probe.getBoundingClientRect().width; };
-    foldWidths = remainders.map(width);
-    const stemWidth = stems.map(width).reduce((sum, value) => sum + value, 0);
-    tailWidth = width('s');
-    const shortSpaceWidth = width(' ');
+    const probeRect = probe.getBoundingClientRect();
+    const range = document.createRange();
+    const pieceRect = (node, bounds) => {
+        range.setStart(node, bounds[0]);
+        range.setEnd(node, bounds[1]);
+        return range.getBoundingClientRect();
+    };
+    const gap = innerWidth <= 680 ? 14 : 12;
+    const scale = innerWidth <= 680 ? 0.55 : 0.7;
+    const compactTop = (titleRect.height - probeRect.height) / 2;
+    for (const part of parts) {
+        const from = part.from ? pieceRect(sourceText, part.from) : pieceRect(sourceText, [21, 27]);
+        const to = part.to ? pieceRect(probe.firstChild, part.to) : null;
+        part.startX = from.left - iconRect.left;
+        part.startY = from.top - titleRect.top;
+        part.endX = to ? iconRect.width + gap + to.left - probeRect.left : part.startX - 30;
+        part.endY = to ? compactTop + to.top - probeRect.top : part.startY - 4;
+    }
+    // The new final 's' emerges beside 'Stat', not at its eventual location.
+    const stat = parts.find(part => part.text === 'Stat');
+    const statWidth = pieceRect(sourceText, stat.from).width;
+    const incoming = parts.at(-1);
+    incoming.startX = stat.startX + statWidth;
+    incoming.startY = stat.startY;
     probe.remove();
-    fullFontSize = parseFloat(getComputedStyle(brand).fontSize);
-    compactTextShift = Math.max(0, (titleRect.height - fullFontSize * 1.2) / 2);
-    const gap = parseFloat(getComputedStyle(brand).gap);
-    const dockWidth = Math.ceil((iconRect.width + gap + stemWidth + shortSpaceWidth + tailWidth) * compactScale);
-    if (dock.style.width !== `${dockWidth}px`) dock.style.width = `${dockWidth}px`;
-    brandHeight = brand.offsetHeight;
-    controlMargin = parseFloat(getComputedStyle(controls).marginTop);
+    geometry = {
+        x: iconRect.left,
+        start: scrollY + titleRect.top,
+        end: scrollY + masthead.getBoundingClientRect().bottom + parseFloat(getComputedStyle(controls).marginTop),
+        height: titleRect.height,
+        iconY: iconRect.top - titleRect.top,
+        scale,
+    };
+    brand.style.width = `${iconRect.width + gap + titleRect.width}px`;
+    brand.style.height = `${titleRect.height}px`;
+    mark.style.top = `${geometry.iconY}px`;
+    dock.style.width = `${Math.ceil((iconRect.width + gap + probeRect.width) * scale)}px`;
     schedule();
 }
 
-function update() {
-    frame = 0;
-    const titleRect = title.getBoundingClientRect();
-    const iconRect = icon.getBoundingClientRect();
-    const mastheadRect = masthead.getBoundingClientRect();
-    const compactScale = innerWidth <= 680 ? 0.55 : 0.7;
-    const start = scrollY + titleRect.top;
-    // The sticky row reaches the viewport edge at the end of the transition.
-    const end = scrollY + mastheadRect.bottom + controlMargin;
-    const progress = Math.max(0, Math.min(1, (scrollY - start) / Math.max(1, end - start)));
-    const t = reducedMotion.matches ? Number(progress === 1) : progress * progress * (3 - 2 * progress);
-    const scale = 1 - t * (1 - compactScale);
+function render(progress) {
+    const { x, start, end, height, scale: compactScale } = geometry;
+    const t = ease(progress);
+    const size = 1 - (1 - compactScale) * t;
     const dockRect = dock.getBoundingClientRect();
-    const x = iconRect.left + (dockRect.left - iconRect.left) * t;
-    // The title stays at the top edge while shrinking; only at the end does
-    // it settle vertically into the sticky row beside the page tabs.
-    const dockY = dockRect.top + (dockRect.height - brandHeight * compactScale) / 2;
-    const settle = Math.max(0, Math.min(1, (progress - 0.8) / 0.2));
-    const y = progress > 0 ? 8 + (dockY - 8) * settle : titleRect.top;
-    brand.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
-    // Fade the long letter tails before folding them away, so none of the
-    // intermediate frames show clipped half-words or lose the visible title.
-    const fade = reducedMotion.matches ? Number(progress === 1) : Math.min(1, progress / 0.2);
-    const blend = reducedMotion.matches ? fade : Math.max(0, Math.min(1, (progress - 0.15) / 0.15));
-    for (const [i, fold] of folds.entries()) {
-        fold.style.width = `${foldWidths[i] * (1 - blend)}px`;
-        fold.style.opacity = String(1 - fade);
-    }
-    for (const space of shrinkingSpaces) space.style.fontSize = `${fullFontSize * (1 - blend)}px`;
-    tail.style.width = `${tailWidth * blend}px`;
-    text.style.transform = `translateY(${compactTextShift * blend}px)`;
+    const dockY = dockRect.top + (dockRect.height - height * compactScale) / 2;
+    const edgeY = scrollY < start ? start - scrollY : Math.min(8, scrollY - start);
+    const settle = clamp((progress - 0.8) / 0.2);
+    const y = edgeY + (dockY - edgeY) * settle;
+    const left = x + (dockRect.left - x) * t;
+    brand.style.transform = `translate3d(${left}px, ${y}px, 0) scale(${size})`;
     brand.style.opacity = dockRect.bottom <= 0 ? '0' : '1';
+    for (const part of parts) {
+        const px = part.startX + (part.endX - part.startX) * t;
+        const py = part.startY + (part.endY - part.startY) * t;
+        part.node.style.transform = `translate3d(${px}px, ${py}px, 0)`;
+        part.node.style.opacity = part.incoming ? String(clamp((progress - 0.35) / 0.35))
+            : part.to ? '1' : String(1 - clamp(progress / 0.55));
+    }
     brand.style.visibility = 'visible';
     masthead.classList.add('brand-animated');
-    // First paint at the real heading position. Later scroll jumps can cross
-    // the entire threshold in one wheel event; CSS interpolates that jump.
-    if (!initialized) {
-        initialized = true;
-        requestAnimationFrame(() => brand.classList.add('motion-ready'));
+}
+
+function tick(now) {
+    frame = 0;
+    if (!geometry) return;
+    const target = clamp((scrollY - geometry.start) / Math.max(1, geometry.end - geometry.start));
+    if (shownProgress === undefined) shownProgress = target;
+    else {
+        // A wheel event can arrive after a long idle period. Don't treat that
+        // idle time as animation time or the first frame will jump halfway.
+        const elapsed = Math.min(24, now - (previousFrame || now));
+        shownProgress += (target - shownProgress) * (1 - Math.exp(-elapsed / 175));
+        if (Math.abs(target - shownProgress) < 0.001) shownProgress = target;
     }
+    previousFrame = now;
+    render(shownProgress);
+    if (shownProgress !== target) schedule();
 }
 
 function schedule() {
-    if (!frame) frame = requestAnimationFrame(update);
+    if (!frame) frame = requestAnimationFrame(tick);
 }
 addEventListener('scroll', schedule, { passive: true });
 addEventListener('resize', measure);
-reducedMotion.addEventListener('change', schedule);
 document.fonts.ready.then(measure);
 measure();
