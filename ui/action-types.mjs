@@ -18,6 +18,7 @@ export const ACTION_GROUPS = [
 export const ACTION_TYPES = ACTION_GROUPS.flatMap(group => group.types);
 const knownTypes = new Set(ACTION_TYPES);
 const integer = value => typeof value === 'string' && /^\d+$/.test(value);
+const selectionLabel = (label, enabled, total) => label + (enabled > 0 && enabled < total ? ` (${enabled}/${total})` : '');
 
 export function excludedActionTypes(params) {
     return new Set((params.get('excludeActions') || '').split(',').filter(type => knownTypes.has(type)));
@@ -56,7 +57,7 @@ export function totalActionSeries(raw, excluded = new Set()) {
     const groups = ACTION_GROUPS.flatMap(group => {
         const types = group.types.filter(type => !excluded.has(type));
         if (!types.length) return [];
-        const s = { ...group, points: [], exact: {}, partial: {}, details: {}, fillOpacity: 0.42 };
+        const s = { ...group, label: selectionLabel(group.label, types.length, group.types.length), points: [], exact: {}, partial: {}, details: {}, fillOpacity: 0.42 };
         for (const [date] of reference.points) {
             const values = types.map(type => lookup.get(type)?.exact[date]);
             const exact = values.every(integer) ? values.reduce((sum, v) => sum + BigInt(v), 0n).toString() : null;
@@ -105,7 +106,8 @@ export function createActionLegend(host, getExcluded, onChange) {
         const toggle = make('button', 'legend-item action-category-toggle');
         toggle.type = 'button'; toggle.dataset.actionGroup = group.id;
         const swatch = make('span', 'swatch'); swatch.style.backgroundColor = group.color;
-        toggle.append(swatch, document.createTextNode(group.label)); section.append(toggle);
+        const caption = document.createTextNode(group.label);
+        toggle.append(swatch, caption); section.append(toggle);
         toggle.addEventListener('click', () => {
             const excluded = getExcluded();
             const selected = group.types.every(type => !excluded.has(type));
@@ -118,7 +120,7 @@ export function createActionLegend(host, getExcluded, onChange) {
         summary.title = `Choose types in ${group.label}`;
         const panel = make('div', 'action-legend-panel');
         panel.id = `action-types-${group.id}`; summary.setAttribute('aria-controls', panel.id);
-        const menu = { section, dropdown, summary, panel, toggle, types: group.types }; menus.push(menu);
+        const menu = { section, dropdown, summary, panel, toggle, caption, label: group.label, types: group.types }; menus.push(menu);
         const opened = () => {
             if (dropdown.open) {
                 for (const other of menus) if (other !== menu) other.dropdown.open = false;
@@ -154,10 +156,12 @@ export function createActionLegend(host, getExcluded, onChange) {
         const excluded = getExcluded();
         all.textContent = excluded.size === 0 ? 'Select none' : 'Select all';
         for (const { input, type } of controls) input.checked = !excluded.has(type);
-        for (const { toggle, types } of menus) {
+        for (const { toggle, caption, label, types } of menus) {
             const enabled = types.filter(type => !excluded.has(type)).length;
+            caption.data = selectionLabel(label, enabled, types.length);
             toggle.setAttribute('aria-pressed', enabled === types.length ? 'true' : enabled === 0 ? 'false' : 'mixed');
             toggle.title = `${enabled} of ${types.length} types selected`;
         }
+        menus.forEach(position);
     };
 }

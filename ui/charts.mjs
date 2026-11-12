@@ -564,7 +564,24 @@ export class TimeChart {
         });
 
         this.tooltip.replaceChildren(html('strong', 'tooltip-date', this.config.periodLabel?.(row.date) ?? formatDate(row.date, { seconds: this.config.id === 'supply' || this.config.id === 'activated_wallets' || this.config.round })));
-        (this.config.id === 'accounts' ? [...this.config.series].reverse() : this.config.series).forEach((item) => {
+        const tooltipSeries = [...this.config.series];
+        const exactFor = item => item.ordered ? item.exactByIndex?.[this.selectedIndex] : item.exact?.[row.date];
+        const rawShareTotal = this.config.tooltipShare ? exactFor(this.config.series.find(s => s.overlay) || {}) : null;
+        const shareTotal = typeof rawShareTotal === 'string' && /^\d+$/.test(rawShareTotal) ? BigInt(rawShareTotal) : 0n;
+        if (this.config.id === 'accounts') tooltipSeries.reverse();
+        if (this.config.tooltipSort === 'value-desc') tooltipSeries.sort((a, b) => {
+            // Only the tooltip changes order. Stack geometry and legend remain
+            // stable, and the independent Total stays below the categories.
+            if (Boolean(a.overlay) !== Boolean(b.overlay)) return a.overlay ? 1 : -1;
+            const ae = exactFor(a), be = exactFor(b);
+            if (typeof ae === 'string' && /^\d+$/.test(ae) && typeof be === 'string' && /^\d+$/.test(be)) {
+                const av = BigInt(ae), bv = BigInt(be);
+                return av === bv ? 0 : av > bv ? -1 : 1;
+            }
+            const av = row.values[this.config.series.indexOf(a)], bv = row.values[this.config.series.indexOf(b)];
+            return av === null ? (bv === null ? 0 : 1) : bv === null ? -1 : bv - av;
+        });
+        tooltipSeries.forEach((item) => {
             const seriesIndex = this.config.series.indexOf(item);
             const entry = html('div', `tooltip-row${item.overlay ? ' tooltip-total' : ''}`);
             const label = html(item.emphasis ? 'strong' : 'span', 'tooltip-label');
@@ -572,15 +589,22 @@ export class TimeChart {
             swatch.style.setProperty('--series-color', item.color);
             label.append(swatch, document.createTextNode(item.label));
             if (item.demo) label.append(demoMark());
-            const exact = item.ordered ? item.exactByIndex?.[this.selectedIndex] : item.exact?.[row.date];
+            const exact = exactFor(item);
+            let share = '';
+            if (shareTotal > 0n && typeof exact === 'string' && /^\d+$/.test(exact)) {
+                const count = BigInt(exact);
+                const hundredths = (count * 10000n + shareTotal / 2n) / shareTotal;
+                const percent = count > 0n && hundredths === 0n ? '<0.01' : formatTooltipExact(`${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`);
+                share = ` (${percent}%)`;
+            }
             entry.append(
                 label,
                 html(
                     'span',
                     'tooltip-value',
-                    exact != null
-                        ? `${formatTooltipExact(exact)} ${this.config.unit}`
-                        : formatValue(row.values[seriesIndex], this.config.unit),
+                    (exact != null
+                         ? `${formatTooltipExact(exact)} ${this.config.unit}`
+                        : formatValue(row.values[seriesIndex], this.config.unit)).trimEnd() + share,
                 ),
             );
             this.tooltip.append(entry);
