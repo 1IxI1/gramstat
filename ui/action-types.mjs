@@ -102,13 +102,23 @@ export function createActionLegend(host, getExcluded, onChange) {
     };
     for (const group of ACTION_GROUPS) {
         const section = make('div', 'action-category');
+        const toggle = make('button', 'legend-item action-category-toggle');
+        toggle.type = 'button'; toggle.dataset.actionGroup = group.id;
+        const swatch = make('span', 'swatch'); swatch.style.backgroundColor = group.color;
+        toggle.append(swatch, document.createTextNode(group.label)); section.append(toggle);
+        toggle.addEventListener('click', () => {
+            const excluded = getExcluded();
+            const selected = group.types.every(type => !excluded.has(type));
+            for (const type of group.types) selected ? excluded.add(type) : excluded.delete(type);
+            onChange();
+        });
         const dropdown = make('details', 'action-legend');
         const summary = make('summary', '', '▾');
         summary.setAttribute('aria-label', `Types in ${group.label}`);
         summary.title = `Choose types in ${group.label}`;
         const panel = make('div', 'action-legend-panel');
         panel.id = `action-types-${group.id}`; summary.setAttribute('aria-controls', panel.id);
-        const menu = { section, dropdown, summary, panel }; menus.push(menu);
+        const menu = { section, dropdown, summary, panel, toggle, types: group.types }; menus.push(menu);
         const opened = () => {
             if (dropdown.open) {
                 for (const other of menus) if (other !== menu) other.dropdown.open = false;
@@ -119,20 +129,16 @@ export function createActionLegend(host, getExcluded, onChange) {
             e.preventDefault(); dropdown.open = !dropdown.open; opened();
         });
         dropdown.addEventListener('toggle', opened);
-        const checkbox = (labelText, types, container, color, key) => {
+        for (const type of group.types) {
             const label = make('label', 'action-type-choice');
-            const input = make('input', ''); input.type = 'checkbox'; input.dataset.actionType = key;
-            label.append(input);
-            if (color) { const swatch = make('span', 'swatch'); swatch.style.backgroundColor = color; label.append(swatch); }
-            label.append(document.createTextNode(labelText)); container.append(label);
+            const input = make('input', ''); input.type = 'checkbox'; input.dataset.actionType = type;
+            label.append(input, document.createTextNode(type)); panel.append(label);
             input.addEventListener('change', () => {
-                for (const type of types) input.checked ? getExcluded().delete(type) : getExcluded().add(type);
+                input.checked ? getExcluded().delete(type) : getExcluded().add(type);
                 onChange();
             });
-            controls.push({ input, types, category: container === section ? section : null });
-        };
-        checkbox(group.label, group.types, section, group.color, group.id);
-        for (const type of group.types) checkbox(type, [type], panel, null, type);
+            controls.push({ input, type });
+        }
         dropdown.append(summary, panel); section.append(dropdown); host.append(section);
     }
     host.append(all);
@@ -147,14 +153,11 @@ export function createActionLegend(host, getExcluded, onChange) {
     return () => {
         const excluded = getExcluded();
         all.textContent = excluded.size === 0 ? 'Select none' : 'Select all';
-        for (const { input, types, category } of controls) {
+        for (const { input, type } of controls) input.checked = !excluded.has(type);
+        for (const { toggle, types } of menus) {
             const enabled = types.filter(type => !excluded.has(type)).length;
-            input.checked = enabled === types.length;
-            input.indeterminate = enabled > 0 && enabled < types.length;
-            if (category) {
-                category.classList.toggle('is-disabled', enabled === 0);
-                input.parentElement.title = `${enabled} of ${types.length} types selected`;
-            }
+            toggle.setAttribute('aria-pressed', enabled === types.length ? 'true' : enabled === 0 ? 'false' : 'mixed');
+            toggle.title = `${enabled} of ${types.length} types selected`;
         }
     };
 }
