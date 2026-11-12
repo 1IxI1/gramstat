@@ -524,8 +524,7 @@ h3 {
 .chart-surface:focus-visible {
     outline-offset: 3px;
 }
-.has-explanation .chart-svg { visibility: hidden; }
-.has-explanation .chart-tooltip { display: none; }
+.chart-surface.has-explanation { touch-action: auto; user-select: text; }
 .chart-explanation {
     position: absolute;
     inset: 0;

@@ -416,8 +416,8 @@ for (const definition of CATALOGUE) {
     if (definition.registryTerm) card.append(walletRegistry.description(definition));
     if (definition.stakeRegistry) card.append(stakeRegistry.button());
     $(definition.container || `${definition.section}-charts`).append(card);
-    const chart = new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
-    cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, chart, card, expand, heading, average, averageValue });
+    const chart = definition.emptyMessage ? null : new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
+    cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, surface, chart, card, expand, heading, average, averageValue });
 }
 
 const expandedDialog = element('dialog', 'expanded-chart');
@@ -441,7 +441,7 @@ function syncExpandedChart(reload = true) {
     if (previous) {
         expandedDialog.close();
         chartPlaceholder.replaceWith(previous.card);
-        previous.chart.surface.append(previous.expand);
+        previous.surface.append(previous.expand);
         previous.expand.textContent = '⛶';
         previous.expand.setAttribute('aria-label', `Expand ${previous.definition.title}`);
         previous.expand.title = 'Expand chart';
@@ -640,7 +640,7 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, s.emphasis ? element('strong', '', s.label) : document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+        state.chart?.update({ ...definition, series, loading, allSeriesHidden: allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
                 id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
                 label: 'Map snapshot', color: 'var(--text)', clamp: true, position: 'bottom',
