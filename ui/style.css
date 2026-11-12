@@ -35,7 +35,7 @@
 }
 :root[data-theme='light'] { color-scheme: light; }
 :root[data-theme='dark'] { color-scheme: dark; }
-#theme-toggle { margin-right: auto; min-width: 44px; font-size: 19px; line-height: 1; }
+#theme-toggle { min-width: 44px; font-size: 19px; line-height: 1; }
 
 /* Shared surfaces and labels also cover SVG charts and modal views. */
 :root {
@@ -79,7 +79,7 @@ h1, h2, .readout-value { color: var(--heading); }
 }
 html {
     scroll-behavior: smooth;
-    scroll-padding-top: 16px;
+    scroll-padding-top: 84px;
 }
 body {
     margin: 0;
@@ -105,9 +105,16 @@ a {
     border-radius: 3px;
     color: inherit;
 }
-.time-controls { display: flex; align-items: center; justify-content: flex-end; margin-top: 24px; gap: 12px; position: relative; z-index: 10;
+.time-controls { display: flex; align-items: center; justify-content: flex-end; margin: 24px calc(-1 * var(--gutter)) 0;
+    padding: 8px var(--gutter); gap: 12px; position: sticky; top: 0; z-index: 10;
+    background: var(--background); border-bottom: 1px solid var(--line);
     --time-glass: color-mix(in srgb, var(--plot) 88%, transparent);
     --time-hover: color-mix(in srgb, var(--blue) 12%, transparent); }
+.page-navigation { display: flex; align-items: center; margin-right: auto; gap: 3px; background: var(--plot); border-radius: 6px; padding: 3px; }
+.page-navigation a { display: block; padding: 9px 12px; color: var(--secondary); text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 4px; white-space: nowrap; }
+.page-navigation a:hover { color: var(--heading); background: var(--time-hover); }
+.page-navigation a[aria-current='page'] { color: var(--link); background: var(--background); box-shadow: 0 1px 3px #0002; }
+.page-navigation a:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .time-controls button, .time-picker summary, .time-panel input {
     font: inherit; color: inherit; background: transparent; border: 0; border-radius: 0; padding: 10px 14px;
 }
@@ -129,7 +136,7 @@ a {
 .time-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .time-picker summary strong { color: var(--link); font-size: 11px; font-weight: 600; letter-spacing: .04em; }
 #range-out { display: grid; place-items: center; }
-.time-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(1150px, 100%); display: grid;
+.time-panel { position: absolute; right: var(--gutter); top: calc(100% + 8px); width: min(1150px, calc(100% - 2 * var(--gutter))); display: grid;
     grid-template-columns: 1fr 1.2fr 1fr; background: var(--time-glass); backdrop-filter: blur(20px); box-shadow: 0 8px 30px #27343b20; }
 .range-calendar { padding: 16px; border-right: 1px solid var(--line); min-width: 0; }
 .calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -183,7 +190,7 @@ a {
 }
 @media (max-width: 680px) {
     .time-controls { flex-wrap: wrap; gap: 8px; }
-    .time-controls #theme-toggle { margin-right: auto; }
+    html { scroll-padding-top: 150px; }
     .range-navigation { flex-basis: 100%; height: 58px; order: 1; }
     .time-picker { flex: 1; }
     .time-picker summary { justify-content: center; font-size: 12px; white-space: normal; }
@@ -286,9 +293,10 @@ a,
 }
 
 .dashboard {
+    --gutter: 36px;
     max-width: 1540px;
     margin: auto;
-    padding: 28px 36px 20px;
+    padding: 28px var(--gutter) 20px;
 }
 .masthead {
     display: flex;
@@ -348,7 +356,7 @@ h1 {
 
 .analytics-section {
     padding-top: 29px;
-    scroll-margin-top: 8px;
+    scroll-margin-top: 84px;
 }
 .analytics-section + .analytics-section {
     margin-top: 31px;
@@ -744,7 +752,8 @@ footer {
 }
 @media (max-width: 1400px) {
     .dashboard {
-        padding: 24px;
+        --gutter: 24px;
+        padding: 24px var(--gutter);
     }
     .chart-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -760,7 +769,8 @@ footer {
 }
 @media (max-width: 800px) {
     .dashboard {
-        padding: 20px 18px 18px;
+        --gutter: 18px;
+        padding: 20px var(--gutter) 18px;
     }
     .masthead {
         gap: 14px;
@@ -781,9 +791,7 @@ footer {
     .chart-card.wide {
         grid-column: span 1;
     }
-    .analytics-section {
-        padding-top: 25px;
-    }
+    .analytics-section { padding-top: 25px; scroll-margin-top: 150px; }
     .analytics-section + .analytics-section {
         margin-top: 28px;
     }

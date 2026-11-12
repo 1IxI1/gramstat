@@ -15,7 +15,7 @@
         <script type="module" src="./app.mjs"></script>
     </head>
     <body>
-        <a class="skip-link" href="#gram-and-ton">Skip to charts</a>
+        <a class="skip-link" href="#accounts-section">Skip to charts</a>
         <div class="dashboard">
             <header class="masthead">
                 <img class="masthead-logo" src="./ton-mark.svg" alt="" aria-hidden="true" width="27" height="27" />
@@ -23,6 +23,10 @@
             </header>
 
             <div class="time-controls">
+                <nav class="page-navigation" aria-label="Statistics pages">
+                    <a href="?page=activity" data-page="activity" aria-current="page">Activity</a>
+                    <a href="?page=tokenomics" data-page="tokenomics">Tokenomics</a>
+                </nav>
                 <button id="theme-toggle" type="button" aria-label="Dark theme" aria-pressed="false" title="Switch theme">☾</button>
                 <div class="range-navigation">
                     <button id="range-prev" type="button" aria-label="Previous time range">‹</button>
@@ -87,54 +91,58 @@
             <p id="period-status" class="sr-only" aria-live="polite"></p>
 
             <main>
-                <section id="gram-and-ton" class="analytics-section" aria-labelledby="gram-title">
-                    <div class="section-heading">
-                        <h2 id="gram-title">GRAM and TON</h2>
-                    </div>
-                    <div id="gram-charts" class="chart-grid"></div>
-                </section>
-                <section id="wallets" class="analytics-section" aria-labelledby="wallets-title">
-                    <div class="section-heading">
-                        <h2 id="wallets-title">Wallets</h2>
-                    </div>
-                    <div id="wallet-charts" class="chart-grid"></div>
-                </section>
-                <section id="validators" class="analytics-section" aria-labelledby="validators-title">
-                    <div class="section-heading">
-                        <h2 id="validators-title">Validators</h2>
-                    </div>
-                    <div id="validator-charts" class="chart-grid"></div>
-                    <article id="validator-map" class="validator-map" aria-labelledby="validator-map-title" aria-busy="true">
-                        <div class="chart-heading">
-                            <h3 id="validator-map-title">Validator map</h3>
+                <div id="page-activity" class="page-content">
+                    <section id="accounts-section" class="analytics-section" aria-labelledby="accounts-title">
+                        <div class="section-heading"><h2 id="accounts-title">Accounts</h2></div>
+                        <div id="accounts-charts" class="chart-grid"></div>
+                    </section>
+                    <section id="wallets" class="analytics-section" aria-labelledby="wallets-title">
+                        <div class="section-heading"><h2 id="wallets-title">Wallets</h2></div>
+                        <div id="wallet-charts" class="chart-grid"></div>
+                    </section>
+                    <section id="transactions-section" class="analytics-section" aria-labelledby="transactions-title">
+                        <div class="section-heading"><h2 id="transactions-title">Transactions</h2></div>
+                        <div id="transaction-charts" class="chart-grid"></div>
+                    </section>
+                    <section id="activity" class="analytics-section" aria-labelledby="activity-title">
+                        <div class="section-heading">
+                            <h2 id="activity-title">Actions</h2>
+                            <div id="activity-interval" class="activity-tabs" role="tablist" aria-label="Actions interval">
+                                <button type="button" id="activity-section-daily" role="tab" aria-controls="activity-charts" aria-selected="true" data-mode="daily">Daily</button>
+                                <button type="button" id="activity-section-monthly" role="tab" aria-controls="activity-charts" aria-selected="false" tabindex="-1" data-mode="monthly">Monthly</button>
+                            </div>
                         </div>
-                        <p class="map-time"></p>
-                        <div class="map-surface">
-                            <svg viewBox="0 0 1000 500" role="group" aria-label="World map of validator locations">
-                                <g aria-hidden="true" class="map-geography">
-                                    <use href="./world-map.svg#land" class="map-land" />
-                                    <use href="./world-map.svg#borders" class="map-borders" />
-                                </g>
-                                <g class="map-points"></g>
-                            </svg>
-                            <p class="map-message" role="status">Loading locations…</p>
-                            <div class="map-tooltip" role="status" hidden></div>
-                        </div>
-                        <div class="map-countries" role="group" aria-label="Highlight validators by country"></div>
-                    </article>
-                    <div id="validator-geo-charts" class="chart-grid"></div>
-                </section>
-                <section id="activity" class="analytics-section" aria-labelledby="activity-title">
-                    <div class="section-heading">
-                        <h2 id="activity-title">Activity</h2>
-                        <div id="activity-interval" class="activity-tabs" role="tablist" aria-label="Activity interval">
-                            <button type="button" id="activity-section-daily" role="tab" aria-controls="activity-charts" aria-selected="true" data-mode="daily">Daily</button>
-                            <button type="button" id="activity-section-monthly" role="tab" aria-controls="activity-charts" aria-selected="false" tabindex="-1" data-mode="monthly">Monthly</button>
-                        </div>
-                    </div>
-                    <p class="activity-description">NFT and jetton transfers, swaps, mints, and deposits are tracked using Toncenter actions. Newly launched protocols may not be supported yet. To check whether an action is included in these metrics, open it on <a href="https://tonscan.org" target="_blank" rel="noopener noreferrer">tonscan.org</a>. If it is recognized there, it is included in the statistics. If not, it is not.</p>
-                    <div id="activity-charts" class="chart-grid" role="tabpanel" aria-labelledby="activity-section-daily"></div>
-                </section>
+                        <p class="activity-description">NFT and jetton transfers, swaps, mints, and deposits are tracked using Toncenter actions. Newly launched protocols may not be supported yet. To check whether an action is included in these metrics, open it on <a href="https://tonscan.org" target="_blank" rel="noopener noreferrer">tonscan.org</a>. If it is recognized there, it is included in the statistics. If not, it is not.</p>
+                        <div id="activity-charts" class="chart-grid" role="tabpanel" aria-labelledby="activity-section-daily"></div>
+                    </section>
+                </div>
+                <div id="page-tokenomics" class="page-content" hidden>
+                    <section id="gram-and-ton" class="analytics-section" aria-labelledby="gram-title">
+                        <div class="section-heading"><h2 id="gram-title">GRAM and TON</h2></div>
+                        <div id="gram-charts" class="chart-grid"></div>
+                    </section>
+                    <section id="validators" class="analytics-section" aria-labelledby="validators-title">
+                        <div class="section-heading"><h2 id="validators-title">Validators</h2></div>
+                        <div id="validator-charts" class="chart-grid"></div>
+                        <article id="validator-map" class="validator-map" aria-labelledby="validator-map-title" aria-busy="true">
+                            <div class="chart-heading"><h3 id="validator-map-title">Validator map</h3></div>
+                            <p class="map-time"></p>
+                            <div class="map-surface">
+                                <svg viewBox="0 0 1000 500" role="group" aria-label="World map of validator locations">
+                                    <g aria-hidden="true" class="map-geography">
+                                        <use href="./world-map.svg#land" class="map-land" />
+                                        <use href="./world-map.svg#borders" class="map-borders" />
+                                    </g>
+                                    <g class="map-points"></g>
+                                </svg>
+                                <p class="map-message" role="status">Loading locations…</p>
+                                <div class="map-tooltip" role="status" hidden></div>
+                            </div>
+                            <div class="map-countries" role="group" aria-label="Highlight validators by country"></div>
+                        </article>
+                        <div id="validator-geo-charts" class="chart-grid"></div>
+                    </section>
+                </div>
             </main>
             <noscript><p class="warning">Enable JavaScript to view the charts.</p></noscript>
             <footer>

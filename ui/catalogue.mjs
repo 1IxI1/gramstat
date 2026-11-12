@@ -70,7 +70,8 @@ export const CATALOGUE = [
         zero: true,
     }),
     chart('accounts', 'Accounts', 'gram', '', {
-        layout: 'wide',
+        container: 'accounts-charts',
+        layout: 'full',
         kind: 'stacked-area', step: true, integer: true, zero: true,
         series: [
             { ...series('frozen', 'Frozen'), color: 'light-dark(#4288b0, #65b5e5)' },
@@ -85,6 +86,8 @@ export const CATALOGUE = [
         ].join('\n'),
     }),
     chart('transactions', 'Transactions per day', 'gram', '', {
+        container: 'transaction-charts',
+        layout: 'full',
         averageUnit: 'tx/day',
         kind: 'bar', zero: true,
         description: 'Both masterchain (-1) and basechain (0) transactions. Transaction != action or logical event. In TON, average jetton transfer consists of 5 transactions.',

@@ -33,6 +33,48 @@ window.addEventListener('storage', event => {
     }
 });
 const cards = new Map();
+const pageLinks = [...document.querySelectorAll('.page-navigation a')];
+const chartPage = (id) => {
+    const definition = CATALOGUE.find((chart) => chart.id === id);
+    return definition && (definition.section === 'validator' || (definition.section === 'gram' && !['accounts', 'transactions'].includes(id))) ? 'tokenomics' : 'activity';
+};
+const pageFromURL = () => {
+    const params = new URLSearchParams(location.search);
+    if (params.has('chart') && CATALOGUE.some((chart) => chart.id === params.get('chart'))) return chartPage(params.get('chart'));
+    return params.get('page') === 'tokenomics' ? 'tokenomics' : 'activity';
+};
+let currentPage;
+function syncPageLinks(page) {
+    for (const link of pageLinks) {
+        const selected = link.dataset.page === page;
+        if (selected) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+        const url = new URL(location.href);
+        url.searchParams.set('page', link.dataset.page);
+        url.searchParams.delete('chart');
+        link.href = url;
+    }
+}
+function showPage(page, scroll = false) {
+    currentPage = page;
+    for (const name of ['activity', 'tokenomics']) $(`page-${name}`).hidden = name !== page;
+    document.querySelector('.skip-link').href = page === 'activity' ? '#accounts-section' : '#gram-and-ton';
+    syncPageLinks(page);
+    $('time-picker').open = false;
+    if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
+}
+showPage(pageFromURL());
+for (const link of pageLinks) link.addEventListener('click', (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (link.dataset.page === currentPage && !expandedId) return;
+    const url = new URL(location.href);
+    url.searchParams.set('page', link.dataset.page);
+    url.searchParams.delete('chart');
+    history.pushState(null, '', url);
+    syncExpandedChart(false);
+    showPage(link.dataset.page, true);
+});
 let readings;
 let loading = true;
 const pendingCharts = new Set();
@@ -116,7 +158,7 @@ async function loadActivity() {
         from: new Date(activeRange.from).toISOString().replace('.000Z', 'Z'),
         to: new Date(activeRange.to).toISOString().replace('.000Z', 'Z'),
         activity: mode,
-        maxPoints: String(Math.max(100, Math.min(1200, Math.round(cards.get('active_wallets_daily').chart.surface.clientWidth)))),
+        maxPoints: pointBudget('active_wallets_daily'),
     });
     try {
         const data = await getJSON(`/api/v1/wallets?${params}`, request.signal);
@@ -271,6 +313,7 @@ function applyRangeChoice(choice, { remember = true, historyMode, keepOpen = fal
         if (historyMode !== 'replace' && activeRange) history.pushState(null, '', url);
         else history.replaceState(null, '', url);
     }
+    syncPageLinks(currentPage);
     if (!keepOpen) $('time-picker').open = false;
     else drawCalendar();
     if (remember) {
@@ -439,6 +482,7 @@ expandedDialog.addEventListener('click', (event) => {
 });
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
+    showPage(pageFromURL());
     const choice = timeRangeFromURL(q);
     const changedActivity = activityMode !== activityFromURL();
     activityMode = activityFromURL();
@@ -635,6 +679,14 @@ function selection() {
     return { from, to };
 }
 
+function pointBudget(id) {
+    const surface = cards.get(id).chart.surface;
+    // Hidden pages have no layout width; request enough samples for the
+    // destination page so switching tabs does not silently reduce resolution.
+    const width = surface.clientWidth || document.querySelector('.page-content:not([hidden]) .chart-grid')?.clientWidth || innerWidth;
+    return String(Math.max(100, Math.min(1200, Math.round(width))));
+}
+
 function load() {
     sectionReadings = undefined;
     activitySource = undefined;
@@ -684,15 +736,14 @@ async function loadRange() {
             rounds: [],
         });
         render();
-        const budget = Math.max(100, Math.min(1200, Math.round(cards.get('supply').chart.surface.clientWidth)));
-        const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: String(budget) });
+        const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: pointBudget('supply') });
         const inflationParams = new URLSearchParams(supplyParams);
-        inflationParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('inflation').chart.surface.clientWidth)))));
+        inflationParams.set('maxPoints', pointBudget('inflation'));
         const accountsParams = new URLSearchParams(supplyParams);
-        accountsParams.set('maxPoints',String(Math.max(100,Math.min(1200,Math.round(cards.get('accounts').chart.surface.clientWidth)))));
+        accountsParams.set('maxPoints', pointBudget('accounts'));
         const walletParams = new URLSearchParams(supplyParams);
         walletParams.set('activity', activityMode);
-        walletParams.set('maxPoints', String(Math.max(100, Math.min(1200, Math.round(cards.get(expandedId === 'active_wallets_daily' ? 'active_wallets_daily' : 'activated_wallets').chart.surface.clientWidth)))));
+        walletParams.set('maxPoints', pointBudget(expandedId === 'active_wallets_daily' ? 'active_wallets_daily' : 'activated_wallets'));
         const chartTask = (group, path, accept) => async () => {
             const data = await getJSON(path, request.signal).catch((e) => ({ error: e.message }));
             if (id !== requestId) return;
