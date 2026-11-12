@@ -85,25 +85,35 @@ export function createActionLegend(host, getExcluded, onChange) {
         if (text !== undefined) el.textContent = text;
         return el;
     };
-    const dropdown = make('details', 'action-legend');
-    const summary = make('summary', '', 'Categories');
-    const panel = make('div', 'action-legend-panel');
+    host.classList.add('action-category-legend');
     const all = make('button', 'action-select-all', 'Select all'); all.type = 'button';
     all.addEventListener('click', () => { getExcluded().clear(); onChange(); });
-    panel.append(all);
-    const controls = [];
+    const controls = [], menus = [];
+    const position = ({ dropdown, panel }) => {
+        if (!dropdown.open) return;
+        panel.style.setProperty('--action-panel-shift', '0px');
+        const rect = panel.getBoundingClientRect();
+        panel.style.setProperty('--action-panel-shift', `${Math.max(16 - rect.left, Math.min(0, innerWidth - 16 - rect.right))}px`);
+    };
     for (const group of ACTION_GROUPS) {
-        const section = make('div', 'action-group');
-        const header = make('div', 'action-group-header');
-        const expand = make('button', 'action-group-expand', '▸'); expand.type = 'button';
-        expand.setAttribute('aria-label', `Expand ${group.label}`); expand.setAttribute('aria-expanded', 'false');
-        const children = make('div', 'action-type-list'); children.hidden = true;
-        children.id = `action-types-${group.id}`; expand.setAttribute('aria-controls', children.id);
-        expand.addEventListener('click', () => {
-            children.hidden = !children.hidden; expand.textContent = children.hidden ? '▸' : '▾';
-            expand.setAttribute('aria-expanded', String(!children.hidden));
-            expand.setAttribute('aria-label', `${children.hidden ? 'Expand' : 'Collapse'} ${group.label}`);
+        const section = make('div', 'action-category');
+        const dropdown = make('details', 'action-legend');
+        const summary = make('summary', '', '▾');
+        summary.setAttribute('aria-label', `Types in ${group.label}`);
+        summary.title = `Choose types in ${group.label}`;
+        const panel = make('div', 'action-legend-panel');
+        panel.id = `action-types-${group.id}`; summary.setAttribute('aria-controls', panel.id);
+        const menu = { section, dropdown, summary, panel }; menus.push(menu);
+        const opened = () => {
+            if (dropdown.open) {
+                for (const other of menus) if (other !== menu) other.dropdown.open = false;
+                position(menu);
+            }
+        };
+        summary.addEventListener('click', e => {
+            e.preventDefault(); dropdown.open = !dropdown.open; opened();
         });
+        dropdown.addEventListener('toggle', opened);
         const checkbox = (labelText, types, container, color, key) => {
             const label = make('label', 'action-type-choice');
             const input = make('input', ''); input.type = 'checkbox'; input.dataset.actionType = key;
@@ -114,25 +124,32 @@ export function createActionLegend(host, getExcluded, onChange) {
                 for (const type of types) input.checked ? getExcluded().delete(type) : getExcluded().add(type);
                 onChange();
             });
-            controls.push({ input, types });
+            controls.push({ input, types, category: container === section ? section : null });
         };
-        header.append(expand);
-        checkbox(group.label, group.types, header, group.color, group.id);
-        for (const type of group.types) checkbox(type, [type], children, null, type);
-        section.append(header, children); panel.append(section);
+        checkbox(group.label, group.types, section, group.color, group.id);
+        for (const type of group.types) checkbox(type, [type], panel, null, type);
+        dropdown.append(summary, panel); section.append(dropdown); host.append(section);
     }
-    dropdown.append(summary, panel); host.append(dropdown);
-    document.addEventListener('click', e => { if (!dropdown.contains(e.target)) dropdown.open = false; });
-    dropdown.addEventListener('keydown', e => {
-        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); dropdown.open = false; summary.focus(); }
+    host.append(all);
+    document.addEventListener('click', e => {
+        for (const menu of menus) if (!menu.section.contains(e.target)) menu.dropdown.open = false;
+    });
+    window.addEventListener('resize', () => menus.forEach(position));
+    host.addEventListener('keydown', e => {
+        const menu = menus.find(menu => menu.dropdown.open);
+        if (e.key === 'Escape' && menu) { e.preventDefault(); e.stopPropagation(); menu.dropdown.open = false; menu.summary.focus(); }
     });
     return () => {
         const excluded = getExcluded();
-        summary.textContent = `Categories · ${ACTION_TYPES.length - excluded.size}/${ACTION_TYPES.length} types`;
-        for (const { input, types } of controls) {
+        all.disabled = excluded.size === 0;
+        for (const { input, types, category } of controls) {
             const enabled = types.filter(type => !excluded.has(type)).length;
             input.checked = enabled === types.length;
             input.indeterminate = enabled > 0 && enabled < types.length;
+            if (category) {
+                category.classList.toggle('is-disabled', enabled === 0);
+                input.parentElement.title = `${enabled} of ${types.length} types selected`;
+            }
         }
     };
 }
