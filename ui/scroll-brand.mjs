@@ -26,6 +26,7 @@ document.body.append(brand);
 let frame = 0;
 let brandHeight = 0;
 let controlMargin = 0;
+let initialized = false;
 function measure() {
     const titleRect = title.getBoundingClientRect();
     const iconRect = icon.getBoundingClientRect();
@@ -60,6 +61,12 @@ function update() {
     brand.style.setProperty('--brand-short-opacity', String(Math.max(0, Math.min(1, (progress - 0.55) / 0.25))));
     brand.style.opacity = dockRect.bottom <= 0 ? '0' : '1';
     masthead.classList.add('brand-animated');
+    // First paint at the real heading position. Later scroll jumps can cross
+    // the entire threshold in one wheel event; CSS interpolates that jump.
+    if (!initialized) {
+        initialized = true;
+        requestAnimationFrame(() => brand.classList.add('motion-ready'));
+    }
 }
 
 function schedule() {
