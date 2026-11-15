@@ -399,8 +399,9 @@ point's `value`; the API rejects inconsistent maps. Legacy/unprepared maps are
 Closed and partial points retain the existing publication identity and
 transaction-time cutoff. Apply the writer's activation column migration first.
 
-The Activations per day UI plots two straight cumulative-boundary lines:
-Tg-wallet and Others. Others sums the versions checked in its dropdown. Layer
+The Activations per day UI plots two filled layers with straight boundaries:
+Tg-wallet and Others, with a Total overlay on the selected stack's upper edge.
+Others sums the versions checked in its dropdown. Layer
 visibility (`hideActivations`) and excluded Others versions (`excludeWallets`)
 are independent URL parameters; average, tooltip Total and chart use only the
 selected layers. Missing breakdowns remain gaps.

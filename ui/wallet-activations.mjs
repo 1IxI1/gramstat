@@ -7,20 +7,22 @@ export const OTHER_WALLETS = WALLET_VERSIONS.filter(v => v.id !== 'wallet_tg');
 const known = new Set(OTHER_WALLETS.map(v => v.id));
 const integer = v => typeof v === 'string' && /^\d+$/.test(v);
 const groups = [
-    { id: 'tg', label: 'Tg-wallet', color: '#508ac4' },
-    { id: 'others', label: 'Others', color: '#c3934f' },
+    { id: 'tg', label: 'Tg-wallet', color: '#508ac4', fillOpacity: 0.45 },
+    { id: 'others', label: 'Others', color: '#c3934f', fillOpacity: 0.3 },
 ];
+const totalStyle = { id: 'total', label: 'Total', color: 'var(--text)', overlay: true };
+const controls = [...groups, totalStyle];
 
 export function activationSelection(params) {
     return {
-        hidden: new Set((params.get('hideActivations') || '').split(',').filter(v => groups.some(g => g.id === v))),
+        hidden: new Set((params.get('hideActivations') || '').split(',').filter(v => controls.some(g => g.id === v))),
         excluded: new Set((params.get('excludeWallets') || '').split(',').filter(v => known.has(v))),
     };
 }
 
 export function writeActivationSelection(params, selection) {
     for (const [key, values] of [
-        ['hideActivations', groups.filter(g => selection.hidden.has(g.id)).map(g => g.id)],
+        ['hideActivations', controls.filter(g => selection.hidden.has(g.id)).map(g => g.id)],
         ['excludeWallets', OTHER_WALLETS.filter(v => selection.excluded.has(v.id)).map(v => v.id)],
     ]) {
         if (values.length) params.set(key, values.join(','));
@@ -42,7 +44,7 @@ export function activationSeries(data, selection) {
         byTime.set(date, values);
     }
     const others = OTHER_WALLETS.filter(v => !selection.excluded.has(v.id));
-    return groups.filter(g => !selection.hidden.has(g.id) && (g.id === 'tg' || others.length)).map(g => {
+    const layers = groups.filter(g => !selection.hidden.has(g.id) && (g.id === 'tg' || others.length)).map(g => {
         const types = g.id === 'tg' ? ['wallet_tg'] : others.map(v => v.id);
         const s = { ...g, label: g.label + (g.id === 'others' && others.length !== OTHER_WALLETS.length ? ` (${others.length}/${OTHER_WALLETS.length})` : ''),
             points: [], exact: {}, partial: reference.partial, details: {} };
@@ -55,11 +57,14 @@ export function activationSeries(data, selection) {
         }
         return s;
     });
+    return layers.length && !selection.hidden.has('total') ? [...layers, activationTotal(layers)] : layers;
 }
 
-// A readout/average only, never a third plotted line.
+// Total uses the same plot-coordinate addition as the stack, with exact strings
+// for its tooltip and average. Overlay visibility never changes selected counts.
 export function activationTotal(series) {
-    const total = { points: [], exact: {}, partial: {} };
+    series = series.filter(s => !s.overlay);
+    const total = { ...totalStyle, points: [], exact: {}, partial: {} };
     for (const [date, i] of (series[0]?.points || []).map(([date], i) => [date, i])) {
         const values = series.map(s => s.exact[date]);
         total.exact[date] = values.every(integer) ? values.reduce((sum, v) => sum + BigInt(v), 0n).toString() : null;
@@ -77,9 +82,9 @@ export function createActivationLegend(host, getSelection, onChange) {
     };
     host.classList.add('action-category-legend');
     const toggles = [];
-    let dropdown, panel, summary, section;
-    for (const g of groups) {
-        section = make('div', 'action-category');
+    let dropdown, panel, summary, menuSection;
+    for (const g of controls) {
+        const section = make('div', 'action-category');
         const toggle = make('button', 'legend-item action-category-toggle');
         toggle.type = 'button'; toggle.dataset.activationGroup = g.id;
         const swatch = make('span', 'swatch'); swatch.style.backgroundColor = g.color;
@@ -92,6 +97,7 @@ export function createActivationLegend(host, getSelection, onChange) {
         };
         toggles.push({ g, toggle, caption });
         if (g.id === 'others') {
+            menuSection = section;
             dropdown = make('details', 'action-legend');
             summary = make('summary', '', '▾');
             summary.setAttribute('aria-label', 'Wallet versions in Others');
@@ -128,7 +134,7 @@ export function createActivationLegend(host, getSelection, onChange) {
     summary.onclick = e => { e.preventDefault(); dropdown.open = !dropdown.open; position(); };
     dropdown.addEventListener('toggle', position);
     window.addEventListener('resize', position);
-    document.addEventListener('click', e => { if (!section.contains(e.target)) dropdown.open = false; });
+    document.addEventListener('click', e => { if (!menuSection.contains(e.target)) dropdown.open = false; });
     host.addEventListener('keydown', e => {
         if (e.key === 'Escape' && dropdown.open) {
             e.preventDefault(); e.stopPropagation(); dropdown.open = false; summary.focus();

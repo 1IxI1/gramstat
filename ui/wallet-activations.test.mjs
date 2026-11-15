@@ -23,7 +23,7 @@ test('two straight stack layers, exact selected totals, gaps and partial zeroes'
     assert.equal(OTHER_WALLETS.length, 17);
     const data = fixture(), selection = activationSelection(new URLSearchParams());
     const series = activationSeries(data, selection);
-    assert.deepEqual(series.map(s => s.label), ['Tg-wallet', 'Others']);
+    assert.deepEqual(series.map(s => s.label), ['Tg-wallet', 'Others', 'Total']);
     const total = activationTotal(series), dates = total.points.map(p => p[0]);
     const rows = buildRows(dates, series);
     assert.equal(total.exact[dates[0]], '9007199254741003');
@@ -36,9 +36,14 @@ test('two straight stack layers, exact selected totals, gaps and partial zeroes'
     selection.hidden.add('tg');
     selection.excluded = new Set(OTHER_WALLETS.filter(v => v.id !== 'wallet_v3r2').map(v => v.id));
     const single = activationSeries(data,selection);
-    assert.deepEqual(single.map(s => s.label), ['Others (1/17)']);
+    assert.deepEqual(single.map(s => s.label), ['Others (1/17)', 'Total']);
     assert.equal(single[0].exact[dates[0]], '7');
     assert.equal(dailyAverage(dates,activationTotal(single)).value, '3.50');
+    assert.equal(single[1].exact[dates[0]], '7');
+    assert.equal(single[1].points[0][1], buildRows(dates,single)[0].total);
+    selection.hidden.add('total');
+    assert.deepEqual(activationSeries(data,selection).map(s => s.id), ['others']);
+    assert.equal(dailyAverage(dates,activationTotal(activationSeries(data,selection))).value, '3.50');
     selection.hidden.add('others');
     assert.deepEqual(activationSeries(data,selection), []);
 });
@@ -65,6 +70,8 @@ test('URL preserves layer toggles independently of selected Others versions', ()
     assert.equal(q.get('chart'),'activations');
     assert.equal(q.get('hideActivations'),'tg');
     assert.equal(q.get('excludeWallets'),'wallet_v3r2');
+    selection.hidden.add('total'); writeActivationSelection(q,selection);
+    assert.deepEqual(activationSelection(q).hidden,new Set(['tg','total']));
     selection.hidden.clear(); selection.excluded.clear(); writeActivationSelection(q,selection);
     assert.equal(q.toString(),'chart=activations');
 });
