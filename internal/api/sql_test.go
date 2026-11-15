@@ -58,7 +58,7 @@ INSERT INTO gramstat.validator_geo_rounds(utime_since,utime_until,total,located,
 INSERT INTO gramstat.validator_stake_rounds (utime_since,utime_until,election_id,submitted_nanogram,selected_nanogram,remaining_nanogram,unfreeze_utime,config34_hash,roster_digest,status,calculated_at,reward_nanogram) VALUES(1792540800,1792606336,1792540800,900719925474099312345,800719925474099312345,NULL,NULL,'hash','current','missing_result','2026-10-22 00:00:00',NULL);
 `)
 	for name, query := range queries {
-		if strings.HasPrefix(name, "supply_") || strings.HasPrefix(name, "accounts_") || strings.HasPrefix(name, "wallet_") || name == "inflation_rollup" {
+		if strings.HasPrefix(name, "supply_") || strings.HasPrefix(name, "accounts_") || strings.HasPrefix(name, "wallet_") || strings.HasPrefix(name, "code_hash_") || name == "inflation_rollup" {
 			continue
 		} // Covered by the checkpoint/raw integration test.
 		b := run(query + " FORMAT JSON")

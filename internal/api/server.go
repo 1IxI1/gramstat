@@ -81,6 +81,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "inflation"
 	case "/api/v1/accounts":
 		name = "accounts"
+	case "/api/v1/accounts/code-hashes":
+		name = "code_hashes"
 	case "/api/v1/wallets":
 		name = "wallets"
 	default:
@@ -95,7 +97,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, err.Error())
 		return
 	}
-	binaryResponse := accepts(r.Header.Get("Accept"), binaryContentType)
+	binaryResponse := name != "code_hashes" && accepts(r.Header.Get("Accept"), binaryContentType)
 	compressed := accepts(r.Header.Get("Accept-Encoding"), "gzip")
 	key := name + "?" + q.Encode() + fmt.Sprintf("|binary=%t|gzip=%t", binaryResponse, compressed)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -175,6 +177,23 @@ func problem(w http.ResponseWriter, status int, message string) {
 }
 
 func validate(name string, q url.Values, now time.Time) error {
+	if name == "code_hashes" {
+		for key, values := range q {
+			if key != "limit" || len(values) != 1 {
+				return fmt.Errorf("unexpected or repeated parameters")
+			}
+		}
+		limit := 1000
+		if q.Has("limit") {
+			n, err := strconv.Atoi(q.Get("limit"))
+			if err != nil || n < 1 || n > 1000 {
+				return fmt.Errorf("limit must be between 1 and 1000")
+			}
+			limit = n
+		}
+		q.Set("limit", strconv.Itoa(limit))
+		return nil
+	}
 	if name == "staking_contracts" && len(q) != 0 {
 		return fmt.Errorf("unexpected parameters")
 	}
@@ -298,6 +317,9 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 }
 
 func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, error) {
+	if name == "code_hashes" {
+		return s.loadCodeHashes(ctx, q)
+	}
 	if name == "columns" {
 		return s.loadColumns(ctx, q)
 	}

@@ -31,6 +31,8 @@ arrayMap(m -> tuple(m.country, m.city, m.latitude, m.longitude),
 // Each route selects a fixed query. No user SQL, identifiers, settings, or URLs
 // are forwarded. Every 64-bit integer and monetary amount is a decimal string.
 var queries = map[string]string{
+	"code_hash_snapshot":      codeHashSnapshotSQL,
+	"code_hash_top":           codeHashTopSQL,
 	"wallet_activation_state": walletActivationStateSQL,
 	"wallet_live_activations": walletLiveActivationsSQL,
 	"wallet_active_days":      walletActiveDaysSQL,

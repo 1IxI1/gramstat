@@ -390,3 +390,25 @@ stale geo joins. HTTP tests cover input limits, cache coalescing, rejected write
 and safe errors. Before exposing an installation,
 check read access and denial of writes for its actual ClickHouse role, API payloads,
 static allowlist, headers and the UI in a browser.
+## Latest account code hashes
+
+`GET /api/v1/accounts/code-hashes?limit=1000` returns the latest fully published
+distribution from the Go aggregator. `limit` is 1–1000 (default 1000); no time
+range is accepted. The endpoint reads only ClickHouse.
+
+`snapshot` contains its UUID, collection start/end, publication time, full
+`hashCount` and `indexedAccounts`, observed MC range and
+`consistency: "live-index-scan"`. The MC range is provenance, not an exact
+block-state boundary. This population comprises current code-hash index
+memberships; active accounts without code are not included.
+
+`codeHashes` is sorted by `accounts` descending, then `codeHash`. Counts and the
+exact `topAccounts`, `otherAccounts`, and `otherCodeHashes` are decimal strings.
+No completed snapshot means `snapshot: null` and unknown (null) totals.
+The optional GSC1 Accept header does not change this endpoint's JSON format.
+
+The writer owns `gramstat.account_code_hash_counts` (64 complete prefix maps per
+UUID) and `gramstat.account_code_hash_snapshots` (completion metadata written
+last). Grant the API user SELECT on both. Readers capture one completed UUID
+before fetching its top rows, so a concurrent publication cannot mix totals and
+counts. Interface/group classification is not part of this endpoint.
