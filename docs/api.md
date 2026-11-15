@@ -400,11 +400,13 @@ Closed and partial points retain the existing publication identity and
 transaction-time cutoff. Apply the writer's activation column migration first.
 
 The Activations per day UI plots two filled layers with straight boundaries:
-Tg-wallet and Others, with a Total overlay on the selected stack's upper edge.
+Tg-wallet and Others, with an independent Total overlay for all activations.
 Others sums the versions checked in its dropdown. Layer
 visibility (`hideActivations`) and excluded Others versions (`excludeWallets`)
-are independent URL parameters; average, tooltip Total and chart use only the
-selected layers. Missing breakdowns remain gaps.
+are independent URL parameters. Total retains its original values when layers
+are hidden or Others versions are unchecked. The readout and average follow
+Total while it is visible, otherwise the selected stack. Missing breakdowns
+remain gaps; an independently known Total can still be displayed.
 
 ## Latest account code hashes
 

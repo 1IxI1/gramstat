@@ -651,7 +651,7 @@ function render(group, roundsOnly = false, onlyID) {
                 render('wallets', false, 'activations');
             });
             state.syncActivationLegend();
-            if ((selectedWallets.hidden.size || selectedWallets.excluded.size) && latest) state.detail.textContent += ' · selected versions';
+            if (!series.some(s => s.overlay) && (selectedWallets.hidden.has('tg') || selectedWallets.hidden.has('others') || selectedWallets.excluded.size) && latest) state.detail.textContent += ' · selected versions';
         }
         if (!isTotalActions && !isActivations && allSeries.length > 1)
             for (const s of isAccounts ? [...allSeries].reverse() : allSeries) {

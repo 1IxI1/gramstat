@@ -38,9 +38,13 @@ test('two straight stack layers, exact selected totals, gaps and partial zeroes'
     const single = activationSeries(data,selection);
     assert.deepEqual(single.map(s => s.label), ['Others (1/17)', 'Total']);
     assert.equal(single[0].exact[dates[0]], '7');
-    assert.equal(dailyAverage(dates,activationTotal(single)).value, '3.50');
-    assert.equal(single[1].exact[dates[0]], '7');
-    assert.equal(single[1].points[0][1], buildRows(dates,single)[0].total);
+    assert.deepEqual(single[1], series[2]);
+    assert.equal(dailyAverage(dates,activationTotal(single)).value, dailyAverage(dates,total).value);
+    assert.equal(single[1].exact[dates[0]], '9007199254741003');
+    assert.ok(single[1].points[0][1] > buildRows(dates,single)[0].total);
+    selection.hidden.add('others');
+    assert.deepEqual(activationSeries(data,selection), [series[2]]);
+    selection.hidden.delete('others');
     selection.hidden.add('total');
     assert.deepEqual(activationSeries(data,selection).map(s => s.id), ['others']);
     assert.equal(dailyAverage(dates,activationTotal(activationSeries(data,selection))).value, '3.50');
@@ -52,6 +56,7 @@ test('unknown breakdowns are gaps; malformed maps and mismatching totals fail', 
     const data = fixture(), selection = activationSelection(new URLSearchParams());
     data.activations.points[0].versions = null;
     assert.equal(activationSeries(data,selection)[0].points[0][1],null);
+    assert.equal(activationSeries(data,selection).at(-1).exact['2026-11-12T00:00:00.000Z'],'9007199254741003');
     for (const mutate of [
         p => p.value = '1', p => delete p.versions.wallet_v3r2,
         p => p.versions.wallet_v3r2 = null, p => p.versions.unknown = '0',

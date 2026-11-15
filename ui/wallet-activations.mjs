@@ -57,12 +57,24 @@ export function activationSeries(data, selection) {
         }
         return s;
     });
-    return layers.length && !selection.hidden.has('total') ? [...layers, activationTotal(layers)] : layers;
+    if (selection.hidden.has('total')) return layers;
+    // Like Total Stake Locked, the reference remains independent of visibility
+    // and subtype filters. Complete maps use the unfiltered stack's coordinate
+    // arithmetic; a known source Total survives even an unavailable breakdown.
+    const total = { ...reference, ...totalStyle, points: reference.points.map(([date, value]) => {
+        const versions = byTime.get(date);
+        if (!versions) return [date, value];
+        const others = OTHER_WALLETS.reduce((sum, v) => sum + BigInt(versions[v.id]), 0n);
+        return [date, sumReadings([Number(versions.wallet_tg), Number(others)])];
+    }) };
+    return [...layers, total];
 }
 
-// Total uses the same plot-coordinate addition as the stack, with exact strings
-// for its tooltip and average. Overlay visibility never changes selected counts.
+// The readout/average follows the visible global Total. With Total hidden, it
+// follows only the selected stack, allowing a single version to be inspected.
 export function activationTotal(series) {
+    const reference = series.find(s => s.overlay);
+    if (reference) return reference;
     series = series.filter(s => !s.overlay);
     const total = { ...totalStyle, points: [], exact: {}, partial: {} };
     for (const [date, i] of (series[0]?.points || []).map(([date], i) => [date, i])) {
