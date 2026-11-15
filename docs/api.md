@@ -390,6 +390,21 @@ stale geo joins. HTTP tests cover input limits, cache coalescing, rejected write
 and safe errors. Before exposing an installation,
 check read access and denial of writes for its actual ClickHouse role, API payloads,
 static allowlist, headers and the UI in a browser.
+## Wallet activation versions
+
+`/api/v1/wallets` additionally returns `activations.points[].versions`, an exact
+decimal-string map of all 18 frozen wallet versions. Its sum must equal that
+point's `value`; the API rejects inconsistent maps. Legacy/unprepared maps are
+`null`, with coverage listed separately in `activations.versionCoverageDays`.
+Closed and partial points retain the existing publication identity and
+transaction-time cutoff. Apply the writer's activation column migration first.
+
+The Activations per day UI plots two straight cumulative-boundary lines:
+Tg-wallet and Others. Others sums the versions checked in its dropdown. Layer
+visibility (`hideActivations`) and excluded Others versions (`excludeWallets`)
+are independent URL parameters; average, tooltip Total and chart use only the
+selected layers. Missing breakdowns remain gaps.
+
 ## Latest account code hashes
 
 `GET /api/v1/accounts/code-hashes?limit=1000` returns the latest fully published

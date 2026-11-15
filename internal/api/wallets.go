@@ -18,6 +18,7 @@ const walletActivationStateSQL = `SELECT base_mc,from_utime,through_mc,to_utime
  ORDER BY through_mc DESC LIMIT 1`
 
 const walletLiveActivationsSQL = `SELECT day,toString(argMax(s.activations,s.through_mc)) AS activations,
+ mapApply((k,v)->(k,toString(v)),argMax(s.activation_versions,s.through_mc)) AS versions,
  argMax(s.complete_before,s.through_mc) AS complete_before
  FROM gramstat.wallet_activation_stream_state s WHERE source_id={source:String} AND registry={registry:String}
  AND s.through_mc<={live_end:UInt32} AND s.activations IS NOT NULL
@@ -30,7 +31,8 @@ const walletStreamFilterSQL = ` source_id={source:String} AND registry={registry
  AND day NOT IN arrayMap(x -> x.1,{published:Array(Tuple(Date,String))})`
 
 const walletDaysSQL = `SELECT day,toString(argMax(d.run_id,tuple(through_mc,calculated_at,d.run_id))) AS run_id,
- toString(argMax(d.activations,tuple(through_mc,calculated_at,d.run_id))) AS activations
+ toString(argMax(d.activations,tuple(through_mc,calculated_at,d.run_id))) AS activations,
+ mapApply((k,v)->(k,toString(v)),argMax(d.activation_versions,tuple(through_mc,calculated_at,d.run_id))) AS versions
  FROM gramstat.wallet_days d WHERE source_id={source:String} AND registry={registry:String} AND history_verified=1
  AND day>=toDate(toDateTime({from_ts:UInt32},'UTC')) AND day<=toDate(toDateTime({to_ts:UInt32}-1,'UTC'))
   GROUP BY day ORDER BY day`
@@ -147,9 +149,10 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		return nil, err
 	}
 	var coverage []struct {
-		Day         string `json:"day"`
-		Run         string `json:"run_id"`
-		Activations string `json:"activations"`
+		Day         string            `json:"day"`
+		Run         string            `json:"run_id"`
+		Activations string            `json:"activations"`
+		Versions    map[string]string `json:"versions"`
 	}
 	if err = json.Unmarshal(days, &coverage); err != nil {
 		return nil, err
@@ -157,6 +160,7 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	published := "["
 	dates := []string{}
 	daily := []map[string]any{}
+	versionDates := []string{}
 	for i, d := range coverage {
 		date, e := time.Parse(time.DateOnly, d.Day)
 		if e != nil {
@@ -176,7 +180,15 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 		}
 		published += "('" + d.Day + "','" + d.Run + "')"
 		dates = append(dates, d.Day)
-		daily = append(daily, map[string]any{"utime": date.Unix(), "value": d.Activations})
+		if err := validateActivationVersions(d.Activations, d.Versions); err != nil {
+			return nil, err
+		}
+		if len(d.Versions) > 0 {
+			versionDates = append(versionDates, d.Day)
+		} else {
+			d.Versions = nil
+		}
+		daily = append(daily, map[string]any{"utime": date.Unix(), "value": d.Activations, "versions": d.Versions})
 	}
 	p.Set("published", published+"]")
 	activatedDates := append([]string{}, dates...)
@@ -198,9 +210,10 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 			return nil, e
 		}
 		var live []struct {
-			Day    string `json:"day"`
-			Value  string `json:"activations"`
-			Before uint32 `json:"complete_before"`
+			Day      string            `json:"day"`
+			Value    string            `json:"activations"`
+			Before   uint32            `json:"complete_before"`
+			Versions map[string]string `json:"versions"`
 		}
 		if e = json.Unmarshal(b, &live); e != nil {
 			return nil, e
@@ -214,9 +227,18 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 				return nil, fmt.Errorf("invalid live activation cutoff")
 			}
 			dailyDates = append(dailyDates, d.Day)
-			daily = append(daily, map[string]any{"utime": day.Unix(), "value": d.Value, "end_utime": d.Before, "is_partial": int64(d.Before) < day.AddDate(0, 0, 1).Unix()})
+			if err := validateActivationVersions(d.Value, d.Versions); err != nil {
+				return nil, err
+			}
+			if len(d.Versions) > 0 {
+				versionDates = append(versionDates, d.Day)
+			} else {
+				d.Versions = nil
+			}
+			daily = append(daily, map[string]any{"utime": day.Unix(), "value": d.Value, "versions": d.Versions, "end_utime": d.Before, "is_partial": int64(d.Before) < day.AddDate(0, 0, 1).Unix()})
 		}
 		sort.Strings(dailyDates)
+		sort.Strings(versionDates)
 		sort.Slice(daily, func(i, j int) bool { return daily[i]["utime"].(int64) < daily[j]["utime"].(int64) })
 	}
 	mode := q.Get("activity")
@@ -378,7 +400,7 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 	}
 	result := map[string]any{"schemaVersion": 2, "network": "mainnet", "registry": walletRegistry, "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "coverageDays": dates,
 		"activated":   map[string]any{"intervalSeconds": activatedStep, "points": activated, "coverageDays": activatedDates},
-		"activations": map[string]any{"intervalSeconds": 86400, "points": daily, "coverageDays": dailyDates},
+		"activations": map[string]any{"intervalSeconds": 86400, "points": daily, "coverageDays": dailyDates, "versionCoverageDays": versionDates},
 		"active":      map[string]any{"mode": mode, "average": activityAverage, "calendarMonths": mode == "monthly", "intervalSeconds": activityStep, "windowSeconds": windowSeconds, "sampleStepSeconds": sampleStep, "coverageDays": activeDates, "points": activity}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	return json.Marshal(result)
 }

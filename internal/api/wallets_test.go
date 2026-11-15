@@ -135,7 +135,8 @@ func TestWalletReaderSQL(t *testing.T) {
  INSERT INTO gramstat.wallet_activated_checkpoints VALUES('SOURCE','REGISTRY','2024-10-13','00000000-0000-0000-0000-000000000001',86400,1728777600,11,1728777601,5);`
 	fixture = strings.ReplaceAll(strings.ReplaceAll(fixture, "SOURCE", walletSource), "REGISTRY", walletRegistry)
 	fixture = strings.ReplaceAll(fixture, "ENGINE=Memory", "ENGINE=MergeTree ORDER BY tuple()")
-	run(fixture+walletStreamFixtureSQL+`ALTER TABLE gramstat.wallet_days ADD COLUMN complete_before UInt32 DEFAULT toUnixTimestamp(toDateTime(day+1,'UTC'));
+	run(fixture+walletStreamFixtureSQL+`ALTER TABLE gramstat.wallet_days ADD COLUMN activation_versions Map(String,UInt64) DEFAULT map();
+ALTER TABLE gramstat.wallet_days ADD COLUMN complete_before UInt32 DEFAULT toUnixTimestamp(toDateTime(day+1,'UTC'));
 CREATE TABLE gramstat.wallet_live_days(source_id String,registry String,day Date,run_id UUID,through_mc UInt32,calculated_at DateTime64(6),complete_before UInt32) ENGINE=MergeTree ORDER BY tuple();
 INSERT INTO gramstat.wallet_live_days SELECT source_id,registry,day,toUUID('00000000-0000-0000-0000-000000000003'),through_mc+100,now64(6),complete_before-43200 FROM gramstat.wallet_days;`, "0")
 	if r := run(walletDaysSQL+" FORMAT JSON", "0"); len(r) != 1 || r[0]["activations"] != "2" {

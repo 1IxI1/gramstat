@@ -5,6 +5,7 @@ import { TimeChart, buildRows, formatDate, formatSummary } from './charts.mjs';
 import { createWalletRegistry } from './wallet-registry.mjs';
 import { createStakeRegistry } from './stake-registry.mjs';
 import { ACTION_TYPES, excludedActionTypes, totalActionSeries, createActionLegend } from './action-types.mjs';
+import { activationSelection, writeActivationSelection, activationSeries, activationTotal, createActivationLegend } from './wallet-activations.mjs';
 import { ValidatorMap } from './validator-map.mjs';
 import { RANGE_PRESETS, inputTime, displayTime, indexedTime, resolveTimeRange, defaultTimeRange, timeRangeLabel, timeRangeFromURL, writeTimeRange } from './time-ranges.mjs';
 
@@ -35,6 +36,7 @@ window.addEventListener('storage', event => {
 });
 const cards = new Map();
 let excludedActions = excludedActionTypes(new URLSearchParams(location.search));
+let selectedWallets = activationSelection(new URLSearchParams(location.search));
 const pageLinks = [...document.querySelectorAll('.page-navigation a')];
 const chartPage = (id) => {
     const definition = CATALOGUE.find((chart) => chart.id === id);
@@ -485,6 +487,7 @@ expandedDialog.addEventListener('click', (event) => {
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
     excludedActions = excludedActionTypes(q);
+    selectedWallets = activationSelection(q);
     showPage(pageFromURL());
     const choice = timeRangeFromURL(q);
     const changedActivity = activityMode !== activityFromURL();
@@ -498,7 +501,7 @@ window.addEventListener('popstate', () => {
         syncExpandedChart(false);
         if (changedActivity) loadActivity();
         if (changedSection) loadSectionActivity();
-    } else { syncExpandedChart(); render(undefined, false, 'actions_total'); }
+    } else { syncExpandedChart(); render(undefined, false, 'actions_total'); render('wallets', false, 'activations'); }
 });
 
 function chartGroup(definition) {
@@ -527,9 +530,11 @@ function render(group, roundsOnly = false, onlyID) {
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
+        const isActivations = definition.id === 'activations';
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly || definition.time;
         const observations = isSection ? sectionReadings : readings;
         let allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
+        if (isActivations) allSeries = walletsData ? activationSeries(walletsData, selectedWallets) : [];
         if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => {
             const points = s.points.filter(([date]) => Date.parse(date) >= activeRange.from && Date.parse(date) < activeRange.to);
             const available = date => Date.parse(date) >= definition.historyStart;
@@ -594,13 +599,13 @@ function render(group, roundsOnly = false, onlyID) {
             const unit = hourly ? 3600000 : 86400000;
             const totalPeriods = activeRange ? Math.ceil(activeRange.to / unit) - Math.floor(activeRange.from / unit) : 0;
             const dataset = isActivity ? walletsData?.active : definition.id === 'activated_wallets' ? walletsData?.activated : walletsData?.activations;
-            const available = hourly ? walletsData?.active.average?.count ?? walletsData?.active.points.length ?? 0 : (dataset?.coverageDays ?? walletsData?.coverageDays)?.length ?? 0;
+            const available = hourly ? walletsData?.active.average?.count ?? walletsData?.active.points.length ?? 0 : (isActivations ? dataset?.versionCoverageDays?.length : (dataset?.coverageDays ?? walletsData?.coverageDays)?.length) ?? 0;
             const monthly = isActivity && activityMode === 'monthly';
             const interval = isActivity ? `${{hourly:'Unique wallets per UTC hour.',daily:'Unique wallets per UTC day.',monthly:''}[activityMode]} ${walletsData?.active.sampleStepSeconds > walletsData?.active.intervalSeconds ? 'Selected hourly observations shown; zoom in for every hour. ' : ''}` : '';
             const missing = 'History is being prepared.';
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
-        if (!isTotalActions) state.legend.replaceChildren();
+        if (!isTotalActions && !isActivations) state.legend.replaceChildren();
         if (isSection) {
             if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.'));
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
@@ -620,7 +625,7 @@ function render(group, roundsOnly = false, onlyID) {
                 ...walletsData.active.average,
                 total: Math.ceil(activeRange.to/3600000)-Math.floor(activeRange.from/3600000),
             } : undefined;
-            const avg = dailyAverage(dates, series[0], aggregate);
+            const avg = dailyAverage(dates, isActivations ? activationTotal(series) : series[0], aggregate);
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : `${dates.length}d`;
             const unit = isActivity ? `wallets/${{hourly:'hour',daily:'day',monthly:'month'}[activityMode]}` : definition.averageUnit;
             state.averageValue.textContent = `Avg (${period}): ${loading || avg.value === null ? '—' : `${avg.value} ${unit}${avg.partial ? ' · partial' : ''}`}`;
@@ -638,7 +643,17 @@ function render(group, roundsOnly = false, onlyID) {
             state.syncActionLegend();
             if (excludedActions.size && latest) state.detail.textContent += ' · selected types';
         }
-        if (!isTotalActions && allSeries.length > 1)
+        if (isActivations) {
+            state.syncActivationLegend ??= createActivationLegend(state.legend, () => selectedWallets, () => {
+                const url = new URL(location.href);
+                writeActivationSelection(url.searchParams, selectedWallets);
+                history.replaceState(null, '', url);
+                render('wallets', false, 'activations');
+            });
+            state.syncActivationLegend();
+            if ((selectedWallets.hidden.size || selectedWallets.excluded.size) && latest) state.detail.textContent += ' · selected versions';
+        }
+        if (!isTotalActions && !isActivations && allSeries.length > 1)
             for (const s of isAccounts ? [...allSeries].reverse() : allSeries) {
                 const item = element('button', 'legend-item');
                 item.type = 'button';
@@ -657,7 +672,7 @@ function render(group, roundsOnly = false, onlyID) {
                 item.append(swatch, s.emphasis ? element('strong', '', s.label) : document.createTextNode(s.label));
                 state.legend.append(item);
             }
-        state.chart?.update({ ...definition, series, loading, allSeriesHidden: isTotalActions ? excludedActions.size === ACTION_TYPES.length : allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
+        state.chart?.update({ ...definition, series, loading, allSeriesHidden: isActivations ? series.length === 0 : isTotalActions ? excludedActions.size === ACTION_TYPES.length : allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
                 id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
                 label: 'Map snapshot', color: 'var(--text)', clamp: true, position: 'bottom',

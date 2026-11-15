@@ -12,7 +12,7 @@ import (
 const walletStreamFixtureSQL = `
 CREATE TABLE gramstat.wallet_activation_stream(source_id String,registry String,day Date,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=MergeTree ORDER BY (source_id,registry,day,mc_seqno);
 CREATE TABLE gramstat.wallet_activation_stream_checkpoints(source_id String,registry String,day Date,step UInt32,bucket UInt32,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=MergeTree ORDER BY (source_id,registry,step,day,bucket,mc_seqno);
-CREATE TABLE gramstat.wallet_activation_stream_state(source_id String,registry String,base_mc UInt32,from_utime UInt32,through_mc UInt32,to_utime UInt32,day Date,activations Nullable(UInt64),complete_before UInt32) ENGINE=MergeTree ORDER BY (source_id,registry,through_mc);
+CREATE TABLE gramstat.wallet_activation_stream_state(source_id String,registry String,base_mc UInt32,from_utime UInt32,through_mc UInt32,to_utime UInt32,day Date,activations Nullable(UInt64),complete_before UInt32,activation_versions Map(String,UInt64) DEFAULT map()) ENGINE=MergeTree ORDER BY (source_id,registry,through_mc);
 `
 
 func TestLiveActivationSnapshotWithoutClosedDay(t *testing.T) {
@@ -78,7 +78,7 @@ CREATE TABLE gramstat.wallet_activations_mc(source_id String,registry String,day
 CREATE TABLE gramstat.wallet_activated_checkpoints(source_id String,registry String,day Date,run_id UUID,step UInt32,bucket UInt32,mc_seqno UInt32,utime UInt32,activated UInt64) ENGINE=MergeTree ORDER BY tuple();
 INSERT INTO gramstat.wallet_activation_stream VALUES('s','r','2026-11-12',11,1794441660,9007199254740994),('s','r','2026-11-12',11,1794441660,9007199254740994),('s','r','2026-11-12',12,1794441660,9007199254740995),('s','r','2026-11-12',13,1794441720,9999999999999999);
 INSERT INTO gramstat.wallet_activation_stream_checkpoints SELECT source_id,registry,day,3600,1794441600,mc_seqno,utime,activated FROM gramstat.wallet_activation_stream;
-INSERT INTO gramstat.wallet_activation_stream_state VALUES('s','r',10,1794441599,12,1794441660,'2026-11-12',2,1794441900);
+INSERT INTO gramstat.wallet_activation_stream_state VALUES('s','r',10,1794441599,12,1794441660,'2026-11-12',2,1794441900,{'wallet_tg':2});
 `, "0")
 	if got := run(walletCountSQL, "0"); got != "2\n" {
 		t.Fatal(got)
@@ -89,7 +89,7 @@ INSERT INTO gramstat.wallet_activation_stream_state VALUES('s','r',10,1794441599
 	if got := run(walletActivatedSQL, "3600"); got != "12\t1794441660\t9007199254740995\n" {
 		t.Fatal("uncommitted checkpoint visible", got)
 	}
-	if got := run(walletLiveActivationsSQL, "0"); got != "2026-11-12\t2\t1794441900\n" {
+	if got := run(walletLiveActivationsSQL, "0"); got != "2026-11-12\t2\t{'wallet_tg':'2'}\t1794441900\n" {
 		t.Fatal(got)
 	}
 }

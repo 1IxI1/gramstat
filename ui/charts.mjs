@@ -368,7 +368,7 @@ export class TimeChart {
                 ),
             );
         } else if (this.config.kind.includes('bar')) this.drawBars();
-        else if (this.config.kind === 'stacked-area') { this.drawStack(); this.drawLines(); }
+        else if (this.config.kind === 'stacked-area' || this.config.kind === 'stacked-line') { this.drawStack(); this.drawLines(); }
         else this.drawLines();
 
         const markerStart = this.config.time || !hasReadings
@@ -511,10 +511,14 @@ export class TimeChart {
                     .reverse()
                     .map((point, i) => i && this.config.step ? `V${point[1]}H${point[0]}` : `L${point.join(',')}`)
                     .join(' ');
-                this.svg.append(node('path', { d: `${line} ${base} Z`, fill: item.color, 'fill-opacity': item.fillOpacity ?? 0.24 }));
+                if (this.config.kind !== 'stacked-line') this.svg.append(node('path', { d: `${line} ${base} Z`, fill: item.color, 'fill-opacity': item.fillOpacity ?? 0.24 }));
                 this.svg.append(
                     node('path', { d: line, stroke: item.color, class: 'series-line', 'stroke-width': 1.2 }),
                 );
+                if (this.config.kind === 'stacked-line') {
+                    const [cx, cy] = upper.at(-1);
+                    this.svg.append(node('circle', { cx, cy, r: segment.length === 1 ? 3.5 : 2.2, fill: item.color }));
+                }
             }
         });
     }
