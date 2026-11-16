@@ -101,6 +101,7 @@ export class AccountTypes {
         this.body = el('div', 'type-body');
         this.message = el('p', 'type-message', 'Loading account types…'); this.message.setAttribute('role', 'status');
         this.tooltip = el('div', 'type-tooltip'); this.tooltip.hidden = true;
+        this.tooltip.setAttribute('role', 'tooltip');
         const about = el('details', 'type-about');
         const population = el('p');
         population.append(el('strong', '', 'Latest'),
@@ -109,13 +110,21 @@ export class AccountTypes {
         methods.append(el('em', '', 'By get methods'),
             ' means the account type is inferred by matching method IDs extracted from disassembled contract bytecode against known interface patterns.');
         about.append(el('summary', '', 'About this distribution'), population, methods);
-        this.card.append(heading, this.time, this.rangeWarning, this.breadcrumbs, this.body, this.message, about, this.tooltip);
+        this.card.append(heading, this.time, this.rangeWarning, this.breadcrumbs, this.body, this.message, about);
         container.append(this.card);
         this.expanded = el('dialog', 'type-expanded');
         this.expanded.setAttribute('aria-labelledby', title.id);
         this.panel = el('dialog', 'type-panel');
         this.panel.setAttribute('aria-labelledby', 'type-panel-title');
-        document.body.append(this.expanded, this.panel);
+        document.body.append(this.expanded, this.panel, this.tooltip);
+        const reposition = () => {
+            if (this.tooltipAnchor) this.positionTooltip(this.tooltipAnchor, this.tooltipChart);
+        };
+        window.addEventListener('scroll', reposition, { capture: true, passive: true });
+        window.addEventListener('resize', reposition);
+        window.visualViewport?.addEventListener('resize', reposition);
+        window.visualViewport?.addEventListener('scroll', reposition);
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') this.hideTooltip(); });
         this.expanded.addEventListener('cancel', event => { event.preventDefault(); this.toggleExpanded(); });
         this.expanded.addEventListener('click', event => {
             if (event.target === this.expanded && this.outside(this.expanded, event)) this.toggleExpanded();
@@ -128,6 +137,55 @@ export class AccountTypes {
 
     setLiveRange(live) {
         this.rangeWarning.hidden = live;
+    }
+
+    hideTooltip() {
+        this.tooltip.hidden = true;
+        this.tooltipAnchor = null;
+        this.tooltipChart = null;
+        for (const node of this.tooltipHighlights ?? []) node.classList.remove('highlight');
+        this.tooltipHighlights = [];
+    }
+
+    positionTooltip(target, chart) {
+        // A viewport-level tooltip can leave the card. In expanded mode it must
+        // live inside the modal's top layer rather than behind its backdrop.
+        const host = this.expanded.open ? this.expanded : document.body;
+        if (this.tooltip.parentElement !== host) host.append(this.tooltip);
+        this.tooltip.hidden = false;
+        const ring = chart.getBoundingClientRect();
+        const anchor = target instanceof SVGElement ? ring : target.getBoundingClientRect();
+        const margin = 8, gap = 12;
+        const viewport = window.visualViewport;
+        const left = viewport?.offsetLeft ?? 0, top = viewport?.offsetTop ?? 0;
+        const right = left + (viewport?.width ?? document.documentElement.clientWidth);
+        const bottom = top + (viewport?.height ?? window.innerHeight);
+        if (!target.isConnected || !anchor.width || anchor.right <= left || anchor.left >= right || anchor.bottom <= top || anchor.top >= bottom) {
+            this.hideTooltip();
+            return;
+        }
+        this.tooltip.style.maxWidth = `${Math.min(420, right - left - margin * 2)}px`;
+        const { width, height } = this.tooltip.getBoundingClientRect();
+        const around = rect => [
+            [rect.left - width - gap, (rect.top + rect.bottom - height) / 2],
+            [rect.right + gap, (rect.top + rect.bottom - height) / 2],
+            [(rect.left + rect.right - width) / 2, rect.bottom + gap],
+            [(rect.left + rect.right - width) / 2, rect.top - height - gap],
+        ];
+        const overlaps = (x, y, rect) => x < rect.right && x + width > rect.left && y < rect.bottom && y + height > rect.top;
+        const candidates = [...around(anchor), ...around(ring)].map(([x, y]) => [
+            Math.max(left + margin, Math.min(right - width - margin, x)),
+            Math.max(top + margin, Math.min(bottom - height - margin, y)),
+        ]);
+        const position = candidates.find(([x, y]) =>
+            x + width <= right - margin && y + height <= bottom - margin &&
+            !overlaps(x, y, ring) && !overlaps(x, y, anchor));
+        if (!position) {
+            this.hideTooltip();
+            return;
+        }
+        this.tooltip.style.left = `${position[0]}px`;
+        this.tooltip.style.top = `${position[1]}px`;
     }
 
     outside(dialog, event) {
@@ -171,7 +229,7 @@ export class AccountTypes {
     }
 
     toggleExpanded() {
-        this.tooltip.hidden = true;
+        this.hideTooltip();
         if (this.expanded.open) {
             this.expanded.close();
             this.container.append(this.card);
@@ -212,7 +270,7 @@ export class AccountTypes {
         const token = ++this.sequence;
         const node = this.nodes.get(this.current);
         if (!node) return;
-        this.tooltip.hidden = true;
+        this.hideTooltip();
         this.breadcrumbs.replaceChildren();
         for (const part of this.path(node.id)) {
             this.breadcrumbs.append(button(part.id === 'all' ? 'All' : part.label, () => this.navigate(part.id)));
@@ -272,17 +330,19 @@ export class AccountTypes {
             const line = button('', row.activate, 'type-legend-row');
             const dot = el('span', 'type-dot'); dot.style.background = fill;
             line.append(dot, el('span', 'type-label', row.label), el('span', 'type-share', typePercent(row.accounts, total)));
-            const describe = () => {
+            const describe = event => {
+                if (event.pointerType === 'touch' || this.panel.open) return;
+                this.hideTooltip();
                 this.tooltip.replaceChildren(el('strong', '', row.label),
                     el('div', '', `${integer(row.accounts)} accounts`),
                     el('div', '', `${typePercent(row.accounts, total)} of this view · ${typePercent(row.accounts, this.data.snapshot.indexedAccounts)} of all`));
-                if (row.known !== undefined) {
-                    this.tooltip.append(el('div', '', `Known code: ${integer(row.known)} · By get methods: ${integer(row.inferred)}`));
-                }
-                this.tooltip.hidden = false;
+                this.tooltipAnchor = event.currentTarget;
+                this.tooltipChart = chart;
+                this.tooltipHighlights = [path, line];
                 path.classList.add('highlight'); line.classList.add('highlight');
+                this.positionTooltip(event.currentTarget, chart);
             };
-            const hide = () => { this.tooltip.hidden = true; path.classList.remove('highlight'); line.classList.remove('highlight'); };
+            const hide = event => { if (this.tooltipAnchor === event.currentTarget) this.hideTooltip(); };
             for (const target of [path, line]) {
                 target.addEventListener('pointerenter', describe); target.addEventListener('pointerleave', hide);
                 target.addEventListener('focus', describe); target.addEventListener('blur', hide);
@@ -297,6 +357,7 @@ export class AccountTypes {
     }
 
     panelHeader(title, back) {
+        this.hideTooltip();
         const heading = el('div', 'type-panel-heading');
         const h = el('h2', '', title); h.id = 'type-panel-title';
         if (back) heading.append(button('‹ Back', back, 'type-back'));
@@ -357,7 +418,6 @@ export class AccountTypes {
 
     async showDetail(hash) {
         const token = ++this.panelSequence;
-        this.tooltip.hidden = true;
         this.panelHeader('Implementation', this.listState ? () => this.renderList() : null);
         const content = el('div', 'type-detail', 'Loading…'); this.panel.append(content);
         try {
