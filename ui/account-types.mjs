@@ -97,9 +97,13 @@ export class AccountTypes {
         this.message = el('p', 'type-message', 'Loading account types…'); this.message.setAttribute('role', 'status');
         this.tooltip = el('div', 'type-tooltip'); this.tooltip.hidden = true;
         const about = el('details', 'type-about');
-        about.append(el('summary', '', 'About this distribution'), el('p', '',
-            'Latest indexed active accounts with code, across workchains. Updated every 10 minutes, independently of the time range above. Each account belongs to one sector. The source is observed over an interval, not at one exact block; active accounts without code are outside this distribution.'),
-        el('p', '', 'By get methods means an inferred interface from static method IDs. ABI matches identify implementations, not project membership. Getter execution and per-account state have not been checked.'));
+        const population = el('p');
+        population.append(el('strong', '', 'Latest'),
+            ' indexed active accounts with code, across all workchains. Updated every 10 minutes, independently of the time range above. Each account belongs to exactly one category. Counts are collected over an observation interval (~20s) rather than at a single instant. Active accounts without code are excluded from the total.');
+        const methods = el('p');
+        methods.append(el('em', '', 'By get methods'),
+            ' means the account type is inferred by matching method IDs extracted from disassembled contract bytecode against known interface patterns.');
+        about.append(el('summary', '', 'About this distribution'), population, methods);
         this.card.append(heading, this.time, this.breadcrumbs, this.body, this.message, about, this.tooltip);
         container.append(this.card);
         this.expanded = el('dialog', 'type-expanded');
