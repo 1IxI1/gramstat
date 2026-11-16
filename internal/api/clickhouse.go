@@ -23,8 +23,17 @@ func NewClickHouse(endpoint, user, password string) (*ClickHouse, error) {
 	if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, fmt.Errorf("GRAMSTAT_CH_URL must be an HTTP(S) endpoint without credentials or query parameters")
 	}
+	// Credentials must go directly to the configured database, never through
+	// HTTP_PROXY/HTTPS_PROXY inherited from the host environment.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.MaxConnsPerHost = 8
+	transport.MaxIdleConnsPerHost = 8
+	transport.MaxResponseHeaderBytes = 16 << 10
+	transport.ResponseHeaderTimeout = 12 * time.Second
 	return &ClickHouse{u, user, password, &http.Client{
 		Timeout:       15 * time.Second,
+		Transport:     transport,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}}, nil
 }

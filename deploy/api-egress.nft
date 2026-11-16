@@ -1,0 +1,12 @@
+# Substitute API_UID, CLICKHOUSE_IPV4 and CLICKHOUSE_PORT during installation.
+# Use a literal address in GRAMSTAT_CH_URL: this process needs no DNS access.
+# This transaction changes only our table, never Docker/host firewall rules.
+add table inet gramstat_api
+flush table inet gramstat_api
+add chain inet gramstat_api output { type filter hook output priority 0; policy accept; }
+add chain inet gramstat_api allowed
+add rule inet gramstat_api output meta skuid API_UID jump allowed
+# Replies to nginx's loopback connection, not new outbound loopback connections.
+add rule inet gramstat_api allowed ip daddr 127.0.0.1 tcp sport 2008 ct state established accept
+add rule inet gramstat_api allowed ip daddr CLICKHOUSE_IPV4 tcp dport CLICKHOUSE_PORT accept
+add rule inet gramstat_api allowed counter reject with icmpx type admin-prohibited

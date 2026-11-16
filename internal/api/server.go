@@ -42,7 +42,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Vary", "Accept, Accept-Encoding")
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
+		w.Header().Set("Connection", "close")
 		problem(w, 405, "method not allowed")
+		return
+	}
+	if r.ContentLength != 0 || len(r.TransferEncoding) != 0 {
+		w.Header().Set("Connection", "close")
+		problem(w, 400, "request bodies are not supported")
+		return
+	}
+	if len(r.RequestURI) > 2048 {
+		problem(w, 414, "request URI too long")
 		return
 	}
 	q, err := url.ParseQuery(r.URL.RawQuery)

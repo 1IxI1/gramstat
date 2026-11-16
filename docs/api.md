@@ -319,32 +319,45 @@ their missing prerequisites in the UI.
 
 ## Deployment
 
-Build with `go build ./cmd/gramstat-api`. The provided
+Build with Go **1.27.4 or newer** and `go build ./cmd/gramstat-api`. The provided
 [systemd unit](../deploy/gramstat-api.service) runs as
 an unprivileged `gramstat-api` user, bound to `127.0.0.1:2008`.
 Its root-owned mode-0600 `/etc/gramstat-api.env` contains:
 
 ```
-GRAMSTAT_CH_URL=http://clickhouse.example.com:8123/
+GRAMSTAT_CH_URL=https://<ClickHouse VPN IP>:8443/
 GRAMSTAT_CH_USER=gramstat_api
 GRAMSTAT_CH_PASSWORD=<server-managed secret>
 ```
 
-Use a separate ClickHouse user restricted to the application host, with `readonly=1`
-and SELECT on the tables above plus indexed `blocks` and `account_deltas`. Set its profile limits to match the fixed
-query settings: `max_execution_time=10`, `max_threads=2`,
-`max_memory_usage=268435456`, `max_result_rows=20000`,
-`max_result_bytes=4194304`, `result_overflow_mode='throw'`,
-`max_rows_to_read=2000000`, `read_overflow_mode='throw'`,
-`join_use_nulls=1`, `output_format_json_quote_64bit_integers=1`,
-`max_concurrent_queries_for_user=8`. No INSERT/DDL or raw-database grants.
+The TLS certificate must validate against the configured address; install the
+internal CA in the system trust store when necessary. Never disable certificate
+verification. HTTP is suitable only inside a separately protected transport.
+
+Use a separate ClickHouse user restricted to the single application host IP,
+with `readonly=1`, no roles and exactly the grants in
+[`clickhouse-api-grants.sql`](../deploy/clickhouse-api-grants.sql). It reads 26
+tables in `gramstat`, five columns of `gramstat_full.account_deltas` and six
+columns of `mainnet_gramstat_full.blocks`. No database-wide grants are needed.
+Apply [`clickhouse-api-settings.sql`](../deploy/clickhouse-api-settings.sql):
+8 simultaneous queries, 10 seconds, 2 threads, 256 MiB per query, 1 GiB per user,
+2 million rows read, 20,000 result rows and 4 MiB result size. Overflow throws;
+the credential cannot relax these settings.
 Wallet counts have an interval-first projection so daily queries do not scan
 the neighboring minute/hour rows across the full history.
 Full-history Activity reads prepared daily rows in at most 366-day batches to
 respect these per-query limits, then returns the complete history in one response.
 
+Install the [egress unit](../deploy/gramstat-api-egress.service) and render
+[`api-egress.nft`](../deploy/api-egress.nft) into `/etc/gramstat/api-egress.nft`,
+substituting the dedicated API UID and the single database IP/port. Validate with
+`nft --check -f` before loading. The API unit requires this firewall unit. Only
+database connections and replies to nginx on localhost are permitted for this
+UID, for both IPv4/IPv6; no DNS or arbitrary loopback outbound access is needed.
+Use a literal database address (or a locally pinned `/etc/hosts` name).
+
 The [nginx example](../deploy/nginx.conf) binds port
-**2007 only on the private address** (`PRIVATE_BIND_ADDRESS`). `/` serves the UI,
+**2007 only on localhost**. `/` serves the UI,
 `/api/` proxies the loopback service. Static paths are allowlisted; historical
 snapshots, provenance and repository files are not served. Copy only `index.html`,
 `app.mjs`, `catalogue.mjs`, `charts.mjs`, `data.mjs`, `wire.mjs`, `time-ranges.mjs`, `wallet-registry.mjs`, `stake-registry.mjs`, `style.css`, `favicon.svg`
@@ -355,10 +368,15 @@ and their SIL Open Font License. These are unmodified Inter v4.1 files from
 `docs/font-files/InterVariable{,-Italic}.woff2`. The nginx allowlist serves only
 the two WOFF2 files; no third-party font service is required.
 
-For HTTPS deployment through HAProxy, terminate TLS at the proxy and forward
-requests to the private nginx listener. All frontend API requests are same-origin.
-Configure trusted proxy IPs explicitly before enabling real-IP forwarding and
-rate limiting; never trust client-supplied X-Forwarded-For globally.
+The [public TLS vhost](../deploy/nginx-public.conf) proxies to localhost:2007.
+It is configured for Cloudflare: install
+[`nginx-cloudflare-geo.conf`](../deploy/nginx-cloudflare-geo.conf) in nginx's
+HTTP context and [`nginx-cloudflare-realip.conf`](../deploy/nginx-cloudflare-realip.conf)
+as `/etc/nginx/snippets/gramstat-cloudflare-realip.conf`. The original TCP peer
+must be an official Cloudflare address (or loopback for local checks). Trust
+`CF-Connecting-IP` only from those ranges, inside this vhost; overwrite forwarded
+headers before passing to the local origin. Update both range lists together.
+For a different edge proxy, explicitly replace these peer/trust rules.
 
 The API caches complete successful responses for five minutes, coalesces same-key
 misses, allows eight source loads concurrently and retains at most 32 entries of
@@ -366,6 +384,8 @@ at most 32 MiB, with a 64-MiB total cache budget. HTTP has a 15-second request d
 rate. Failed loads are not cached as successful zero data. The UI refreshes every
 five minutes while visible and shows per-source freshness and per-point partial
 coverage. Public GET responses can be cached for 60 seconds.
+Requests are GET/HEAD only, without bodies; API request URIs are limited to
+2048 bytes. The ClickHouse client ignores environment proxies and redirects.
 
 The UI runs up to seven range tasks concurrently and loads the independent
 Account types snapshot immediately, using the eighth reader slot without waiting

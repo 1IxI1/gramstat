@@ -1,0 +1,15 @@
+[Unit]
+Description=Gramstat API outbound network allowlist
+Before=gramstat-api.service
+After=network-pre.target nftables.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nft -f /etc/gramstat/api-egress.nft
+ExecReload=/usr/sbin/nft -f /etc/gramstat/api-egress.nft
+RemainAfterExit=yes
+# Rules deliberately survive service stop; stopping a firewall must not
+# silently give a running API unrestricted network access.
+
+[Install]
+WantedBy=multi-user.target

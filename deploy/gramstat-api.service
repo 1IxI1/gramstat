@@ -2,24 +2,48 @@
 Description=Gramstat read-only chart API
 Wants=network-online.target
 After=network-online.target
+Requires=gramstat-api-egress.service
+After=gramstat-api-egress.service
 
 [Service]
 User=gramstat-api
 Group=gramstat-api
 EnvironmentFile=/etc/gramstat-api.env
+Environment=GOMEMLIMIT=256MiB
 ExecStart=/opt/gramstat/bin/gramstat-api --listen 127.0.0.1:2008
 Restart=on-failure
 RestartSec=5
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
+PrivateDevices=true
+PrivateIPC=true
 ProtectSystem=strict
 ProtectHome=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
 ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SocketBindDeny=any
+SocketBindAllow=ipv4:tcp:2008
+InaccessiblePaths=-/etc/gramstat-aggregate.env -/var/lib/gramstat-aggregate -/run/docker.sock -/run/containerd
 CapabilityBoundingSet=
+LimitCORE=0
+LimitNOFILE=4096
+CPUQuota=200%
 MemoryMax=512M
 TasksMax=64
 
