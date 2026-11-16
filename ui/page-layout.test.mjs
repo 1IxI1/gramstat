@@ -20,4 +20,11 @@ test('each chart has a container on the intended statistics page', async () => {
     assert.ok(activity.indexOf('id="accounts-charts"') < activity.indexOf('id="wallet-charts"'));
     assert.ok(activity.indexOf('id="wallet-charts"') < activity.indexOf('id="transaction-charts"'));
     assert.ok(activity.indexOf('id="transaction-charts"') < activity.indexOf('id="activity-charts"'));
+    const locked = CATALOGUE.findIndex((chart) => chart.id === 'stake_locked');
+    assert.deepEqual(CATALOGUE.slice(locked + 1, locked + 3).map((chart) => chart.id), ['liquid_staking_deposits', 'lst_amount']);
+    for (const id of ['liquid_staking_deposits', 'lst_amount']) {
+        const chart = CATALOGUE.find((entry) => entry.id === id);
+        assert.equal(chart.section, 'validator');
+        assert.equal(chart.activityAverage, true);
+    }
 });

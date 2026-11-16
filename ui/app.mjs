@@ -105,6 +105,7 @@ let rangeLoad = Promise.resolve();
 const sectionModeFromURL = () => new URLSearchParams(location.search).get('activityInterval') === 'monthly' ? 'monthly' : 'daily';
 let sectionMode = sectionModeFromURL();
 let sectionReadings;
+let dailyActivityReadings;
 let activitySource;
 let sectionLoading = false;
 let sectionError = '';
@@ -131,7 +132,7 @@ for (const [i, tab] of sectionTabs.entries()) {
 function loadSectionActivity() {
     sectionLoading = pendingCharts.has('observations');
     sectionError = '';
-    sectionReadings = activitySource ? sectionMode === 'monthly' ? monthlyActivity(activitySource) : readObservedMetrics({ ...activitySource, period: readings.period }) : undefined;
+    sectionReadings = activitySource ? sectionMode === 'monthly' ? monthlyActivity(activitySource) : dailyActivityReadings : undefined;
     render('activity');
 }
 
@@ -404,9 +405,9 @@ for (const definition of CATALOGUE) {
     surface.append(expand);
     let average;
     let averageValue;
-    if (definition.averageUnit || definition.section === 'activity') {
+    if (definition.averageUnit || definition.section === 'activity' || definition.activityAverage) {
         average = element('div', 'chart-average');
-        if (definition.section === 'activity') average.classList.add('activity-average');
+        if (definition.section === 'activity' || definition.activityAverage) average.classList.add('activity-average');
         const dot = element('span', 'average-dot');
         dot.style.backgroundColor = definition.series[0].color;
         dot.setAttribute('aria-hidden', 'true');
@@ -524,15 +525,16 @@ function render(group, roundsOnly = false, onlyID) {
         if (roundsOnly && !definition.round) continue;
         const isActivity = definition.id === 'active_wallets_daily';
         const isSection = definition.section === 'activity';
+        const isDailyAction = definition.activityAverage;
         const monthly = isSection && sectionMode === 'monthly';
-        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading) || (isSection && sectionLoading);
+        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading) || ((isSection || isDailyAction) && sectionLoading);
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
         const isActivations = definition.id === 'activations';
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly || definition.time;
-        const observations = isSection ? sectionReadings : readings;
+        const observations = isDailyAction ? dailyActivityReadings : isSection ? sectionReadings : readings;
         let allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
         if (isActivations) allSeries = walletsData ? activationSeries(walletsData, selectedWallets) : [];
         if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => {
@@ -578,7 +580,7 @@ function render(group, roundsOnly = false, onlyID) {
             }
         }
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : definition.id === 'validator_count' ? validatorsError : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : isDailyAction ? sectionError : definition.id === 'validator_count' ? validatorsError : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -606,7 +608,7 @@ function render(group, roundsOnly = false, onlyID) {
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
         if (!isTotalActions && !isActivations) state.legend.replaceChildren();
-        if (isSection) {
+        if (isSection || isDailyAction) {
             if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.'));
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
@@ -723,6 +725,7 @@ function pointBudget(id) {
 
 function load() {
     sectionReadings = undefined;
+    dailyActivityReadings = undefined;
     activitySource = undefined;
     sectionLoading = true;
     sectionError = '';
@@ -826,7 +829,8 @@ async function loadRange() {
                     if (data.schemaVersion !== 3) throw Error('Unsupported dashboard response.');
                     readings = readObservedMetrics({ ...empty, ...data, schemaVersion: 2 });
                     activitySource = expandActivityColumns(data.activity);
-                    sectionReadings = sectionMode === 'monthly' ? monthlyActivity(activitySource) : readObservedMetrics({ ...activitySource, period: range });
+                    dailyActivityReadings = readObservedMetrics({ ...activitySource, period: range });
+                    sectionReadings = sectionMode === 'monthly' ? monthlyActivity(activitySource) : dailyActivityReadings;
                     sectionLoading = false;
                     pendingCharts.delete('observations');
                     render('observations');

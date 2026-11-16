@@ -20,7 +20,9 @@ test('monthly Activity preserves exact calendar sums and uses monthly distinct u
     assert.equal(result.metrics.jetton_transfers.series[0].exact['2024-02-01'], String(29n * 9007199254740993n));
     assert.equal(result.metrics.jetton_users.series[0].exact['2024-02-01'], '8');
     assert.equal(result.metrics.jetton_users.series[1].exact['2024-02-01'], null);
-    assert.equal(result.metrics.lst_amount.series[0].exact['2024-02-01'], '29.000000029');
+    assert.equal(result.metrics.lst_amount, undefined);
+    const dailyDeposits = readObservedMetrics(fixture()).metrics.lst_amount.series[0];
+    assert.equal(dailyDeposits.exact['2024-02-01'], '1.000000001');
 });
 
 test('monthly Activity keeps missing days unknown and marks current partial months', () => {
