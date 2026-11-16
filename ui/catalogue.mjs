@@ -155,7 +155,7 @@ export const CATALOGUE = [
         stakeRegistry: true,
     }),
     chart('liquid_staking_deposits', 'Liquid staking deposits', 'validator', '', {
-        kind: 'bar', zero: true, activityAverage: true,
+        kind: 'bar', zero: true, activityAverage: true, layout: 'half',
         description: 'Number of successful deposits into Tonstakers, Stakee, KTON, and sGRAM. Counts deposits, not unique depositors.',
     }),
     chart('lst_amount', 'Liquid stakes deposited', 'validator', 'GRAM', {
@@ -163,7 +163,7 @@ export const CATALOGUE = [
         kind: 'stacked-bar',
         zero: true,
         activityAverage: true,
-        layout: 'wide',
+        layout: 'half',
         series: ['tonstakers', 'stakee', 'kton', 'sgram'].map((id, i) => series(id, id, i)),
         note: 'Selected four pools. A pool with unknown deposit amounts stays unknown.',
     }),

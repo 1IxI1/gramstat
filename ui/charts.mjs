@@ -276,7 +276,7 @@ export class TimeChart {
     draw() {
         const width = this.surface.clientWidth || 480;
         const height = this.surface.clientHeight || 273;
-        const footerHeight = this.config.averageUnit ? (this.surface.querySelector('.chart-average')?.offsetHeight || 32) : 0;
+        const footerHeight = this.surface.querySelector('.chart-average')?.offsetHeight || 0;
         const left = this.config.secondaryOverlay && width < 600 ? 48 : 80;
         const secondary = this.config.series.some((s) => s.axis === 'right');
         const right = width - (secondary ? 80 : 24);

@@ -26,5 +26,6 @@ test('each chart has a container on the intended statistics page', async () => {
         const chart = CATALOGUE.find((entry) => entry.id === id);
         assert.equal(chart.section, 'validator');
         assert.equal(chart.activityAverage, true);
+        assert.equal(chart.layout, 'half');
     }
 });
