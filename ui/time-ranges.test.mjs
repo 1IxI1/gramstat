@@ -12,10 +12,14 @@ const coverage = (last = '2026-11-11T11:52:59Z', complete = '2026-11-10') => [
 ];
 const relative = (seconds = 7 * 86400, completeDays = false) => ({ kind: 'relative', seconds, completeDays });
 
-test('initial fixed range keeps 90 complete days while explicit Last ends at the indexed second', () => {
-    const initial = defaultTimeRange(coverage(), now);
-    assert.deepEqual(initial, { kind: 'absolute', from: ms('2026-08-13T00:00:00Z'), to: ms('2026-11-11T00:00:00Z'), completeDays: false });
-    for (const seconds of [300, 3600, 86400, 7 * 86400, 90 * 86400]) {
+test('default Last 180 days and explicit Last presets end at the indexed second', () => {
+    const initial = defaultTimeRange();
+    assert.deepEqual(initial, relative(180 * 86400));
+    const initialRange = resolveTimeRange(initial, coverage(), now);
+    assert.equal(initialRange.to - initialRange.from, 180 * day);
+    assert.equal(initialRange.to - 1000, ms('2026-11-11T11:52:59Z'));
+    assert.equal(timeRangeLabel(initial, initialRange), 'Last 180 days');
+    for (const seconds of [300, 3600, 86400, 7 * 86400, 90 * 86400, 180 * 86400]) {
         const range = resolveTimeRange(relative(seconds), coverage(), now);
         assert.equal(range.to - 1000, ms('2026-11-11T11:52:59Z'));
         assert.equal(range.to - range.from, seconds * 1000);

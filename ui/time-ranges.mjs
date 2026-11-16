@@ -49,10 +49,8 @@ export function resolveTimeRange(choice, coverage, now = Date.now()) {
     return { from, to };
 }
 
-export function defaultTimeRange(coverage, now = Date.now()) {
-    const range = resolveTimeRange({ kind: 'relative', seconds: 90 * 86400, completeDays: true }, coverage, now);
-    // Keep the initial, fixed 90-day view. Explicit Last presets opt into now.
-    return { kind: 'absolute', ...range, completeDays: false };
+export function defaultTimeRange() {
+    return { kind: 'relative', seconds: 180 * 86400, completeDays: false };
 }
 
 export function timeRangeLabel(choice, range) {

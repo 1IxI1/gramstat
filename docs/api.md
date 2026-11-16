@@ -289,9 +289,9 @@ requests never trigger archive RPC calls. Raw account responses and internal
 verification evidence are not exposed.
 
 The `chain` coverage row also exposes nullable `last_complete_day`, the latest
-UTC day with `is_partial = 0`. The initial 90-day range and ranges with
-**Only complete daily periods** enabled end no later than this day's end.
-Other `Last…` presets include the latest indexed second.
+UTC day with `is_partial = 0`. Ranges with **Only complete daily periods** enabled
+end no later than this day's end. Otherwise, `Last…` presets, including the
+default **Last 180 days**, include the latest indexed second.
 
 UI theme colors use TON blue (`#0098EA`) and the current official `ton.org`
 dark UI palette: background `#10161F`, surface `#101B2A`, accent `#1EAEFB`,
@@ -367,9 +367,9 @@ The UI runs up to seven range tasks concurrently and loads the independent
 Account types snapshot immediately, using the eighth reader slot without waiting
 for the historical charts to finish.
 
-The initial view remains a fixed 90-day interval ending at the last verified
-complete UTC day. Explicit **Last …** presets instead follow the latest indexed
-supply block's second, with an exclusive API end one second later. The picker
+The default view is **Last 180 days**, with **Only complete daily periods** off.
+It follows the latest indexed supply block's second, like the other **Last …**
+presets, with an exclusive API end one second later. The picker
 shows exact bounds and the indexed-chain `Data through` timestamp; publication
 timestamps and daily rows are never treated as exact live seconds. Relative
 links use `last=<seconds>` (or `range=all`), so reload and automatic refresh

@@ -930,7 +930,7 @@ async function loadLatest(choice = rangeChoice, options = {}) {
         const sources = await getJSON('/api/v1/coverage', AbortSignal.timeout(20000));
         if (id !== requestId) return;
         coverage = sources.coverage;
-        applyRangeChoice(choice ?? defaultTimeRange(coverage), options);
+        applyRangeChoice(choice ?? defaultTimeRange(), options);
     } catch (e) {
         if (id === requestId) {
             warning(`Data could not be loaded. ${e.message}`);
