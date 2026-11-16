@@ -152,7 +152,7 @@ async function loadActivity() {
     activityLoading = true;
     activityError = '';
     render('wallets', false, 'active_wallets_daily');
-    // A range load already owns up to four reader slots. Wait for it without
+    // A range load shares the eight reader slots. Wait for it without
     // restarting it, then fetch only the newly selected wallet view.
     await rangeLoad;
     if (id !== activityRequest || !activeRange) return;
@@ -794,8 +794,8 @@ async function loadRange() {
             pendingCharts.delete(group);
             render(group);
         };
-        // Four workers match the API's cold-reader limit. Wallets starts at once;
-        // each completed group renders only its own charts.
+        // Seven range tasks leave one of the API's eight cold-reader slots for
+        // independent account types. Each group renders as soon as it finishes.
         const tasks = [
             chartTask('wallets', `/api/v1/wallets?${walletParams}`, (data) => {
                 if (data.error) walletsError = `Wallets unavailable: ${data.error}`;
@@ -854,7 +854,7 @@ async function loadRange() {
                 render('coverage');
             },
         ];
-        await Promise.all(Array.from({ length: 4 }, async () => {
+        await Promise.all(Array.from({ length: 7 }, async () => {
             while (tasks.length && id === requestId && !request.signal.aborted) await tasks.shift()();
         }));
     } catch (e) {
@@ -943,11 +943,10 @@ async function loadLatest(choice = rangeChoice, options = {}) {
 }
 syncExpandedChart();
 $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
-const initialLoad = rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays
-    ? applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' })
-    : loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
-// Let the initial four chart readers finish before the independent latest view.
-Promise.resolve(initialLoad).then(() => rangeLoad).then(() => accountTypes.load());
+if (rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays) applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' });
+else loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
+// Prepared latest account types are independent of the historical range.
+accountTypes.load();
 setInterval(() => { if (!document.hidden) accountTypes.load(); }, 10 * 60 * 1000);
 setInterval(
     () => {

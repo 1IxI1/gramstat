@@ -32,7 +32,7 @@ type Server struct {
 }
 
 func New(reader Reader, log *slog.Logger) *Server {
-	return &Server{reader: reader, log: log, cache: make(map[string]entry), pending: make(map[string]chan struct{}), slots: make(chan struct{}, 4)}
+	return &Server{reader: reader, log: log, cache: make(map[string]entry), pending: make(map[string]chan struct{}), slots: make(chan struct{}, 8)}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

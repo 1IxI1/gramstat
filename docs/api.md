@@ -333,7 +333,7 @@ query settings: `max_execution_time=10`, `max_threads=2`,
 `max_result_bytes=4194304`, `result_overflow_mode='throw'`,
 `max_rows_to_read=2000000`, `read_overflow_mode='throw'`,
 `join_use_nulls=1`, `output_format_json_quote_64bit_integers=1`,
-`max_concurrent_queries_for_user=4`. No INSERT/DDL or raw-database grants.
+`max_concurrent_queries_for_user=8`. No INSERT/DDL or raw-database grants.
 Wallet counts have an interval-first projection so daily queries do not scan
 the neighboring minute/hour rows across the full history.
 Full-history Activity reads prepared daily rows in at most 366-day batches to
@@ -357,11 +357,15 @@ Configure trusted proxy IPs explicitly before enabling real-IP forwarding and
 rate limiting; never trust client-supplied X-Forwarded-For globally.
 
 The API caches complete successful responses for five minutes, coalesces same-key
-misses, allows four source loads concurrently and retains at most 32 entries of
+misses, allows eight source loads concurrently and retains at most 32 entries of
 at most 32 MiB, with a 64-MiB total cache budget. HTTP has a 15-second request deadline; nginx also limits request
 rate. Failed loads are not cached as successful zero data. The UI refreshes every
 five minutes while visible and shows per-source freshness and per-point partial
 coverage. Public GET responses can be cached for 60 seconds.
+
+The UI runs up to seven range tasks concurrently and loads the independent
+Account types snapshot immediately, using the eighth reader slot without waiting
+for the historical charts to finish.
 
 The initial view remains a fixed 90-day interval ending at the last verified
 complete UTC day. Explicit **Last …** presets instead follow the latest indexed
