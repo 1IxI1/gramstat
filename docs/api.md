@@ -150,6 +150,10 @@ is `ui/wire.mjs`; cross-language tests compare Go encoding with this decoder.
     and its hour/day checkpoints alongside closed-day publications. MC ties and
     integer-string precision are preserved. Uncommitted points/checkpoints are
     excluded, and a certified closed day supersedes its streamed points.
+    Sub-hour cumulative views read raw MC points in bounded UTC-day slices,
+    reusing the same captured publications and live MC watermark. The API joins
+    their exact samples into one response without reducing resolution or raising
+    the per-query read limit; hour/day checkpoint views keep their direct read.
     Current daily activations come from `wallet_activation_stream_state`, with
     `end_utime` and `is_partial`; their UTC day uses transaction time, not MC time.
     Grant SELECT on all three stream tables to the API role.

@@ -113,6 +113,41 @@ const walletActivatedSQL = `WITH if({step:UInt32}>=86400,86400,3600) AS base_ste
  SELECT max(p.mc_seqno) AS mc_seqno,argMax(p.utime,p.mc_seqno) AS utime,toString(argMax(p.activated,p.mc_seqno)) AS value
  FROM points p GROUP BY if({step:UInt32}=0,toUInt64(p.mc_seqno),toUInt64(intDiv(p.utime,greatest({step:UInt32},1)))) ORDER BY mc_seqno`
 
+func (s *Server) readWalletActivated(ctx context.Context, p url.Values, from, to time.Time, step int64) (json.RawMessage, error) {
+	// Sub-hour views read raw MC points rather than hourly checkpoints. A week
+	// can exceed the per-query row budget even though its output is small.
+	// All supported sub-hour buckets divide a UTC day, so day-aligned slices
+	// preserve the exact samples, including the partial first/last buckets.
+	if step >= 3600 || !from.UTC().Truncate(24*time.Hour).Add(24*time.Hour).Before(to) {
+		return s.reader.Read(ctx, "wallet_activated", p)
+	}
+	rows := []json.RawMessage{}
+	for start := from; start.Before(to); {
+		end := start.UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
+		if end.After(to) {
+			end = to
+		}
+		chunk := make(url.Values, len(p))
+		for key, values := range p {
+			chunk[key] = append([]string(nil), values...)
+		}
+		// Reuse the captured day publications and committed live MC watermark.
+		chunk.Set("from_ts", strconv.FormatInt(start.Unix(), 10))
+		chunk.Set("to_ts", strconv.FormatInt(end.Unix(), 10))
+		data, err := s.reader.Read(ctx, "wallet_activated", chunk)
+		if err != nil {
+			return nil, fmt.Errorf("wallet activation slice %s: %w", start.UTC().Format(time.DateOnly), err)
+		}
+		var batch []json.RawMessage
+		if err := json.Unmarshal(data, &batch); err != nil {
+			return nil, err
+		}
+		rows = append(rows, batch...)
+		start = end
+	}
+	return json.Marshal(rows)
+}
+
 func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) {
 	from, _ := time.Parse(time.RFC3339, q.Get("from"))
 	to, _ := time.Parse(time.RFC3339, q.Get("to"))
@@ -280,7 +315,7 @@ func (s *Server) loadWallets(ctx context.Context, q url.Values) ([]byte, error) 
 			}
 		}
 		p.Set("step", strconv.FormatInt(activatedStep, 10))
-		activated, err = s.reader.Read(ctx, "wallet_activated", p)
+		activated, err = s.readWalletActivated(ctx, p, from, to, activatedStep)
 		if err != nil {
 			return nil, err
 		}

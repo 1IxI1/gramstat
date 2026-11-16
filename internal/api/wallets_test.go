@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os/exec"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -286,5 +288,94 @@ INSERT INTO gramstat.wallet_activations_mc SELECT 's','r',toDate('2025-01-01')+t
 	out, err = exec.Command(binary, args...).CombinedOutput()
 	if err != nil || string(out) != "4096\n" {
 		t.Fatalf("bounded single-day count: %v: %s", err, out)
+	}
+}
+
+func TestWalletSubhourSlicesRespectReadBudgetAndPreserveSamples(t *testing.T) {
+	binary, err := exec.LookPath("clickhouse")
+	if err != nil {
+		t.Skip("clickhouse-local unavailable")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	dir := t.TempDir()
+	start := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
+	from, to := start.Add(123*time.Second), start.AddDate(0, 0, 7).Add(123*time.Second)
+	p := url.Values{
+		"source": {"s"}, "registry": {"r"}, "step": {"900"},
+		"from_ts": {strconv.FormatInt(from.Unix(), 10)}, "to_ts": {strconv.FormatInt(to.Unix(), 10)},
+		"live_base": {"0"}, "live_end": {"524280"},
+	}
+	var published []string
+	for i := 0; i < 4; i++ {
+		published = append(published, fmt.Sprintf("('%s','00000000-0000-0000-0000-000000000001')", start.AddDate(0, 0, i).Format(time.DateOnly)))
+	}
+	p.Set("published", "["+strings.Join(published, ",")+"]")
+	run := func(sql string, params url.Values, limit string) ([]byte, error) {
+		args := []string{"local", "--path", dir, "--max_threads", "2", "--multiquery", "--max_rows_to_read", limit, "--query", sql}
+		for name, values := range params {
+			args = append(args, "--param_"+name, values[0])
+		}
+		body, err := exec.CommandContext(ctx, binary, args...).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", err, body)
+		}
+		return body, nil
+	}
+	setup := `CREATE DATABASE gramstat;` + walletStreamFixtureSQL + `
+CREATE TABLE gramstat.wallet_activations_mc(source_id String,registry String,day Date,run_id UUID,mc_seqno UInt32,utime UInt32,activated UInt64)
+ENGINE=MergeTree ORDER BY (source_id,registry,day,run_id,mc_seqno) SETTINGS index_granularity=1024;
+CREATE TABLE gramstat.wallet_activated_checkpoints(source_id String,registry String,day Date,run_id UUID,step UInt32,bucket UInt32,mc_seqno UInt32,utime UInt32,activated UInt64)
+ENGINE=MergeTree ORDER BY (source_id,registry,day,run_id,step,bucket);
+INSERT INTO gramstat.wallet_activations_mc
+SELECT 's','r',toDate('2026-11-09')+toUInt32(intDiv(number,65536)),toUUID('00000000-0000-0000-0000-000000000001'),
+toUInt32(number+1),toUnixTimestamp('2026-11-09 00:00:00','UTC')+intDiv(number,65536)*86400+intDiv(modulo(number,65536),2)*2,
+toUInt64(9007199254740993)+number FROM numbers(524288);
+INSERT INTO gramstat.wallet_activation_stream SELECT source_id,registry,day,mc_seqno,utime,activated FROM gramstat.wallet_activations_mc;
+`
+	if _, err := run(setup, nil, "2000000"); err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce the incident with a scaled local read budget.
+	if _, err := run(walletActivatedSQL+" FORMAT JSON", p, "150000"); err == nil || !strings.Contains(err.Error(), "TOO_MANY_ROWS") {
+		t.Fatal("unbounded raw scan did not exceed the fixture budget", err)
+	}
+	full, err := run(walletActivatedSQL+" FORMAT JSON", p, "2000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reference struct {
+		Data []map[string]any
+	}
+	if err := json.Unmarshal(full, &reference); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	s := New(readerFunc(func(ctx context.Context, name string, chunk url.Values) (json.RawMessage, error) {
+		calls++
+		if name != "wallet_activated" || chunk.Get("published") != p.Get("published") || chunk.Get("live_end") != p.Get("live_end") {
+			t.Fatal("captured publication changed", name, chunk)
+		}
+		body, err := run(walletActivatedSQL+" FORMAT JSON", chunk, "150000")
+		if err != nil {
+			return nil, err
+		}
+		var result struct{ Data json.RawMessage }
+		if err := json.Unmarshal(body, &result); err != nil {
+			return nil, err
+		}
+		return result.Data, nil
+	}), logger())
+	before := p.Encode()
+	got, err := s.readWalletActivated(ctx, p, from, to, 900)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(got, &rows); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(rows, reference.Data) || len(rows) == 0 || calls != 8 || p.Encode() != before {
+		t.Fatalf("slices differ from the exact reference or mutate shared parameters: rows=%d calls=%d", len(rows), calls)
 	}
 }
