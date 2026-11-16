@@ -582,12 +582,14 @@ function render(group, roundsOnly = false, onlyID) {
                 state.detail.textContent = latest ? `in ${periodLabel(latest.date)}` : '';
             }
         }
+        const latestDetail = (latest ? series.find(s => s.details?.[latest.date])?.details[latest.date] || '' : '')
+            .replace(/^Partial day\.\s*/, '');
         state.status.textContent =
             (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : isDailyAction ? sectionError : definition.id === 'validator_count' ? validatorsError : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
-                ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || ''
+                ? latestDetail
                 : 'No covered observations in this interval.');
         if ((definition.descriptionStrong || definition.descriptionEmphasis) && state.status.textContent === definition.description) {
             let parts = [definition.description];
@@ -614,7 +616,7 @@ function render(group, roundsOnly = false, onlyID) {
         }
         if (!isTotalActions && !isActivations) state.legend.replaceChildren();
         if (isSection || isDailyAction) {
-            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? series.find((s) => s.details?.[latest.date])?.details[latest.date] || '' : 'Monthly history is being prepared.'));
+            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
             const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
             state.average.replaceChildren(element('span', '', `Avg (${period}):`));
