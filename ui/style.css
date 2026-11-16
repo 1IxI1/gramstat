@@ -234,7 +234,7 @@ a {
 .chart-status {
     min-height: 3em;
 }
-#chart-accounts .chart-status, #chart-stake .chart-status, #chart-staking_apr .chart-status { white-space: pre-line; }
+#chart-stake .chart-status, #chart-staking_apr .chart-status { white-space: pre-line; }
 #chart-staking_apr .tooltip-note { white-space: pre-line; }
 #chart-stake_changes .chart-status, #chart-stake_changes .tooltip-note { white-space: pre-line; }
 #chart-stake_locked .chart-status, #chart-stake_locked .tooltip-note { white-space: pre-line; }

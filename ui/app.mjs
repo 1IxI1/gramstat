@@ -591,11 +591,13 @@ function render(group, roundsOnly = false, onlyID) {
                 : 'No covered observations in this interval.');
         if ((definition.descriptionStrong || definition.descriptionEmphasis) && state.status.textContent === definition.description) {
             let parts = [definition.description];
-            for (const [term, tag] of [[definition.descriptionStrong, 'strong'], [definition.descriptionEmphasis, 'em']]) {
-                if (!term) continue;
-                parts = parts.flatMap(part => typeof part === 'string'
-                    ? part.split(term).flatMap((text, i) => i ? [element(tag, '', term), text] : [text])
-                    : [part]);
+            for (const [terms, tag] of [[definition.descriptionStrong, 'strong'], [definition.descriptionEmphasis, 'em']]) {
+                for (const term of Array.isArray(terms) ? terms : [terms]) {
+                    if (!term) continue;
+                    parts = parts.flatMap(part => typeof part === 'string'
+                        ? part.split(term).flatMap((text, i) => i ? [element(tag, '', term), text] : [text])
+                        : [part]);
+                }
             }
             state.status.replaceChildren(...parts);
         }

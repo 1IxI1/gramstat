@@ -83,7 +83,8 @@ export const CATALOGUE = [
             'Uninitialized: account got money, but no wallet or contract code is deployed.',
             'Frozen: a previously deployed account is paused due to unpaid storage fees.',
             'Masterchain included. Deleted accounts (after send mode +32) are excluded.',
-        ].join('\n'),
+        ].join(' '),
+        descriptionStrong: ['Active', 'Uninitialized', 'Frozen'],
     }),
     chart('transactions', 'Transactions per day', 'gram', '', {
         container: 'transaction-charts',
