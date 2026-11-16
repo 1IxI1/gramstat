@@ -302,8 +302,11 @@ export class AccountTypes {
             if (BigInt(remainder) > 0n) sectors.push({ label: 'Remaining', id: 'remaining', accounts: remainder, activate: () => remainderAction(remainder, rows.slice(8)) });
             this.renderRing(sectors, total);
             this.message.textContent = '';
-            this.body.append(button(`Browse all code hashes (${integer(node.hashes)})`,
-                () => this.showList(node.id), 'type-browse'));
+            const navigation = el('div', 'type-navigation');
+            navigation.append(el('p', 'type-hint', 'Click on category to go deeper'),
+                button(`Browse all code hashes (${integer(node.hashes)})`,
+                    () => this.showList(node.id), 'type-browse'));
+            this.body.append(navigation);
             if (focus) this.breadcrumbs.lastElementChild?.focus();
         } catch (error) {
             if (token === this.sequence) this.message.replaceChildren(el('span', '', `${error.message} `), button('Retry', () => this.draw()));
