@@ -71,7 +71,7 @@ export const CATALOGUE = [
     }),
     chart('accounts', 'Accounts', 'gram', '', {
         container: 'accounts-charts',
-        layout: 'full',
+        layout: 'wide',
         kind: 'stacked-area', step: true, integer: true, zero: true,
         series: [
             { ...series('frozen', 'Frozen'), color: 'light-dark(#4288b0, #65b5e5)' },

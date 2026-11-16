@@ -83,6 +83,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "accounts"
 	case "/api/v1/accounts/code-hashes":
 		name = "code_hashes"
+	case "/api/v1/accounts/types":
+		name = "account_types"
 	case "/api/v1/wallets":
 		name = "wallets"
 	default:
@@ -97,7 +99,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, err.Error())
 		return
 	}
-	binaryResponse := name != "code_hashes" && accepts(r.Header.Get("Accept"), binaryContentType)
+	binaryResponse := name != "code_hashes" && name != "account_types" && accepts(r.Header.Get("Accept"), binaryContentType)
 	compressed := accepts(r.Header.Get("Accept-Encoding"), "gzip")
 	key := name + "?" + q.Encode() + fmt.Sprintf("|binary=%t|gzip=%t", binaryResponse, compressed)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -177,6 +179,9 @@ func problem(w http.ResponseWriter, status int, message string) {
 }
 
 func validate(name string, q url.Values, now time.Time) error {
+	if name == "account_types" {
+		return validateAccountTypes(q)
+	}
 	if name == "code_hashes" {
 		for key, values := range q {
 			if key != "limit" || len(values) != 1 {
@@ -306,7 +311,11 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 				cacheBytes -= len(s.cache[oldest].data)
 				delete(s.cache, oldest)
 			}
-			s.cache[key] = entry{data, time.Now().Add(5 * time.Minute)}
+			ttl := 5 * time.Minute
+			if strings.HasPrefix(key, "account_types?") && !strings.Contains(key, "publication=") {
+				ttl = time.Minute
+			}
+			s.cache[key] = entry{data, time.Now().Add(ttl)}
 		}
 		delete(s.pending, key)
 		close(done)
@@ -317,6 +326,9 @@ func (s *Server) cached(ctx context.Context, key string, load func() ([]byte, er
 }
 
 func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, error) {
+	if name == "account_types" {
+		return s.loadAccountTypes(ctx, q)
+	}
 	if name == "code_hashes" {
 		return s.loadCodeHashes(ctx, q)
 	}

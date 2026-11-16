@@ -430,3 +430,49 @@ UUID) and `gramstat.account_code_hash_snapshots` (completion metadata written
 last). Grant the API user SELECT on both. Readers capture one completed UUID
 before fetching its top rows, so a concurrent publication cannot mix totals and
 counts. Interface/group classification is not part of this endpoint.
+
+## Account types
+
+`GET /api/v1/accounts/types` returns the latest fully published tree. It accepts
+no historical range. The response has `schemaVersion: 1`, `snapshot`, and `nodes`.
+No publication yields `snapshot: null` and an empty node array, not zero accounts.
+
+Snapshot fields include `publicationId`, `countsSnapshotId`, `featureId`,
+`observedDay`, `featureDay`, `abiRevision`, `classificationVersion`, UTC observation
+start/end/publication times, exact `indexedAccounts`/`hashCount`, and the observed
+MC range. `scope` is `latest-code-hash-indexes`; `consistency` is `live-index-scan`.
+
+Every node has a stable `id`, `parent`, `label`, decimal-string `accounts`,
+`hashes`, `known`, `inferred`, `unknown`, and its terminal `leaves`. The root is
+`all`. Parents partition into disjoint children. Terminal nodes include
+`evidence` (`code_hash`, `get_methods` or `unknown`) and reviewed/inferred roles.
+The API rechecks all parent totals and evidence subtotals before serving a tree.
+
+Drill-down captures that publication:
+
+```text
+/api/v1/accounts/types?publication=<uuid>&node=<id>&limit=100&offset=0
+/api/v1/accounts/types?publication=<uuid>&node=<id>&search=<hash-fragment>
+/api/v1/accounts/types?publication=<uuid>&hash=<hex-or-base64>
+```
+
+Node requests return ordered code-hash `rows`, the selected `node`, exact
+`matchedAccounts`/`matchedHashes`, and pagination. `limit` is 1–200 (default 100);
+`offset` is 0–5,000,000. Search is at most 64 characters: case-insensitive hex or
+case-sensitive base64 substring. Search totals describe the matching population;
+the prepared node's total is unchanged.
+
+Hash details return `detail: null` when the hash is absent from the captured
+population. Otherwise they include exact counts, classification leaf, static
+method availability/IDs/possible names, the interval in which static metadata was
+read, and every matching ABI description with declared signatures and links.
+Static IDs do not prove successful execution or interface conformance.
+
+All calls return JSON (optionally gzip); GSC1 is not used. The latest pointer
+response is cached for one minute. Immutable publication-specific views use the
+ordinary bounded cache.
+
+The writer owns `gramstat.account_type_features`,
+`gramstat.account_type_feature_sets`, and `gramstat.account_type_snapshots`.
+The API needs SELECT only on these and the existing code-hash count table.
+It reads prepared immutable method metadata rather than the live source table.

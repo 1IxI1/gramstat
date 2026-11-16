@@ -7,6 +7,7 @@ import { createStakeRegistry } from './stake-registry.mjs';
 import { ACTION_TYPES, excludedActionTypes, totalActionSeries, createActionLegend } from './action-types.mjs';
 import { activationSelection, writeActivationSelection, activationSeries, activationTotal, createActivationLegend } from './wallet-activations.mjs';
 import { ValidatorMap } from './validator-map.mjs';
+import { AccountTypes } from './account-types.mjs';
 import { RANGE_PRESETS, inputTime, displayTime, indexedTime, resolveTimeRange, defaultTimeRange, timeRangeLabel, timeRangeFromURL, writeTimeRange } from './time-ranges.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -425,6 +426,7 @@ for (const definition of CATALOGUE) {
     cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, surface, chart, card, expand, heading, average, averageValue });
 }
 
+const accountTypes = new AccountTypes($('accounts-charts'));
 const expandedDialog = element('dialog', 'expanded-chart');
 document.body.append(expandedDialog);
 let expandedId = null;
@@ -475,7 +477,7 @@ expandedDialog.addEventListener('cancel', (event) => {
     navigateChart(null);
 });
 document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open || stakeRegistry.dialog.open || expandedDialog.querySelector('.action-legend[open]')) return;
+    if (event.key !== 'Escape' || !expandedDialog.open || walletRegistry.dialog.open || stakeRegistry.dialog.open || accountTypes.panel.open || accountTypes.expanded.open || expandedDialog.querySelector('.action-legend[open]')) return;
     event.preventDefault();
     event.stopPropagation();
     navigateChart(null);
@@ -940,8 +942,12 @@ async function loadLatest(choice = rangeChoice, options = {}) {
 }
 syncExpandedChart();
 $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
-if (rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays) applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' });
-else loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
+const initialLoad = rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays
+    ? applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' })
+    : loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
+// Let the initial four chart readers finish before the independent latest view.
+Promise.resolve(initialLoad).then(() => rangeLoad).then(() => accountTypes.load());
+setInterval(() => { if (!document.hidden) accountTypes.load(); }, 10 * 60 * 1000);
 setInterval(
     () => {
         if (!loading && !document.hidden && !$('time-picker').open) {
