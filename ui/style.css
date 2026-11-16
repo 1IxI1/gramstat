@@ -865,6 +865,9 @@ footer {
 .account-type-actions { display: flex; gap: 4px; }
 .type-icon { border: 0; background: transparent; color: var(--secondary); font-size: 22px; width: 32px; height: 32px; padding: 0; }
 .account-type-time { margin: 5px 0 10px; color: var(--muted); font-size: 12px; }
+.account-type-warning { width: 100%; margin-bottom: 12px; padding: 12px; background: light-dark(#f0f0f0, #272727); color: light-dark(#555, #bcbcbc); font-size: 12px; line-height: 1.6; }
+.account-type-warning strong { display: block; margin-bottom: 4px; font-weight: 600; }
+.account-type-warning p { margin: 0; }
 .type-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; min-height: 25px; margin-bottom: 3px; font-size: 12px; }
 .type-breadcrumbs button { border: 0; padding: 3px 4px; background: transparent; color: var(--link); max-width: 100%; overflow-wrap: anywhere; text-align: left; }
 .type-breadcrumbs button + button::before { content: '›'; padding-right: 7px; color: var(--muted); }

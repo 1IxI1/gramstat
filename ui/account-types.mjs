@@ -92,6 +92,11 @@ export class AccountTypes {
         this.expand.setAttribute('aria-haspopup', 'dialog');
         actions.append(this.refresh, this.expand); heading.append(title, actions);
         this.time = el('p', 'account-type-time', 'Latest snapshot');
+        this.rangeWarning = el('div', 'account-type-warning');
+        this.rangeWarning.hidden = true;
+        this.rangeWarning.setAttribute('role', 'note');
+        this.rangeWarning.append(el('strong', '', 'Warning'),
+            el('p', '', 'This chart shows the latest available snapshot, regardless of the selected time range.'));
         this.breadcrumbs = el('nav', 'type-breadcrumbs'); this.breadcrumbs.setAttribute('aria-label', 'Account type path');
         this.body = el('div', 'type-body');
         this.message = el('p', 'type-message', 'Loading account types…'); this.message.setAttribute('role', 'status');
@@ -104,7 +109,7 @@ export class AccountTypes {
         methods.append(el('em', '', 'By get methods'),
             ' means the account type is inferred by matching method IDs extracted from disassembled contract bytecode against known interface patterns.');
         about.append(el('summary', '', 'About this distribution'), population, methods);
-        this.card.append(heading, this.time, this.breadcrumbs, this.body, this.message, about, this.tooltip);
+        this.card.append(heading, this.time, this.rangeWarning, this.breadcrumbs, this.body, this.message, about, this.tooltip);
         container.append(this.card);
         this.expanded = el('dialog', 'type-expanded');
         this.expanded.setAttribute('aria-labelledby', title.id);
@@ -119,6 +124,10 @@ export class AccountTypes {
             if (event.target === this.panel && this.outside(this.panel, event)) this.panel.close();
         });
         this.panel.addEventListener('close', () => { this.panelSequence++; this.listState = null; });
+    }
+
+    setLiveRange(live) {
+        this.rangeWarning.hidden = live;
     }
 
     outside(dialog, event) {

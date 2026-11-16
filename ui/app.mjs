@@ -283,6 +283,7 @@ function syncRangeControls(range = activeRange) {
     $('range-complete').hidden = !rangeChoice.completeDays;
     $('complete-days').checked = rangeChoice.completeDays;
     const live = rangeChoice.kind !== 'absolute' && !rangeChoice.completeDays;
+    accountTypes.setLiveRange(live);
     $('range-bounds').textContent = `${displayTime(range.from)} — ${displayTime(range.to - 1000)}${live ? ' (now)' : ''} UTC`;
     syncIndexedTime();
     for (const b of $('range-presets').children) b.setAttribute('aria-pressed', String(rangeChoice.kind === 'relative' && Number(b.dataset.seconds) === rangeChoice.seconds));
