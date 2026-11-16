@@ -1,6 +1,8 @@
 // Counts remain BigInt throughout navigation; only SVG geometry uses Number.
 export const TYPE_ORDER = ['Wallets', 'Jettons', 'NFTs', 'NFT markets', 'DeFi', 'Other recognized', 'Mixed', 'Unknown'];
-const palette = ['#168ac0', '#5c9980', '#a18abc', '#c49a52', '#568f9b', '#ac8b80', '#c27896', '#929ca8'];
+const palette = ['#0098ea', '#f0b23f', '#24b995', '#9c78eb', '#e36ea3', '#ee6966',
+    '#8dbd42', '#24bccb', '#667de8', '#d9be39', '#38b876', '#e58752'];
+const categoryColors = ['#0098ea', '#24b995', '#9c78eb', '#f0b23f', '#24bccb', '#e58752', '#e36ea3', '#98a5b5'];
 const integer = value => BigInt(value).toLocaleString('en-US');
 const sum = rows => rows.reduce((n, row) => n + BigInt(row.accounts), 0n);
 
@@ -63,10 +65,25 @@ function sector(start, length) {
     return `M ${point(108, start)} A 108 108 0 0 1 ${point(108, middle)} A 108 108 0 0 1 ${point(108, end)}
         L ${point(76, end)} A 76 76 0 0 0 ${point(76, middle)} A 76 76 0 0 0 ${point(76, start)} Z`;
 }
-function color(row) {
-    const root = TYPE_ORDER.indexOf(row.label);
-    const hash = [...(row.id || row.codeHash || row.label)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
-    return palette[root < 0 ? hash % palette.length : root];
+function viewColors(rows) {
+    const colors = new Map();
+    for (const row of rows) {
+        if (row.id === 'remaining') colors.set(row, '#98a5b5');
+        else if (row.parent === 'all') colors.set(row, categoryColors[TYPE_ORDER.indexOf(row.label)]);
+    }
+    const used = new Set(colors.values());
+    const key = row => row.id || row.codeHash || row.label;
+    // Stable IDs, not population rank, decide who gets a preferred color.
+    // Resolve collisions within this view so adjacent implementations cannot merge.
+    for (const row of [...rows].sort((a, b) => key(a).localeCompare(key(b)))) {
+        if (colors.has(row)) continue;
+        const hash = [...key(row)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0);
+        let index = hash % palette.length;
+        while (used.has(palette[index])) index = (index + 5) % palette.length;
+        colors.set(row, palette[index]);
+        used.add(palette[index]);
+    }
+    return colors;
 }
 const timestamp = value => new Intl.DateTimeFormat('en-GB', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC',
@@ -322,11 +339,12 @@ export class AccountTypes {
         center.title = integer(total);
         chart.append(ring, center);
         const legend = el('div', 'type-legend');
+        const colors = viewColors(rows);
         let angle = -Math.PI / 2;
         for (const row of rows) {
             const share = Number(BigInt(row.accounts) * 1000000000000n / BigInt(total)) / 1000000000000;
             const length = share * Math.PI * 2;
-            const fill = row.id === 'remaining' ? '#a6adb6' : color(row);
+            const fill = colors.get(row);
             const path = svg('path', { d: sector(angle, length), fill, role: 'button', tabindex: '0',
                 'aria-label': `${row.label}: ${integer(row.accounts)} accounts, ${typePercent(row.accounts, total)}. Open.` });
             angle += length;

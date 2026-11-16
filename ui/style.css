@@ -875,7 +875,7 @@ footer {
 .type-ring-wrap { width: min(100%, 230px); margin: 0 auto; position: relative; }
 .type-ring { display: block; width: 100%; overflow: visible; animation: type-appear .18s ease-out; }
 .type-ring path { cursor: pointer; transition: opacity .12s; outline: none; }
-.type-ring:has(.highlight) path:not(.highlight) { opacity: .48; }
+.type-ring:has(.highlight) path:not(.highlight) { opacity: .72; }
 .type-ring path:focus-visible { stroke: var(--text); stroke-width: 2; }
 .type-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
 .type-center strong { color: var(--heading); font-size: 30px; font-weight: 500; letter-spacing: -.05em; }
