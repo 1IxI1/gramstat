@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readObservedMetrics } from './data.mjs';
-import { buildRows, domain, exactStackTotal, formatTooltipExact } from './charts.mjs';
+import { buildRows, domain, exactStackTotal, formatTooltipExact, tooltipShare } from './charts.mjs';
 import { CATALOGUE, stakePoolSeries } from './catalogue.mjs';
 
 const definition = CATALOGUE.find(c => c.id === 'stake_locked');
@@ -41,6 +41,21 @@ test('locked stake preserves a known total independently of protocol layers', ()
     assert.equal(whales.exact[d.roundDates[0]], '117619488.977401504');
     assert.equal(buildRows(d.roundDates, [whales])[0].total, whales.points[0][1]);
     assert.equal(ss.some(s => s.id === 'pools'), false);
+});
+
+test('locked tooltip percentages use exact independent Total, including tiny and unknown stakes', () => {
+    const d = readObservedMetrics(fixture()), ss = d.metrics.stake_locked.series;
+    const date = d.roundDates[0], total = ss.find(s => s.overlay).exact[date];
+    assert.equal(definition.tooltipShare, 'decimal');
+    assert.equal(tooltipShare(total, total, true), ' (100%)');
+    assert.equal(tooltipShare(ss.find(s => s.poolLabel === 'Whales-like').exact[date], total, true), ' (9.09%)');
+    assert.equal(tooltipShare('0.000000001', total, true), ' (<0.01%)');
+    assert.equal(tooltipShare('0.000000000', total, true), ' (0%)');
+    assert.equal(tooltipShare(null, total, true), '');
+    assert.equal(tooltipShare('1.5', '0', true), '');
+    assert.equal(tooltipShare('9007199254740993', '90071992547409930'), ' (10%)');
+    const hidden = ss.filter(s => s.id !== 'telegram');
+    assert.equal(tooltipShare(hidden.find(s => s.poolLabel === 'Whales-like').exact[date], total, true), ' (9.09%)');
 });
 
 test('locked stake rejects inconsistent splits and retains real zero categories', () => {

@@ -144,7 +144,7 @@ export const CATALOGUE = [
         descriptionEmphasis: 'these validators are reinvesting',
     }),
     chart('stake_locked', 'Total Stake Locked', 'validator', 'GRAM', {
-        kind: 'stacked-area', step: true, round: true, zero: true, layout: 'full', stackTotalLabel: 'Visible total',
+        kind: 'stacked-area', step: true, round: true, zero: true, layout: 'full', stackTotalLabel: 'Visible total', tooltipShare: 'decimal',
         series: [
             { ...series('telegram', 'Telegram', 3), fillOpacity: 0.45 },
             { ...series('others', 'Others'), color: '#8a9da9', fillOpacity: 0.3 },

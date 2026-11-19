@@ -14,6 +14,23 @@ export function formatTooltipExact(value) {
     return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fraction === undefined ? '' : `.${fraction}`);
 }
 
+// Calculate tooltip shares in integer units, preserving the nanogram
+// precision of staking values and the integer counts used by actions.
+export function tooltipShare(value, total, decimal = false) {
+    const pattern = decimal ? /^\d+(?:\.\d+)?$/ : /^\d+$/;
+    if (typeof value !== 'string' || typeof total !== 'string' || !pattern.test(value) || !pattern.test(total)) return '';
+    const scale = decimal ? Math.max((value.split('.')[1] || '').length, (total.split('.')[1] || '').length) : 0;
+    const units = raw => {
+        const [whole, fraction = ''] = raw.split('.');
+        return BigInt(whole + fraction.padEnd(scale, '0'));
+    };
+    const count = units(value), denominator = units(total);
+    if (denominator === 0n) return '';
+    const hundredths = (count * 10000n + denominator / 2n) / denominator;
+    const percent = count > 0n && hundredths === 0n ? '<0.01' : formatTooltipExact(`${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`);
+    return ` (${percent}%)`;
+}
+
 export function formatSummary(value, unit = '') {
     if (!Number.isFinite(value)) return '—';
     if (unit === '%') return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(value);
@@ -573,7 +590,6 @@ export class TimeChart {
         const tooltipSeries = [...this.config.series];
         const exactFor = item => item.ordered ? item.exactByIndex?.[this.selectedIndex] : item.exact?.[row.date];
         const rawShareTotal = this.config.tooltipShare ? exactFor(this.config.series.find(s => s.overlay) || {}) : null;
-        const shareTotal = typeof rawShareTotal === 'string' && /^\d+$/.test(rawShareTotal) ? BigInt(rawShareTotal) : 0n;
         if (this.config.id === 'accounts') tooltipSeries.reverse();
         if (this.config.tooltipSort === 'value-desc') tooltipSeries.sort((a, b) => {
             // Only the tooltip changes order. Stack geometry and legend remain
@@ -596,13 +612,7 @@ export class TimeChart {
             label.append(swatch, document.createTextNode(item.label));
             if (item.demo) label.append(demoMark());
             const exact = exactFor(item);
-            let share = '';
-            if (shareTotal > 0n && typeof exact === 'string' && /^\d+$/.test(exact)) {
-                const count = BigInt(exact);
-                const hundredths = (count * 10000n + shareTotal / 2n) / shareTotal;
-                const percent = count > 0n && hundredths === 0n ? '<0.01' : formatTooltipExact(`${hundredths / 100n}.${String(hundredths % 100n).padStart(2, '0')}`);
-                share = ` (${percent}%)`;
-            }
+            const share = this.config.tooltipShare ? tooltipShare(exact, rawShareTotal, this.config.tooltipShare === 'decimal') : '';
             entry.append(
                 label,
                 html(
