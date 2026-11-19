@@ -11,12 +11,14 @@ test('type filtering changes only its category and total; exact counts and missi
     assert.equal(new Set(ACTION_TYPES).size, ACTION_TYPES.length);
     const dates = ['2026-11-10', '2026-11-11', '2026-11-12'];
     const raw = actionTypeReadings([row(dates[0], { ton_transfer: '9007199254740993', renew_dns: '7', change_dns: '3' }),
+        { metric:'action_gram_transfer_sizes_v1', day:dates[0], value:'9007199254740993', breakdown:{small:'2',ge_one:'9007199254740991',unknown:'0'} },
         row(dates[2], {}, { is_partial: 1 })], dates);
     const all = totalActionSeries(raw);
     const filtered = totalActionSeries(raw, new Set(['change_dns']));
     assert.equal(all.find(s => s.id === 'dns').exact[dates[0]], '10');
     assert.equal(filtered.find(s => s.id === 'dns').exact[dates[0]], '7');
-    assert.deepEqual(filtered.find(s => s.id === 'gram'), all.find(s => s.id === 'gram'));
+    assert.equal(filtered.find(s => s.id === 'gram_small').exact[dates[0]], '2');
+    assert.deepEqual(filtered.find(s => s.id === 'gram_ge_one'), all.find(s => s.id === 'gram_ge_one'));
     assert.equal(filtered.at(-1).exact[dates[0]], '9007199254741000');
     for (const series of [all, filtered]) {
         const rows = buildRows(dates, series);
@@ -31,6 +33,15 @@ test('type filtering changes only its category and total; exact counts and missi
     assert.equal(onlyRenew.at(-1).exact[dates[0]], '7');
     assert.deepEqual(totalActionSeries(raw, new Set(ACTION_TYPES)), []);
     assert.deepEqual(excludedActionTypes(new URLSearchParams('excludeActions=renew_dns,unknown,renew_dns')), new Set(['renew_dns']));
+    assert.equal(totalActionSeries(raw, excludedActionTypes(new URLSearchParams('excludeActions=ton_transfer'))).at(-1).exact[dates[0]], '10');
+});
+
+test('unprepared GRAM sizes keep the parent visible; a measured unknown size is selectable', () => {
+    const dates = ['2026-11-10','2026-11-11'];
+    const raw = actionTypeReadings([...dates.map(d => row(d,{ton_transfer:'23'})),
+        {day:dates[1], metric:'action_gram_transfer_sizes_v1',value:'23',breakdown:{small:'20',ge_one:'2',unknown:'1'}}], dates);
+    assert.deepEqual(totalActionSeries(raw).at(-1).points.map(p=>p[1]), [23,23]);
+    assert.deepEqual(totalActionSeries(raw,new Set(['gram_small'])).at(-1).points.map(p=>p[1]), [null,3]);
 });
 
 test('inconsistent and unknown breakdowns are rejected rather than silently losing actions', () => {

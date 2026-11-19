@@ -170,10 +170,15 @@ export const CATALOGUE = [
     }),
     chart('actions_total', 'Total actions', 'activity', '', {
         kind: 'stacked-area', zero: true, integer: true, layout: 'full', tooltipSort: 'value-desc', tooltipShare: true,
-        description: 'Successful recognized operations per UTC day. Nested operations are counted only when none of their ancestors is an included operation type. Technical calls, deployments, unknown operations and validator elections are excluded. Categories can be expanded to select individual types; Total is the sum of selected types.',
+        description: 'Successful recognized operations per UTC day. Small GRAM transfers are below 1 GRAM. Nested operations are counted only when none of their ancestors is an included operation type. Technical calls, deployments, unknown operations and validator elections are excluded. Categories can be expanded to select individual types; Total is the sum of selected types.',
         monthlyDescription: 'Successful recognized operations per UTC calendar month, summed from covered daily counts. Total is the sum of selected types.',
     }),
-    chart('jetton_transfers', 'Jetton transfers', 'activity', '', { kind: 'bar', zero: true }),
+    chart('jetton_transfers', 'Jetton transfers', 'activity', '', {
+        kind: 'stacked-bar', zero: true, integer: true, tooltipSort: 'value-desc',
+        series: [{ ...series('total', 'Total'), overlay: true, color: 'var(--text)' },
+            series('usdt', 'USDT transfers', 1), series('others', 'Others'), series('unknown', 'Unknown master', 3)],
+        description: 'Successful jetton transfers, including transfers inside other operations. USDT is identified by its mainnet master address. Others counts transfers of other known jettons.',
+    }),
     chart('nft_transfers', 'NFT transfers', 'activity', '', { kind: 'bar', zero: true }),
     chart('swaps_total', 'Swaps', 'activity', '', { kind: 'bar', zero: true }),
     chart('jetton_users', 'Jetton senders / receivers', 'activity', '', {

@@ -367,8 +367,10 @@ export class TimeChart {
                     this.config.loading ? 'Loading readings…' : this.config.allSeriesHidden ? 'All series hidden' : 'No readings in this period',
                 ),
             );
-        } else if (this.config.kind.includes('bar')) this.drawBars();
-        else if (this.config.kind === 'stacked-area' || this.config.kind === 'stacked-line') { this.drawStack(); this.drawLines(); }
+        } else if (this.config.kind.includes('bar')) {
+            this.drawBars();
+            if (this.config.kind === 'stacked-bar' && this.config.series.some(s => s.overlay)) this.drawLines();
+        } else if (this.config.kind === 'stacked-area' || this.config.kind === 'stacked-line') { this.drawStack(); this.drawLines(); }
         else this.drawLines();
 
         const markerStart = this.config.time || !hasReadings
@@ -404,7 +406,7 @@ export class TimeChart {
             let base = 0;
             this.config.series.forEach((item, seriesIndex) => {
                 const value = row.values[seriesIndex];
-                if (value === null) return;
+                if (item.overlay || value === null) return;
                 const upper = stacked ? base + value : value;
                 const lower = stacked ? y(base) : bottom;
                 this.svg.append(

@@ -1,7 +1,7 @@
 import { CATALOGUE, colorAt, periodDates, stakePoolSeries } from './catalogue.mjs';
 import { formatDate, formatTooltipExact } from './charts.mjs';
 import { WALLET_REGISTRY_SHA256 } from './wallet-registry.mjs';
-import { actionTypeReadings } from './action-types.mjs';
+import { actionTypeReadings, transferSplits } from './action-types.mjs';
 
 // Exact strings remain in the response and tooltips. Conversion to Number is
 // restricted to display coordinates; null and missing rows never become zero.
@@ -268,10 +268,16 @@ export function readObservedMetrics(data) {
         exact: {},
         details: {},
     }));
+    const jettonKeys = ['usdt', 'others', 'unknown'];
+    const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
     for (const r of data.daily) {
         if (!dailyIDs.has(r.day)) continue;
         const detail = r.is_partial ? 'Partial day.' : '';
         put(r.metric, 'total', r.day, r.value, 0, detail, Boolean(r.is_partial));
+        if (r.metric === 'jetton_transfers') {
+            const split = jettonSplit(r, r.value);
+            for (const k of jettonKeys) put(r.metric, k, r.day, split?.[k] ?? null, 0, detail, Boolean(r.is_partial));
+        }
         for (const type of ['jetton', 'nft'])
             if ([`${type}_senders`, `${type}_receivers`].includes(r.metric))
                 put(`${type}_users`, r.metric, r.day, r.value, 0, detail, Boolean(r.is_partial));

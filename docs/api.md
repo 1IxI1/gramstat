@@ -39,6 +39,21 @@ remain unknown; missing types within a prepared day are zero. Monthly totals
 sum covered daily counts exactly. Historical reclassification outside the normal
 refresh window currently requires an explicit aggregator rebuild.
 
+Two additive `daily_metrics` rows provide transfer details. Each carries the
+parent count and a complete three-key `breakdown`, including explicit zeroes:
+
+| Metric | Parent | Keys |
+|---|---|---|
+| `jetton_transfer_assets_v1` | `jetton_transfers` (includes nested transfers) | `usdt`, `others`, `unknown` (missing master) |
+| `action_gram_transfer_sizes_v1` | `actions_total_v1.breakdown.ton_transfer` (after ancestor exclusion) | `small`, `ge_one`, `unknown` (missing value) |
+
+USDT uses the canonical mainnet master, not a symbol. GRAM amounts use exact
+nanograms: `small` is below 1,000,000,000; equality belongs to `ge_one`.
+The new rows are not additional actions. An absent split leaves the parent
+available; an observed unknown is not assigned to Others or Small. Monthly
+buckets sum the covered UTC days. The old `excludeActions=ton_transfer` URL
+continues to hide the whole GRAM family.
+
 ### GSC1 transport
 
 Four ASCII magic bytes `GSC1` precede one recursively encoded value. Lengths are

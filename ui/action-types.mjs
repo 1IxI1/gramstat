@@ -1,8 +1,11 @@
-// actions_total_v1: this taxonomy is frozen together with the aggregator's
-// internal/gramstat/handlers/actions/types.go. Filtering never reclassifies children.
+// actions_total_v1 source types are frozen with the aggregator. GRAM sizes
+// refine its existing ton_transfer entry; filtering never reclassifies children.
 export const ACTION_METRIC = 'actions_total_v1';
+const gramParts = ['gram_small', 'gram_ge_one', 'gram_unknown'];
 export const ACTION_GROUPS = [
-    ['gram', 'GRAM transfers', '#508ac4', 'ton_transfer'],
+    ['gram_small', 'Small GRAM transfers', '#83afd3', 'gram_small'],
+    ['gram_ge_one', 'GRAM transfers ≥ 1 GRAM', '#477db1', 'gram_ge_one'],
+    ['gram_unknown', 'GRAM transfers · unknown size', '#849292', 'gram_unknown'],
     ['jettons', 'Jetton transfers', '#5c9980', 'jetton_transfer'],
     ['swaps', 'Swaps', '#a38abd', 'jetton_swap'],
     ['liquidity', 'Liquidity', '#c3934f', 'dex_deposit_liquidity dex_withdraw_liquidity dedust_v2_claim_fees dedust_v2_claim_reward'],
@@ -17,29 +20,55 @@ export const ACTION_GROUPS = [
 ].map(([id, label, color, types]) => ({ id, label, color, types: types.split(' ') }));
 export const ACTION_TYPES = ACTION_GROUPS.flatMap(group => group.types);
 const knownTypes = new Set(ACTION_TYPES);
+const sourceTypes = new Set(['ton_transfer', ...ACTION_TYPES.filter(t => !gramParts.includes(t))]);
 const integer = value => typeof value === 'string' && /^\d+$/.test(value);
 const selectionLabel = (label, enabled, total) => label + (enabled > 0 && enabled < total ? ` (${enabled}/${total})` : '');
 
 export function excludedActionTypes(params) {
-    return new Set((params.get('excludeActions') || '').split(',').filter(type => knownTypes.has(type)));
+    return new Set((params.get('excludeActions') || '').split(',').flatMap(t => t === 'ton_transfer' ? gramParts : [t]).filter(t => knownTypes.has(t)));
+}
+
+// Separate versioned metric rows mean an unprepared split is absent rather
+// than an empty map that compact-column readers could expand into zeroes.
+export function transferSplits(rows, metric, keys) {
+    const days = new Map();
+    for (const r of rows.filter(r => r.metric === metric)) {
+        const map = r.breakdown || {};
+        if (days.has(r.day) || !integer(r.value) || Object.keys(map).length !== keys.length ||
+            !keys.every(k => integer(map[k])) || keys.reduce((s,k) => s+BigInt(map[k]), 0n) !== BigInt(r.value))
+            throw Error(`Invalid ${metric} split on ${r.day}.`);
+        days.set(r.day, r);
+    }
+    return (parent, value) => {
+        const r = days.get(parent.day);
+        if (!r) return null;
+        if (r.value !== value || Boolean(r.is_partial) !== Boolean(parent.is_partial))
+            throw Error(`Inconsistent ${metric} parent on ${r.day}.`);
+        return r.breakdown;
+    };
 }
 
 export function actionTypeReadings(rows, dates) {
-    const types = [...ACTION_TYPES, 'total'];
+    const types = [...ACTION_TYPES, 'total', 'ton_transfer'];
+    const gramSplit = transferSplits(rows, 'action_gram_transfer_sizes_v1', ['small','ge_one','unknown']);
     const series = types.map(id => ({ id, label: id, points: [], exact: {}, partial: {}, details: {} }));
     const byDay = new Map();
     for (const row of rows.filter(row => row.metric === ACTION_METRIC)) {
         if (byDay.has(row.day)) throw Error('Duplicate total actions day.');
         const entries = Object.entries(row.breakdown || {});
-        if (!integer(row.value) || entries.some(([type, value]) => !knownTypes.has(type) || !integer(value))
+        if (!integer(row.value) || entries.some(([type, value]) => !sourceTypes.has(type) || !integer(value))
             || entries.reduce((sum, [, value]) => sum + BigInt(value), 0n) !== BigInt(row.value))
             throw Error('Inconsistent total actions breakdown.');
         byDay.set(row.day, row);
     }
     for (const date of dates) {
         const row = byDay.get(date);
+        const parent = row?.breakdown?.ton_transfer ?? '0';
+        const split = row && gramSplit(row, parent);
         for (const s of series) {
-            const exact = row ? s.id === 'total' ? row.value : row.breakdown?.[s.id] ?? '0' : null;
+            const exact = !row ? null : gramParts.includes(s.id)
+                ? split?.[s.id.slice(5)] ?? (parent === '0' ? '0' : null)
+                : s.id === 'total' ? row.value : row.breakdown?.[s.id] ?? '0';
             s.exact[date] = exact;
             s.points.push([date, exact === null ? null : Number(exact)]);
             s.partial[date] = Boolean(row?.is_partial);
@@ -55,6 +84,7 @@ export function totalActionSeries(raw, excluded = new Set()) {
     const reference = lookup.get('total');
     if (!reference) return [];
     const groups = ACTION_GROUPS.flatMap(group => {
+        if (group.id === 'gram_unknown' && !lookup.get('gram_unknown')?.points.some(([,v]) => v > 0)) return [];
         const types = group.types.filter(type => !excluded.has(type));
         if (!types.length) return [];
         const s = { ...group, label: selectionLabel(group.label, types.length, group.types.length), points: [], exact: {}, partial: {}, details: {}, fillOpacity: 0.42 };
@@ -72,9 +102,16 @@ export function totalActionSeries(raw, excluded = new Set()) {
     const total = { id: 'total', label: excluded.size ? 'Total · selected types' : 'Total', color: 'var(--text)', overlay: true, points: [], exact: {}, partial: {}, details: {} };
     reference.points.forEach(([date], i) => {
         const values = groups.map(s => s.exact[date]);
-        const exact = values.every(integer) ? values.reduce((sum, v) => sum + BigInt(v), 0n).toString() : null;
+        let exact = values.every(integer) ? values.reduce((sum, v) => sum + BigInt(v), 0n).toString() : null;
+        // Legacy rows still have an independently known GRAM parent. Use it
+        // only when the complete family is selected, never to infer its sizes.
+        const complete = exact !== null;
+        if (!complete && gramParts.every(t => !excluded.has(t))) {
+            const parts = [lookup.get('ton_transfer')?.exact[date], ...groups.filter(g => !gramParts.includes(g.id)).map(g => g.exact[date])];
+            if (parts.every(integer)) exact = parts.reduce((s,v) => s+BigInt(v),0n).toString();
+        }
         total.exact[date] = exact;
-        total.points.push([date, exact === null ? null : groups.reduce((sum, s) => sum + s.points[i][1], 0)]);
+        total.points.push([date, exact === null ? null : complete ? groups.reduce((sum, s) => sum + s.points[i][1], 0) : Number(exact)]);
         total.partial[date] = groups.some(s => s.partial[date]);
     });
     return [...groups, total];
@@ -152,11 +189,12 @@ export function createActionLegend(host, getExcluded, onChange) {
         const menu = menus.find(menu => menu.dropdown.open);
         if (e.key === 'Escape' && menu) { e.preventDefault(); e.stopPropagation(); menu.dropdown.open = false; menu.summary.focus(); }
     });
-    return () => {
+    return (showUnknown = true) => {
         const excluded = getExcluded();
         all.textContent = excluded.size === 0 ? 'Select none' : 'Select all';
         for (const { input, type } of controls) input.checked = !excluded.has(type);
-        for (const { toggle, caption, label, types } of menus) {
+        for (const { section, toggle, caption, label, types } of menus) {
+            if (types[0] === 'gram_unknown') section.hidden = !showUnknown;
             const enabled = types.filter(type => !excluded.has(type)).length;
             caption.data = selectionLabel(label, enabled, types.length);
             toggle.setAttribute('aria-pressed', enabled === types.length ? 'true' : enabled === 0 ? 'false' : 'mixed');

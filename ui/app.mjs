@@ -550,7 +550,9 @@ function render(group, roundsOnly = false, onlyID) {
             };
         });
         const isTotalActions = definition.id === 'actions_total';
+        const showUnknownGram = isTotalActions && Boolean(allSeries.find(s => s.id === 'gram_unknown')?.points.some(([,v]) => v > 0));
         if (isTotalActions) allSeries = totalActionSeries(allSeries, excludedActions);
+        if (definition.id === 'jetton_transfers') allSeries = allSeries.filter(s => s.id !== 'unknown' || s.points.some(([,v]) => v > 0));
         const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
         const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
@@ -649,7 +651,7 @@ function render(group, roundsOnly = false, onlyID) {
                 history.replaceState(null, '', url);
                 render(undefined, false, definition.id);
             });
-            state.syncActionLegend();
+            state.syncActionLegend(showUnknownGram);
             if (excludedActions.size && latest) state.detail.textContent += ' · selected types';
         }
         if (isActivations) {

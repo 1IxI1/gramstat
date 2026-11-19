@@ -72,3 +72,15 @@ test('Stars purchased retains known quantities in daily and monthly views despit
     data.stars.pop();
     assert.equal(monthlyActivity(data).metrics.stars_quantity.series[0].exact['2024-02-01'], null);
 });
+test('jetton transfer splits preserve master gaps, independent totals and exact monthly sums', () => {
+    const days=['2024-02-01','2024-02-02'];
+    const data={schemaVersion:2, network:'mainnet', period:{from:days[0],to:'2024-02-03'}, chain:[],rounds:[],stars:[],
+        daily:days.flatMap(day=>[{day,metric:'jetton_transfers',value:'13'},
+            {day,metric:'jetton_transfer_assets_v1',value:'13',breakdown:{usdt:'8',others:'3',unknown:'2'}}])};
+    const series=()=>Object.fromEntries(monthlyActivity(data).metrics.jetton_transfers.series.map(s=>[s.id,s.exact[days[0]]]));
+    assert.deepEqual(series(), {total:'26',usdt:'16',others:'6',unknown:'4'});
+    data.daily.pop();
+    assert.deepEqual(series(), {total:'26',usdt:null,others:null,unknown:null});
+    data.daily[1].breakdown.usdt='0';
+    assert.throws(series,/Invalid jetton_transfer_assets/);
+});
