@@ -1,0 +1,10 @@
+[Unit]
+Description=Gramstat HTTPS origin listener
+
+[Socket]
+ListenStream=0.0.0.0:443
+FileDescriptorName=https
+Service=gramstat-api.service
+
+[Install]
+WantedBy=sockets.target

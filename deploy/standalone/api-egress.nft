@@ -1,0 +1,10 @@
+# Render API_UID, CLICKHOUSE_IPV4 and CLICKHOUSE_PORT before installation.
+add table inet gramstat_api
+flush table inet gramstat_api
+add chain inet gramstat_api output { type filter hook output priority 0; policy accept; }
+add chain inet gramstat_api allowed
+add rule inet gramstat_api output meta skuid API_UID jump allowed
+add rule inet gramstat_api allowed ip daddr 127.0.0.1 tcp sport 2007 ct state established ct direction reply accept
+add rule inet gramstat_api allowed tcp sport 443 ct state established ct direction reply accept
+add rule inet gramstat_api allowed ip daddr CLICKHOUSE_IPV4 tcp dport CLICKHOUSE_PORT accept
+add rule inet gramstat_api allowed counter reject with icmpx type admin-prohibited

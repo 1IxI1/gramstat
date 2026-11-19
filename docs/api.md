@@ -335,6 +335,20 @@ their missing prerequisites in the UI.
 
 ## Deployment
 
+The binary can also serve the UI directly, without a reverse proxy. Build it
+after changing frontend assets. For a standalone install, use the base API and
+egress units below, the `deploy/standalone/api-egress.nft` template instead of
+the proxy template, and `deploy/standalone/preview.conf` as an API service
+drop-in named `10-preview.conf`. This serves the embedded UI and API on
+loopback port 2007. To enable HTTPS, install the certificate and its matching
+key at the paths in `deploy/standalone/https.conf`, install that drop-in as
+`20-https.conf` and install `gramstat-https.socket`. Reload systemd, enable
+and start the socket, then restart the API. HTTPS uses the systemd-supplied
+socket; the service does not need privileges to bind port 443. Use a proxied
+IPv4 origin, Full (strict), and HTTP-to-HTTPS redirects at the edge. Restart
+the service after certificate renewal. Refresh `internal/origin/cloudflare.txt`
+from Cloudflare's published ranges when they change.
+
 Build with Go **1.27.4 or newer** and `go build ./cmd/gramstat-api`. The provided
 [systemd unit](../deploy/gramstat-api.service) runs as
 an unprivileged `gramstat-api` user, bound to `127.0.0.1:2008`.
