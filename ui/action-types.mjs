@@ -25,7 +25,7 @@ const integer = value => typeof value === 'string' && /^\d+$/.test(value);
 const selectionLabel = (label, enabled, total) => label + (enabled > 0 && enabled < total ? ` (${enabled}/${total})` : '');
 
 export function excludedActionTypes(params) {
-    return new Set((params.get('excludeActions') || '').split(',').flatMap(t => t === 'ton_transfer' ? gramParts : [t]).filter(t => knownTypes.has(t)));
+    return new Set((params.get('excludeActions') ?? 'gram_small').split(',').flatMap(t => t === 'ton_transfer' ? gramParts : [t]).filter(t => knownTypes.has(t)));
 }
 
 // Separate versioned metric rows mean an unprepared split is absent rather

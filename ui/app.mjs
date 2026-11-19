@@ -646,8 +646,7 @@ function render(group, roundsOnly = false, onlyID) {
             state.syncActionLegend ??= createActionLegend(state.legend, () => excludedActions, () => {
                 const url = new URL(location.href);
                 const excluded = ACTION_TYPES.filter(type => excludedActions.has(type));
-                if (excluded.length) url.searchParams.set('excludeActions', excluded.join(','));
-                else url.searchParams.delete('excludeActions');
+                url.searchParams.set('excludeActions', excluded.join(','));
                 history.replaceState(null, '', url);
                 render(undefined, false, definition.id);
             });

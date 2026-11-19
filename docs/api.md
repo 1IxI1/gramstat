@@ -33,7 +33,8 @@ their independent nesting rules and must not be summed to reconstruct this total
 
 The UI validates the total against the complete breakdown, groups types into
 categories and filters locally. `excludeActions=renew_dns,change_dns` preserves
-excluded types in shareable UI URLs. Total follows the visible stack. Filtering
+excluded types in shareable UI URLs. Without this parameter Small GRAM transfers
+are hidden by default; `excludeActions=` explicitly shows all types. Total follows the visible stack. Filtering
 does not restore children suppressed by included ancestors. Missing source days
 remain unknown; missing types within a prepared day are zero. Monthly totals
 sum covered daily counts exactly. Historical reclassification outside the normal
