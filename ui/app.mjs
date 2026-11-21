@@ -619,7 +619,8 @@ function render(group, roundsOnly = false, onlyID) {
         if (!isTotalActions && !isActivations) state.legend.replaceChildren();
         if (isSection || isDailyAction) {
             if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
-            const period = activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
+            const period = monthly ? `${dates.length} ${dates.length === 1 ? 'month' : 'months'}`
+                : activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
             state.average.replaceChildren(element('span', '', `Avg (${period}):`));
             for (const s of isTotalActions ? series.filter(s => s.overlay) : series) {
@@ -681,7 +682,8 @@ function render(group, roundsOnly = false, onlyID) {
                 swatch.style.backgroundColor = s.color;
                 item.append(swatch, s.emphasis ? element('strong', '', s.label) : document.createTextNode(s.label));
                 state.legend.append(item);
-            }
+        }
+        const lastMonth = monthly && dates.length ? new Date(`${dates.at(-1)}T00:00:00Z`) : null;
         state.chart?.update({ ...definition, series, loading, allSeriesHidden: isActivations ? series.length === 0 : isTotalActions ? excludedActions.size === ACTION_TYPES.length : allSeries.length > 0 && series.length === 0, periodLabel, time: temporal, calendarMonths: monthly || (isActivity && activityMode === 'monthly'),
             annotations: definition.id === 'validator_geo' ? (validatorMap.snapshot ? [{
                 id: 'validator-map-snapshot', utime: validatorMap.snapshot.data_through - 1,
@@ -689,7 +691,8 @@ function render(group, roundsOnly = false, onlyID) {
             }] : []) : definition.annotations,
             barIntervalSeconds: isActivity && activityMode !== 'monthly' ? (activityMode === 'hourly' ? 3600 : 86400) : undefined,
             averageUnit: isSection ? (monthly ? '/month' : '/day') : definition.averageUnit,
-            rangeStart: activeRange?.from, rangeEnd: activeRange?.to,
+            rangeStart: monthly && dates.length ? Date.parse(`${dates[0]}T00:00:00Z`) : activeRange?.from,
+            rangeEnd: lastMonth ? Date.UTC(lastMonth.getUTCFullYear(), lastMonth.getUTCMonth() + 1, 1) : activeRange?.to,
             onRange: (from, to) => setRange(from, to),
         }, shownDates);
     }

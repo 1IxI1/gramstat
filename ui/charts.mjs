@@ -313,7 +313,8 @@ export class TimeChart {
             return [Math.max(timeStart,timestamps[index]), Math.min(timeEnd,end)];
         };
         const intervalBars = this.config.kind.includes('bar') && (this.config.calendarMonths || this.config.barIntervalSeconds > 0);
-        const plottedTime = (index) => intervalBars ? (bucketBounds(index)[0]+bucketBounds(index)[1])/2 : timestamps[index];
+        const plottedTime = (index) => intervalBars || this.config.calendarMonths
+            ? (bucketBounds(index)[0]+bucketBounds(index)[1])/2 : timestamps[index];
         const x = (index) =>
             (this.config.round || this.config.time) && span > 0
                 ? left + ((plottedTime(index) - timeStart) / span) * (right - left)
@@ -359,7 +360,7 @@ export class TimeChart {
                 this.svg.append(node('text', { x: right + 9, y: bottom + 3, class: 'axis-label reward-axis-label' }, '—'));
             }
         }
-        const tickIndices = [0, Math.floor((this.rows.length - 1) / 2), this.rows.length - 1];
+        const tickIndices = [...new Set([0, Math.floor((this.rows.length - 1) / 2), this.rows.length - 1])];
         const crossesYear = new Date(timeStart).getUTCFullYear() !== new Date(timeEnd).getUTCFullYear();
         const ticks = this.config.rangeTicks
             ? [0, 0.5, 1].map(fraction => ({ at: new Date(timeStart + fraction * Math.max(0, span - 1000)).toISOString(), x: left + fraction * (right - left) }))
