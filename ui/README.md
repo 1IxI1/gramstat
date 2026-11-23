@@ -50,6 +50,11 @@ API and deployment documentation:
   expanded view can be shared or opened directly. Browser Back/Forward restores
   both the selected interval and the corresponding chart view. Range changes
   create history entries immediately; background refreshes do not rewrite them.
+- The `#` beside each chart title links to `#chart-<catalogue id>` without opening
+  the expanded view. Opening or navigating to a chart hash selects its Activity
+  or Tokenomics page, scrolls below the sticky toolbar and highlights the card
+  until the first click. Query parameters such as `range=all` and
+  `activity=monthly` remain intact; switching pages clears the chart hash.
 - Chain charts: hourly prepared `gramstat.chain_daily_full` (supply, transactions,
   fees, issuance, burning). Days near the indexing boundary are partial.
 - Fees, issuance, burning and transactions show `Avg (<selected duration>)` inside

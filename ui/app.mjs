@@ -43,12 +43,33 @@ const chartPage = (id) => {
     const definition = CATALOGUE.find((chart) => chart.id === id);
     return definition && (definition.section === 'validator' || (definition.section === 'gram' && !['accounts', 'transactions'].includes(id))) ? 'tokenomics' : 'activity';
 };
+const chartIdFromHash = () => {
+    if (!location.hash.startsWith('#chart-')) return null;
+    const id = location.hash.slice('#chart-'.length);
+    return CATALOGUE.some((chart) => chart.id === id) ? id : null;
+};
 const pageFromURL = () => {
+    const anchored = chartIdFromHash();
+    if (anchored) return chartPage(anchored);
     const params = new URLSearchParams(location.search);
     if (params.has('chart') && CATALOGUE.some((chart) => chart.id === params.get('chart'))) return chartPage(params.get('chart'));
     return params.get('page') === 'tokenomics' ? 'tokenomics' : 'activity';
 };
 let currentPage;
+let activeAnchorId = null;
+let highlightedCard = null;
+function syncChartAnchor(scroll = false, force = false) {
+    const id = chartIdFromHash();
+    if (id && currentPage !== chartPage(id)) showPage(chartPage(id));
+    const card = id ? cards.get(id)?.card : null;
+    if (id !== activeAnchorId || force) {
+        highlightedCard?.classList.remove('chart-linked');
+        highlightedCard = card;
+        card?.classList.add('chart-linked');
+    }
+    activeAnchorId = id;
+    if (scroll && card && !expandedDialog.open) card.scrollIntoView({ block: 'start', behavior: 'instant' });
+}
 function syncPageLinks(page) {
     for (const link of pageLinks) {
         const selected = link.dataset.page === page;
@@ -57,6 +78,7 @@ function syncPageLinks(page) {
         const url = new URL(location.href);
         url.searchParams.set('page', link.dataset.page);
         url.searchParams.delete('chart');
+        url.hash = '';
         link.href = url;
     }
 }
@@ -72,13 +94,15 @@ showPage(pageFromURL());
 for (const link of pageLinks) link.addEventListener('click', (event) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    if (link.dataset.page === currentPage && !expandedId) return;
+    if (link.dataset.page === currentPage && !expandedId && !location.hash) return;
     const url = new URL(location.href);
     url.searchParams.set('page', link.dataset.page);
     url.searchParams.delete('chart');
+    url.hash = '';
     history.pushState(null, '', url);
     syncExpandedChart(false);
     showPage(link.dataset.page, true);
+    syncChartAnchor();
 });
 let readings;
 let loading = true;
@@ -112,9 +136,18 @@ let sectionLoading = false;
 let sectionError = '';
 const sectionTabs = [...$('activity-interval').querySelectorAll('button')];
 
+function syncSectionTabs() {
+    for (const tab of sectionTabs) {
+        const selected = tab.dataset.mode === sectionMode;
+        tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
+    }
+    $('activity-charts').setAttribute('aria-labelledby', `activity-section-${sectionMode}`);
+}
+
 function selectSectionMode(mode) {
     if (sectionMode === mode) return;
     sectionMode = mode;
+    syncSectionTabs();
     const url = new URL(location.href);
     url.searchParams.set('activityInterval', mode);
     history.pushState(null, '', url);
@@ -140,6 +173,7 @@ function loadSectionActivity() {
 function selectActivity(mode) {
     if (mode === activityMode) return;
     activityMode = mode;
+    syncActivityTabs();
     const url = new URL(location.href);
     url.searchParams.set('activity', mode);
     history.pushState(null, '', url);
@@ -354,6 +388,14 @@ for (const definition of CATALOGUE) {
     const heading = element('div', 'chart-heading');
     const title = element('h3', '', definition.title);
     title.id = `title-${definition.id}`;
+    const anchor = element('a', 'chart-anchor', '#');
+    anchor.href = `#${card.id}`;
+    anchor.setAttribute('aria-label', `Link to ${definition.title}`);
+    anchor.title = `Link to ${definition.title}`;
+    anchor.addEventListener('click', () => {
+        if (location.hash === anchor.getAttribute('href')) syncChartAnchor(true, true);
+    });
+    title.append(anchor);
     const expand = element('button', 'chart-expand', '⛶');
     expand.type = 'button';
     expand.setAttribute('aria-label', `Expand ${definition.title}`);
@@ -443,7 +485,8 @@ function navigateChart(id) {
 
 function syncExpandedChart(reload = true) {
     const requested = new URLSearchParams(location.search).get('chart');
-    const id = cards.has(requested) ? requested : null;
+    const anchored = chartIdFromHash();
+    const id = cards.has(requested) && (!anchored || anchored === requested) ? requested : null;
     if (id === expandedId) return;
     const previous = cards.get(expandedId);
     if (previous) {
@@ -488,6 +531,14 @@ expandedDialog.addEventListener('click', (event) => {
     const r = expandedDialog.getBoundingClientRect();
     if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) navigateChart(null);
 });
+document.addEventListener('click', (event) => {
+    if (!event.target.closest('.chart-anchor')) highlightedCard?.classList.remove('chart-linked');
+});
+window.addEventListener('hashchange', () => {
+    showPage(pageFromURL());
+    syncExpandedChart(false);
+    syncChartAnchor(true);
+});
 window.addEventListener('popstate', () => {
     const q = new URLSearchParams(location.search);
     excludedActions = excludedActionTypes(q);
@@ -498,6 +549,8 @@ window.addEventListener('popstate', () => {
     activityMode = activityFromURL();
     const changedSection = sectionMode !== sectionModeFromURL();
     sectionMode = sectionModeFromURL();
+    syncActivityTabs();
+    syncSectionTabs();
     if (JSON.stringify(choice) !== JSON.stringify(rangeChoice)) {
         syncExpandedChart(false);
         loadLatest(choice, { remember: false, historyMode: 'none' });
@@ -506,6 +559,7 @@ window.addEventListener('popstate', () => {
         if (changedActivity) loadActivity();
         if (changedSection) loadSectionActivity();
     } else { syncExpandedChart(); render(undefined, false, 'actions_total'); render('wallets', false, 'activations'); }
+    syncChartAnchor(true);
 });
 
 function chartGroup(definition) {
@@ -515,11 +569,7 @@ function chartGroup(definition) {
 function render(group, roundsOnly = false, onlyID) {
     if (!readings) return;
     syncActivityTabs();
-    for (const tab of sectionTabs) {
-        const selected = tab.dataset.mode === sectionMode;
-        tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
-    }
-    $('activity-charts').setAttribute('aria-labelledby', `activity-section-${sectionMode}`);
+    syncSectionTabs();
     for (const state of cards.values()) {
         const { definition } = state;
         if (onlyID && definition.id !== onlyID) continue;
@@ -949,10 +999,13 @@ async function loadLatest(choice = rangeChoice, options = {}) {
         }
     }
 }
+syncActivityTabs();
+syncSectionTabs();
 syncExpandedChart();
 $('to').max = $('from').max = `${new Date().toISOString().slice(0, 10)}T23:59:59`;
 if (rangeChoice?.kind === 'absolute' && !rangeChoice.completeDays) applyRangeChoice(rangeChoice, { remember: false, historyMode: 'replace' });
 else loadLatest(rangeChoice, { remember: false, historyMode: 'replace' });
+requestAnimationFrame(() => syncChartAnchor(true));
 // Prepared latest account types are independent of the historical range.
 accountTypes.load();
 setInterval(() => { if (!document.hidden) accountTypes.load(); }, 10 * 60 * 1000);

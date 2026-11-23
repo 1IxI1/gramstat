@@ -415,6 +415,10 @@ h2 {
     grid-column: span 2;
     min-width: 0;
 }
+.chart-card.chart-linked { outline: 2px solid var(--blue); outline-offset: 8px; border-radius: 4px; }
+.chart-anchor { padding: 0 5px; color: var(--muted); font-size: .75em; text-decoration: none; }
+.chart-anchor:hover { color: var(--blue); }
+.chart-anchor:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .chart-card.wide {
     grid-column: span 4;
 }
