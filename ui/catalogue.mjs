@@ -100,6 +100,7 @@ export const CATALOGUE = [
     }),
     chart('activations', 'Activations per day', 'wallet', '', {
         layout: 'half', kind: 'stacked-area', zero: true, integer: true, averageUnit: 'wallets/day', registryTerm: 'wallet code',
+        annotations: [{ id: 'hamster-kombat-listing', utime: 1727395200, label: 'Hamster Kombat listing', color: 'light-dark(#a66d13, #f4b65b)' }],
         description: 'Unique addresses first deployed with a recognized wallet code each UTC day, using the deployment transaction’s time. Earlier non-wallet deployments do not exclude an address; repeated wallet deployments are not counted again. Outgoing messages are not required.',
     }),
     chart('activated_wallets', 'Activated wallets', 'wallet', '', {

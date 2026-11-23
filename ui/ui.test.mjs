@@ -113,6 +113,15 @@ test('x-axis dates include years on long or year-crossing ranges', () => {
     assert.equal(formatAxisDate(date, { span: 300000, time: true }), '12:00:00');
 });
 
+test('Hamster Kombat listing marks the UTC day on wallet activations only', () => {
+    const marker = CATALOGUE.find((chart) => chart.id === 'activations').annotations;
+    assert.equal(marker.length, 1);
+    assert.equal(marker[0].id, 'hamster-kombat-listing');
+    assert.equal(marker[0].label, 'Hamster Kombat listing');
+    assert.equal(marker[0].utime, Date.parse('2024-09-27T00:00:00Z') / 1000);
+    assert.equal(CATALOGUE.find((chart) => chart.id === 'activated_wallets').annotations, undefined);
+});
+
 test('tooltip groups whole digits and removes only insignificant fractional zeroes', () => {
     assert.equal(formatTooltipExact('49677279'), '49,677,279');
     assert.equal(formatTooltipExact('161758846'), '161,758,846');
