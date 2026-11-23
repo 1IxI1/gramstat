@@ -209,6 +209,12 @@ export const CATALOGUE = [
             series('coffee', 'swap.coffee', 3), series('multiple', 'Multiple DEXs', 4), series('other', 'Other DEXs', 5)],
         description: 'Recognized user swaps, counted once per route. A route crossing venues is counted under Multiple DEXs. Direct GRAM amounts are used where available; other assets use historical on-chain quotes. Partial totals exclude unpriced swaps and unresolved routes. Volume excludes Megaton Finance.',
     }),
+    chart('dex_tvl', 'DEX TVL · priced reserves', 'activity', 'GRAM', {
+        kind: 'stacked-bar', zero: true, layout: 'full', closingSnapshot: true, stackTotalLabel: 'Priced reserves',
+        series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
+        description: 'End-of-day pool reserves on STON.fi and DeDust, valued in GRAM. Unchanged pools retain their reserves. A side without a fresh price is excluded; the other side is never doubled. Coverage and the GRAM/pTON portion are shown in the tooltip.',
+        monthlyDescription: 'Closing snapshot, not a sum of daily TVL. Open months use the last closed UTC day in the selected period. Includes priced reserves on STON.fi and DeDust only.',
+    }),
     chart('ton_dns_mints', '.ton DNS mints', 'activity', '', {
         kind: 'bar', zero: true,
         description: 'Newly minted .ton domain NFTs per UTC day. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',

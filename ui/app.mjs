@@ -691,7 +691,7 @@ function render(group, roundsOnly = false, onlyID) {
             if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
             const period = monthly ? `${dates.length} ${dates.length === 1 ? 'month' : 'months'}`
                 : activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
-            const unit = `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
+            const unit = definition.closingSnapshot ? definition.unit : `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
             state.average.replaceChildren(element('span', '', `Avg (${period}):`));
             for (const s of isTotalActions ? series.filter(s => s.overlay) : series) {
                 const avg = dailyAverage(dates, s);
@@ -928,7 +928,7 @@ async function loadRange() {
                     const data = await getJSON(`/api/v2/activity?${dailyParams}`, request.signal);
                     if (id !== requestId) return;
                     if (data.schemaVersion !== 3 || data.network !== 'mainnet') throw Error('Unsupported Activity response.');
-                    activitySource = expandActivityColumns(data.activity);
+                    activitySource = { ...expandActivityColumns(data.activity), servedAt: data.servedAt };
                     dailyActivityReadings = readObservedMetrics({ ...activitySource, period: range });
                     sectionReadings = selectedActivityReadings();
                     sectionLoading = false;

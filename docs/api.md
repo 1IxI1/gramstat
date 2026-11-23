@@ -358,6 +358,26 @@ USDT uses the prior minute's GRAM/USDT anchor. Other jettons, including bridged
 stablecoins, need their own quote. Each route is rounded once to a nanogram.
 Internal pool hops are not additional user volume. Megaton Finance is excluded.
 
+## DEX TVL observations
+
+`dex_tvl_gram_v1` is a closing stock of priced STON.fi and DeDust reserves,
+in **GRAM**. Each pool uses its last state before the next UTC midnight with
+the pair and venue from that same version. Idle reserves carry forward and
+are revalued every day. Removed or empty pools are excluded. There is no
+substitution of `2 × known side` for a pool with a missing quote.
+
+`value` counts funded pools in scope. `amount_nanoton` is the exact sum of
+rounded known sides, null if there were funded pools but none could be priced.
+The breakdown uses `<venue>:full`, `:partial`, `:none` (pool counts); each
+of `full`, `partial`, `native` has a `<kind>_gram` whole part and a
+`<kind>_nano` remainder. Add `full` and `partial` amounts; `native` (GRAM and
+the recognized STON.fi pTON wrappers) is **already included**. Closing quotes
+must have positive finite prices and a non-stale observation in the final
+15 minutes; canonical USDT uses the final minute's anchor. Multiply raw
+jetton reserves by the raw GRAM quote, then round each side to the nearest
+nanogram, half up. Month points are closing observations, never sums. History
+begins with observed pool states, not chain genesis.
+
 ## Deployment
 
 The binary can also serve the UI directly, without a reverse proxy. Build it

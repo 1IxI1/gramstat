@@ -209,6 +209,34 @@ function lockedPoolBreakdown(round) {
     return breakdown;
 }
 
+// Missing publication, no priced reserves, and zero funded pools are distinct.
+function closingReserves(row) {
+    const b = row.breakdown ?? {};
+    const venues = ['stonfi', 'dedust'];
+    const amount = (v, kind) => {
+        const g = b[`${v}:${kind}_gram`], n = b[`${v}:${kind}_nano`];
+        return decimal(g) !== null && decimal(n) !== null && BigInt(n) < 1000000000n
+            ? BigInt(g) * 1000000000n + BigInt(n) : null;
+    };
+    const values = {}, notes = [];
+    let total = 0n, count = 0n, fully = 0n, partly = 0n, missing = 0n;
+    for (const v of venues) {
+        const fields = ['full','partial','none'].map(k => b[`${v}:${k}`]);
+        if (fields.some(s => decimal(s) === null)) return null;
+        const [f,p,u] = fields.map(s => BigInt(s));
+        const [both,one,native] = ['full','partial','native'].map(k => amount(v,k));
+        if ([both,one,native].some(n => n === null) || native > both + one || (!f && both) || (!p && one)) return null;
+        total += both + one; count += f+p+u; fully += f; partly += p; missing += u;
+        values[v] = u && !f && !p ? null : String(both + one);
+        const gram = n => formatTooltipExact(decimal(String(n),9));
+        notes.push(`${v === 'stonfi' ? 'STON.fi' : 'DeDust'}: ${f} fully priced pools (${gram(both)} GRAM); ${p} partly priced (${gram(one)} GRAM known); ${u} unpriced. GRAM/pTON included: ${gram(native)} GRAM.`);
+    }
+    const partial = partly+missing > 0n;
+    if (String(count) !== row.value || Boolean(row.is_partial) !== partial ||
+        (fully+partly > 0n || !count ? String(total) !== row.amount_nanoton : row.amount_nanoton !== null)) return null;
+    return { values, partial, detail: notes.join('\n') };
+}
+
 // Preserve details[date] for consumers, but format tooltip-only text on its
 // first read. Related series share the same per-round description.
 function lazyText(target, key, format) {
@@ -316,6 +344,11 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             const coverage = `${priced} priced routes; ${missing} without a price; ${ambiguous} unresolved instructions.`;
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
                 keysValid ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
+        }
+        if (r.metric === 'dex_tvl_gram_v1') {
+            const obs = closingReserves(r);
+            for (const s of metrics.dex_tvl.series) put('dex_tvl', s.id, r.day, obs?.values[s.id] ?? null, 9,
+                obs?.detail ?? 'Reserve coverage unavailable.', !obs || obs.partial);
         }
     }
     for (const r of data.stars) {
@@ -438,13 +471,18 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
         metrics[definition.id] = { series: daily.metrics[definition.id].series.map((source) => {
             const series = { ...source, points: [], exact: {}, details: {}, partial: {} };
             for (const { month, end, days: requested } of buckets) {
-                const days = definition.id === 'dex_volume'
+                const days = definition.id === 'dex_volume' || definition.closingSnapshot
                     ? requested.filter(day => day < todayUTC)
                     : requested;
                 const uniqueName = ['jetton_users', 'nft_users'].includes(definition.id) ? source.id : definition.id === 'swaps_users' ? 'swaps_users' : null;
                 let exact = null;
                 let partial = end > data.period.to || days.length !== requested.length;
-                if (uniqueName) {
+                if (definition.closingSnapshot) {
+                    const close = days.at(-1);
+                    exact = source.exact[close] ?? null;
+                    partial ||= Boolean(source.partial?.[close]);
+                    if (exact !== null) series.details[month] = `UTC close: ${close}.\n${source.details[close] ?? ''}`;
+                } else if (uniqueName) {
                     const row = unique.get(`monthly_${uniqueName}/${month}`);
                     exact = decimal(row?.value);
                     partial ||= Boolean(row?.is_partial);
@@ -460,7 +498,7 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
                 series.exact[month] = exact;
                 series.points.push([month, exact === null ? null : Number(exact)]);
                 series.partial[month] = partial;
-                series.details[month] = exact === null ? 'Monthly history is being prepared.' : partial ? 'Partial calendar month.' : '';
+                series.details[month] ??= exact === null ? 'Monthly history is being prepared.' : partial ? 'Partial calendar month.' : '';
             }
             return series;
         }) };

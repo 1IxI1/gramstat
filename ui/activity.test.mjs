@@ -46,6 +46,28 @@ test('daily Activity averages preserve partial-day provenance', () => {
     assert.equal(avg.partial, true);
 });
 
+test('TVL reconciles known sides and uses the closing observation, never their sum', () => {
+    const data = fixture();
+    const make = (day, delta) => {
+        const b = {};
+        for (const v of ['stonfi','dedust']) {
+            for (const k of ['full','partial','none','full_gram','full_nano','partial_gram','partial_nano','native_gram','native_nano'])
+                b[`${v}:${k}`] = '0';
+        }
+        Object.assign(b, {'stonfi:full':'1','stonfi:full_gram':'9007199254740993','stonfi:full_nano':delta,
+            'stonfi:native_gram':'99','dedust:partial':'1','dedust:partial_gram':'5','dedust:none':'3'});
+        return {day,metric:'dex_tvl_gram_v1',value:'5',amount_nanoton:`9007199254740998${delta.padStart(9,'0')}`,is_partial:1,breakdown:b};
+    };
+    data.daily.push(make('2024-02-01','8'),make('2024-02-29','9'));
+    const close=() => monthlyActivity(data).metrics.dex_tvl.series[0];
+    assert.equal(close().exact['2024-02-01'],'9007199254740993.000000009');
+    assert.match(close().details['2024-02-01'],/2024-02-29/);
+    data.daily.at(-1).amount_nanoton='0';
+    assert.equal(close().exact['2024-02-01'],null);
+    data.daily.pop();
+    assert.equal(close().exact['2024-02-01'],null); // No silent carry across a missing close.
+});
+
 test('DEX volume reconciles the exact priced stack and keeps missing histories unknown', () => {
     const data = fixture();
     const row = { metric:'dex_volume_gram_v1', day:'2024-02-01', value:'2', amount_nanoton:'100000000000000000002',
