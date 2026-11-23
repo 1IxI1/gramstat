@@ -202,6 +202,13 @@ export const CATALOGUE = [
         dynamic: true,
         layout: 'wide',
     }),
+    chart('dex_volume', 'DEX volume', 'activity', 'GRAM', {
+        kind: 'stacked-bar', zero: true, layout: 'full', tooltipSort: 'value-desc',
+        stackTotalLabel: 'Priced volume',
+        series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1), series('tonco', 'TONCO', 2),
+            series('coffee', 'swap.coffee', 3), series('multiple', 'Multiple DEXs', 4), series('other', 'Other DEXs', 5)],
+        description: 'Recognized user swaps, counted once per route. A route crossing venues is counted under Multiple DEXs. Direct GRAM amounts are used where available; other assets use historical on-chain quotes. Partial totals exclude unpriced swaps and unresolved routes. Volume excludes Megaton Finance.',
+    }),
     chart('ton_dns_mints', '.ton DNS mints', 'activity', '', {
         kind: 'bar', zero: true,
         description: 'Newly minted .ton domain NFTs per UTC day. Transfers, purchases, renewals, and re-auctions of existing domains are not counted.',

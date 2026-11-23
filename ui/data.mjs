@@ -299,6 +299,24 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             put('lst_amount', r.metric.slice('liquid_staking_deposits_'.length), r.day, r.amount_nanoton, 9, detail, Boolean(r.is_partial));
         if (r.metric === 'swaps_total')
             for (const dex of dexes) put('swaps_dex', dex, r.day, String(r.breakdown?.[dex] ?? '0'), 0, detail, Boolean(r.is_partial));
+        if (r.metric === 'dex_volume_gram_v1') {
+            const series = metrics.dex_volume.series, b = r.breakdown || {};
+            const get = key => BigInt(b[key] ?? '0');
+            const keysValid = Object.entries(b).every(([k, v]) => typeof v === 'string' && /^\d+$/.test(v)
+                && (k === 'ambiguous' || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
+            const amounts = keysValid ? series.map(s => get('gram:' + s.id) * 1000000000n + get('nano:' + s.id)) : [];
+            const sum = values => values.reduce((a, v) => a + v, 0n);
+            const priced = keysValid ? sum(series.map(s => get('priced:' + s.id))) : 0n;
+            const missing = keysValid ? sum(series.map(s => get('unpriced:' + s.id))) : 0n;
+            const ambiguous = keysValid ? get('ambiguous') : 0n;
+            const valid = keysValid && decimal(r.amount_nanoton) !== null && decimal(r.value) !== null
+                && sum(amounts) === BigInt(r.amount_nanoton) && priced === BigInt(r.value)
+                && series.every(s => get('nano:' + s.id) < 1000000000n)
+                && (priced > 0n || (missing === 0n && ambiguous === 0n));
+            const coverage = `${priced} priced routes; ${missing} without a price; ${ambiguous} unresolved instructions.`;
+            series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
+                keysValid ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
+        }
     }
     for (const r of data.stars) {
         if (!dailyIDs.has(r.day)) continue;
@@ -407,6 +425,7 @@ export function expandActivityColumns(data) {
 // Calendar-month sums use exact strings. Unique addresses come only from the
 // independently prepared monthly observations, never the sum of daily uniques.
 export function monthlyActivity(data, daily = readObservedMetrics(data)) {
+    const todayUTC = (data.servedAt || new Date().toISOString()).slice(0, 10);
     const months = [...new Set(daily.dates.map((d) => `${d.slice(0, 7)}-01`))];
     const unique = new Map(data.daily.filter((r) => r.metric.startsWith('monthly_')).map((r) => [`${r.metric}/${r.day}`, r]));
     const buckets = months.map(month => {
@@ -418,10 +437,13 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
     for (const definition of CATALOGUE.filter((c) => c.section === 'activity')) {
         metrics[definition.id] = { series: daily.metrics[definition.id].series.map((source) => {
             const series = { ...source, points: [], exact: {}, details: {}, partial: {} };
-            for (const { month, end, days } of buckets) {
+            for (const { month, end, days: requested } of buckets) {
+                const days = definition.id === 'dex_volume'
+                    ? requested.filter(day => day < todayUTC)
+                    : requested;
                 const uniqueName = ['jetton_users', 'nft_users'].includes(definition.id) ? source.id : definition.id === 'swaps_users' ? 'swaps_users' : null;
                 let exact = null;
-                let partial = end > data.period.to;
+                let partial = end > data.period.to || days.length !== requested.length;
                 if (uniqueName) {
                     const row = unique.get(`monthly_${uniqueName}/${month}`);
                     exact = decimal(row?.value);

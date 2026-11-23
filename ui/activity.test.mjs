@@ -46,6 +46,26 @@ test('daily Activity averages preserve partial-day provenance', () => {
     assert.equal(avg.partial, true);
 });
 
+test('DEX volume reconciles the exact priced stack and keeps missing histories unknown', () => {
+    const data = fixture();
+    const row = { metric:'dex_volume_gram_v1', day:'2024-02-01', value:'2', amount_nanoton:'100000000000000000002',
+        is_partial:1, breakdown:{'gram:stonfi':'100000000000','nano:stonfi':'1','priced:stonfi':'1',
+            'nano:multiple':'1','priced:multiple':'1','unpriced:dedust':'2',ambiguous:'3'} };
+    data.daily.push(row);
+    const get = () => readObservedMetrics(data).metrics.dex_volume.series;
+    let s = get();
+    assert.equal(s.find(x => x.id === 'stonfi').exact[row.day], '100000000000.000000001');
+    assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000001');
+    assert.match(s[0].details[row.day], /2 priced routes; 2 without a price; 3 unresolved/);
+    assert.equal(monthlyActivity(data).metrics.dex_volume.series[0].exact[row.day], null);
+    row.amount_nanoton = '1';
+    assert.ok(get().every(x => x.exact[row.day] === null));
+    row.value='0'; row.amount_nanoton=null; row.breakdown={ambiguous:'1'};
+    assert.ok(get().every(x => x.exact[row.day] === null));
+    row.amount_nanoton='0'; row.breakdown={ambiguous:'0'}; row.is_partial=0;
+    assert.ok(get().every(x => x.exact[row.day] === '0.000000000'));
+});
+
 test('Stars purchased retains known quantities in daily and monthly views despite unknown sizes', () => {
     const data = fixture();
     data.stars = periodDates(data.period.from, data.period.to).map((day, i) => ({

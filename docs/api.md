@@ -337,6 +337,27 @@ Absolute account and token counts require complete historical coverage; wallet
 activity also depends on prior wallet deployments. Unavailable metrics display
 their missing prerequisites in the UI.
 
+## DEX volume
+
+`dex_volume_gram_v1` is a prepared daily activity row. The UTC day is the
+masterchain completion date of the trace, so one route cannot be split at
+midnight. `value` is the number of priced recognized routes, `amount_nanoton`
+their total in integer nanograms (null if nothing could be valued and
+coverage is incomplete). `breakdown` holds `priced:<venue>`, `unpriced:<venue>`,
+and `gram:<venue>` plus `nano:<venue>` (whole GRAM and a remainder below 1e9).
+`ambiguous` counts unresolved instructions or traces; `is_partial` includes
+missing quotes and ambiguous funding. Categories are `stonfi`, `dedust`,
+`tonco`, `coffee`, `multiple`, and `other`. Sums are for priced volume only;
+a missing daily publication is not a zero day. Monthly sums require every
+closed day in the bucket. The current UTC day is not published.
+
+The aggregator reads indexed actions and finalized historical prices. It uses
+the actual exchanged GRAM or supported pTON amount first, otherwise a quote
+from a prior closed minute (at most 15 minutes since observation). Canonical
+USDT uses the prior minute's GRAM/USDT anchor. Other jettons, including bridged
+stablecoins, need their own quote. Each route is rounded once to a nanogram.
+Internal pool hops are not additional user volume. Megaton Finance is excluded.
+
 ## Deployment
 
 The binary can also serve the UI directly, without a reverse proxy. Build it
