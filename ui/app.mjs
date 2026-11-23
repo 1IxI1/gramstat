@@ -36,23 +36,24 @@ window.addEventListener('storage', event => {
     }
 });
 const cards = new Map();
+const visibleCharts = CATALOGUE.filter(chart => !chart.hidden);
 let excludedActions = excludedActionTypes(new URLSearchParams(location.search));
 let selectedWallets = activationSelection(new URLSearchParams(location.search));
 const pageLinks = [...document.querySelectorAll('.page-navigation a')];
 const chartPage = (id) => {
-    const definition = CATALOGUE.find((chart) => chart.id === id);
+    const definition = visibleCharts.find((chart) => chart.id === id);
     return definition && (definition.section === 'validator' || (definition.section === 'gram' && !['accounts', 'transactions'].includes(id))) ? 'tokenomics' : 'activity';
 };
 const chartIdFromHash = () => {
     if (!location.hash.startsWith('#chart-')) return null;
     const id = location.hash.slice('#chart-'.length);
-    return CATALOGUE.some((chart) => chart.id === id) ? id : null;
+    return visibleCharts.some((chart) => chart.id === id) ? id : null;
 };
 const pageFromURL = () => {
     const anchored = chartIdFromHash();
     if (anchored) return chartPage(anchored);
     const params = new URLSearchParams(location.search);
-    if (params.has('chart') && CATALOGUE.some((chart) => chart.id === params.get('chart'))) return chartPage(params.get('chart'));
+    if (params.has('chart') && visibleCharts.some((chart) => chart.id === params.get('chart'))) return chartPage(params.get('chart'));
     return params.get('page') === 'tokenomics' ? 'tokenomics' : 'activity';
 };
 let currentPage;
@@ -397,7 +398,7 @@ const walletRegistry = createWalletRegistry(element);
 const stakeRegistry = createStakeRegistry(element);
 const validatorMap = new ValidatorMap($('validator-map'));
 
-for (const definition of CATALOGUE) {
+for (const definition of visibleCharts) {
     const card = element('article', `chart-card ${definition.layout || ''}`);
     card.id = `chart-${definition.id}`;
     const heading = element('div', 'chart-heading');

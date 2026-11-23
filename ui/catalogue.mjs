@@ -203,6 +203,7 @@ export const CATALOGUE = [
         row: 'dex-charts',
     }),
     chart('dex_volume', 'DEX volume', 'activity', 'GRAM', {
+        hidden: true,
         kind: 'stacked-bar', zero: true, row: 'dex-charts', tooltipSort: 'value-desc',
         stackTotalLabel: 'Priced volume',
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1), series('tonco', 'TONCO', 2),
@@ -210,6 +211,7 @@ export const CATALOGUE = [
         description: 'Recognized user swaps, counted once per route. A route crossing venues is counted under Multiple DEXs. Direct GRAM amounts are used where available; other assets use historical on-chain quotes. Partial totals exclude unpriced swaps and unresolved routes. Volume excludes Megaton Finance.',
     }),
     chart('dex_tvl', 'DEX TVL · priced reserves', 'activity', 'GRAM', {
+        hidden: true,
         kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'Priced reserves',
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
         description: 'End-of-day pool reserves on STON.fi and DeDust, valued in GRAM. Unchanged pools retain their reserves. A side without a fresh price is excluded; the other side is never doubled. Coverage and the GRAM/pTON portion are shown in the tooltip.',
