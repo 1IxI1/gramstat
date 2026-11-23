@@ -479,7 +479,13 @@ for (const definition of CATALOGUE) {
     card.append(heading, readout, surface, legend, status);
     if (definition.registryTerm) card.append(walletRegistry.description(definition));
     if (definition.stakeRegistry) card.append(stakeRegistry.button());
-    $(definition.container || `${definition.section}-charts`).append(card);
+    const grid = $(definition.container || `${definition.section}-charts`);
+    if (definition.row && !$(definition.row)) {
+        const row = element('div', 'chart-row');
+        row.id = definition.row;
+        grid.append(row);
+    }
+    (definition.row ? $(definition.row) : grid).append(card);
     const chart = definition.emptyMessage ? null : new TimeChart(surface, { ...definition, series: [], loading }, [new Date().toISOString().slice(0, 10)]);
     cards.set(definition.id, { definition, value, secondaryValue, detail, legend, status, surface, chart, card, expand, heading, average, averageValue });
 }

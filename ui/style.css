@@ -428,6 +428,14 @@ h2 {
 .chart-card.full {
     grid-column: 1 / -1;
 }
+.chart-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: inherit;
+}
+.chart-row > .chart-card { grid-column: auto; }
 .chart-heading {
     display: flex;
     align-items: flex-start;
@@ -810,6 +818,7 @@ footer {
     }
 }
 @media (max-width: 800px) {
+    .chart-row { grid-auto-flow: row; }
     .dashboard {
         --gutter: 18px;
         padding: 20px var(--gutter) 18px;
