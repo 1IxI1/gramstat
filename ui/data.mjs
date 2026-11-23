@@ -209,7 +209,17 @@ function lockedPoolBreakdown(round) {
     return breakdown;
 }
 
-export function readObservedMetrics(data) {
+// Preserve details[date] for consumers, but format tooltip-only text on its
+// first read. Related series share the same per-round description.
+function lazyText(target, key, format) {
+    Object.defineProperty(target, key, { configurable: true, enumerable: true, get() {
+        const value = format();
+        Object.defineProperty(target, key, { value, enumerable: true, configurable: true });
+        return value;
+    } });
+}
+
+export function readObservedMetrics(data, { includeActions = true } = {}) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');
     const dates = periodDates(data.period.from, data.period.to);
@@ -221,6 +231,9 @@ export function readObservedMetrics(data) {
     const lockedBreakdowns = new Map(data.rounds.map(r => [r.utime_since, lockedPoolBreakdown(r)]));
     const poolLabels = [...lockedBreakdowns.values()].flatMap(breakdown => Object.keys(breakdown || {}));
     metrics.stake_locked.series.splice(1, 0, ...stakePoolSeries(poolLabels).map(s => ({ ...s, points: [], exact: {}, details: {} })));
+    const lockedDetails = {}, changeDetails = {};
+    for (const s of metrics.stake_locked.series) s.details = lockedDetails;
+    for (const s of metrics.stake_changes.series) s.details = changeDetails;
     const dailyIDs = new Set(dates);
     const roundDates = [];
     const roundDetails = {};
@@ -233,7 +246,8 @@ export function readObservedMetrics(data) {
         const value = exact === null ? null : Number(exact);
         item.points.push([date, Number.isFinite(value) ? value : null]);
         item.exact[date] = exact;
-        item.details[date] = detail;
+        if (typeof detail === 'function') lazyText(item.details, date, detail);
+        else if (detail !== undefined) item.details[date] = detail;
         (item.partial ??= {})[date] = partial;
     };
     for (const r of data.chain) {
@@ -310,57 +324,57 @@ export function readObservedMetrics(data) {
         const date = new Date(r.utime_since * 1000).toISOString();
         const until = new Date(r.utime_until * 1000).toISOString();
         roundDates.push(date);
-        const detail = `Round until ${formatDate(until, { seconds: true })}. Count through ${formatDate(new Date(r.data_through * 1000).toISOString())}. Locations ${r.located ?? '?'}/${r.total}; ${r.geo_status ?? 'unavailable'}. Geo updated ${r.geo_calculated_at ? formatDate(r.geo_calculated_at) : 'never'}.`;
-        roundDetails[date] = { ...r, detail };
+        const detail = () => `Round until ${formatDate(until, { seconds: true })}. Count through ${formatDate(new Date(r.data_through * 1000).toISOString())}. Locations ${r.located ?? '?'}/${r.total}; ${r.geo_status ?? 'unavailable'}. Geo updated ${r.geo_calculated_at ? formatDate(r.geo_calculated_at) : 'never'}.`;
+        roundDetails[date] = r;
         put('validator_count', 'total', date, String(r.total), 0, detail);
-        const stakeDetail = r.unfreeze_utime == null ? 'Final principal has not been collected.' : `Principal before release on ${formatDate(new Date(r.unfreeze_utime * 1000).toISOString(), { seconds: true })} UTC; rewards excluded.`;
+        const stakeDetail = () => r.unfreeze_utime == null ? 'Final principal has not been collected.' : `Principal before release on ${formatDate(new Date(r.unfreeze_utime * 1000).toISOString(), { seconds: true })} UTC; rewards excluded.`;
         for (const key of ['submitted', 'selected', 'remaining', 'reward']) {
             put('stake', key, date, r[`${key}_nanogram`], 9,
                 key === 'reward' ? 'Accumulated election reward before distribution; principal excluded.' : key === 'remaining' ? stakeDetail : `Election ${r.election_id ?? 'unknown'}; ${key === 'submitted' ? 'accepted applications before selection' : 'maximum observed selected principal'}.`);
         }
-        const aprDetail = r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
+        const aprDetail = () => r.apr_percent == null ? `APR unavailable: ${(r.apr_status || 'missing inputs').replaceAll('_', ' ')}.`
             : `Rewards: ${decimal(r.reward_nanogram, 9)} GRAM.\nSelected stake: ${decimal(r.selected_nanogram, 9)} GRAM.\nAPR = (Rewards / Selected stake) × (31,536,000 s / ${r.apr_cycle_seconds} s) × 100%.`;
         put('staking_apr', 'total', date, r.apr_percent, 'percent', aprDetail);
         const lockedTotal = decimal(r.locked_total_nanogram, 9);
         const breakdown = lockedBreakdowns.get(r.utime_since);
         const splitKnown = breakdown != null;
         const amount = raw => decimal(raw, 9) === null ? 'unknown' : `${formatTooltipExact(decimal(raw, 9))} GRAM`;
-        const lockedDetail = lockedTotal === null
+        lazyText(lockedDetails, date, () => lockedTotal === null
             ? 'Two adjacent verified rounds with known selected stake are required.'
             : [
                 `Current round: ${amount(r.selected_nanogram)}.`,
                 `Previous round${r.locked_previous ? ` (${formatDate(new Date(r.locked_previous * 1000).toISOString(), { seconds: true })} UTC)` : ''}: ${amount(r.locked_previous_selected_nanogram)}.`,
                 splitKnown ? `Attribution: contract types ${r.locked_typed_positions}/${r.locked_positions}; ISP evidence ${r.locked_isp_observed_positions}/${r.locked_positions}. Others includes unclassified positions.` : 'Category breakdown unavailable; the total is independently known.',
                 ...(splitKnown ? [`Liquid Staking total: ${amount(r.locked_pools_nanogram)}.`] : []),
-            ].join('\n');
+            ].join('\n'));
         for (const s of metrics.stake_locked.series) {
             const raw = s.overlay ? r.locked_total_nanogram : !splitKnown ? null
                 : s.poolLabel ? (Object.hasOwn(breakdown, s.poolLabel) ? breakdown[s.poolLabel] : '0')
                 : r[`locked_${s.id}_nanogram`];
             put('stake_locked', s.id, date, raw, 9,
-                lockedDetail, Boolean(r.locked_is_partial) || (!s.overlay && r.locked_status === 'partial_attribution'));
+                 undefined, Boolean(r.locked_is_partial) || (!s.overlay && r.locked_status === 'partial_attribution'));
         }
         const changeKeys = metrics.stake_changes.series.map(s => s.id);
         const counts = changeKeys.map(key => r[`stake_change_${key}`]);
         const matched = r.stake_change_matched;
         const covered = r.stake_change_status === 'complete' && Number.isInteger(matched) && matched > 0
             && counts.every(n => Number.isInteger(n) && n >= 0) && counts.reduce((a, b) => a + b, 0) === matched;
-        const changeDetail = covered
+        lazyText(changeDetails, date, () => covered
             ? `Compared with ${formatDate(new Date(r.stake_change_previous * 1000).toISOString(), { seconds: true })} UTC (n−2).\nMatched: ${matched} of ${r.stake_change_current_holders} current addresses (${(matched / r.stake_change_current_holders * 100).toFixed(2)}%); ${r.stake_change_previous_holders} previous addresses. New: ${r.stake_change_new}. Exited: ${r.stake_change_exited}.\n${metrics.stake_changes.series.map((s, i) => `${s.label}: ${counts[i]}`).join('; ')}.`
-            : `Comparison unavailable: ${(r.stake_change_status || 'missing inputs').replaceAll('_', ' ')}.`;
+            : `Comparison unavailable: ${(r.stake_change_status || 'missing inputs').replaceAll('_', ' ')}.`);
         // Round the cumulative shares, then difference them: the five displayed
         // percentages sum to exactly 100%, including after decimal formatting.
         let cumulative = 0, previousUnits = 0;
         for (let i = 0; i < changeKeys.length; i++) {
             cumulative += covered ? counts[i] : 0;
             const units = covered ? Math.round(cumulative * 1000000 / matched) : 0;
-            put('stake_changes', changeKeys[i], date, covered ? ((units - previousUnits) / 10000).toFixed(4) : null, 'percent', changeDetail);
+            put('stake_changes', changeKeys[i], date, covered ? ((units - previousUnits) / 10000).toFixed(4) : null, 'percent');
             previousUnits = units;
         }
         previousRoundUntil = r.utime_until;
     }
     metrics.validator_geo.series = validatorGeoSeries(data.rounds);
-    metrics.actions_total.series = actionTypeReadings(data.daily, dates);
+    if (includeActions) metrics.actions_total.series = actionTypeReadings(data.daily, dates);
     return { metrics, dates, roundDates, roundDetails, period: data.period, servedAt: data.servedAt };
 }
 
@@ -376,11 +390,12 @@ export function expandActivityColumns(data) {
     const daily = [];
     for (const metric of data.metrics) {
         const values = column(metric.values), amounts = column(metric.amounts), partial = column(metric.partial);
-        for (const values of Object.values(metric.breakdown || {})) column(values);
+        const entries = Object.entries(metric.breakdown || {});
+        for (const [, values] of entries) column(values);
         for (let i = 0; i < dates.length; i++) {
             if (values[i] === null) continue;
             daily.push({ metric: metric.metric, day: dates[i], value: values[i], amount_nanoton: amounts[i], is_partial: partial[i],
-                breakdown: Object.fromEntries(Object.entries(metric.breakdown || {}).map(([key, values]) => [key, values[i]])) });
+                breakdown: Object.fromEntries(entries.map(([key, values]) => [key, values[i]])) });
         }
     }
     const { total, known, unknown, partial } = data.stars;
@@ -391,18 +406,19 @@ export function expandActivityColumns(data) {
 
 // Calendar-month sums use exact strings. Unique addresses come only from the
 // independently prepared monthly observations, never the sum of daily uniques.
-export function monthlyActivity(data) {
-    const daily = readObservedMetrics(data);
+export function monthlyActivity(data, daily = readObservedMetrics(data)) {
     const months = [...new Set(daily.dates.map((d) => `${d.slice(0, 7)}-01`))];
     const unique = new Map(data.daily.filter((r) => r.metric.startsWith('monthly_')).map((r) => [`${r.metric}/${r.day}`, r]));
+    const buckets = months.map(month => {
+        const start = new Date(`${month}T00:00:00Z`);
+        const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
+        return { month, end, days: periodDates(month, end).filter(d => d < data.period.to) };
+    });
     const metrics = {};
     for (const definition of CATALOGUE.filter((c) => c.section === 'activity')) {
         metrics[definition.id] = { series: daily.metrics[definition.id].series.map((source) => {
             const series = { ...source, points: [], exact: {}, details: {}, partial: {} };
-            for (const month of months) {
-                const start = new Date(`${month}T00:00:00Z`);
-                const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
-                const days = periodDates(month, end).filter((d) => d < data.period.to);
+            for (const { month, end, days } of buckets) {
                 const uniqueName = ['jetton_users', 'nft_users'].includes(definition.id) ? source.id : definition.id === 'swaps_users' ? 'swaps_users' : null;
                 let exact = null;
                 let partial = end > data.period.to;

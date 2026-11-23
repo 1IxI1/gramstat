@@ -29,8 +29,10 @@ API and deployment documentation:
   sizes are unknown. Such observations and their averages are marked partial;
   tooltips explain that unknown sizes are excluded. Monthly totals sum known
   quantities exactly. Missing source days remain gaps.
-- The page loads `/api/v2/dashboard` once for the selected range, including shared
-  Activity date/value columns for whole boundary months. Daily / Monthly toggles
+- Transactions and other daily chain charts read `/api/v1/chain` independently
+  of Activity. Round charts fetch `/api/v2/rounds` on the first visit to Tokenomics
+  for a range. `/api/v2/activity` includes shared date/value columns for whole
+  boundary months. Daily / Monthly toggles
   reuse that response locally. All API requests negotiate lossless GSC1 binary
   columns and HTTP gzip; exact integers use 8–128 bits as required, with explicit
   missing-value masks. `wire.mjs` restores the existing exact-string adapter inputs.
@@ -106,7 +108,7 @@ API and deployment documentation:
   Floating-point conversion is only for plotting. Stars known subtotal is labelled
   separately and does not replace a NULL full total.
 
-The page reads `/api/v1/coverage`, `/api/v1/dashboard` and `/api/v1/locations`.
+Coverage and map snapshots come from `/api/v1/coverage` and `/api/v1/locations`.
 Visible pages refresh every five minutes. Serve the UI and proxy `/api/` as shown
 in the nginx example.
 

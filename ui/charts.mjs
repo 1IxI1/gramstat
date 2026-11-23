@@ -39,15 +39,17 @@ export function formatSummary(value, unit = '') {
         : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 }
 
+const utcDate = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' };
+const utcTime = { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' };
+const dateFormats = {
+    day: new Intl.DateTimeFormat('en-GB', utcDate),
+    minute: new Intl.DateTimeFormat('en-GB', { ...utcDate, ...utcTime }),
+    second: new Intl.DateTimeFormat('en-GB', { ...utcDate, ...utcTime, second: '2-digit' }),
+};
 export function formatDate(date, { seconds = false } = {}) {
-    if (!date || !Number.isFinite(new Date(date).getTime())) return 'unknown';
-    return new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'UTC',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        ...(date.length > 10 ? { hour: '2-digit', minute: '2-digit', ...(seconds ? { second: '2-digit' } : {}) } : {}),
-    }).format(new Date(date)).replace(', ', ' ');
+    const value = new Date(date);
+    if (!date || !Number.isFinite(value.getTime())) return 'unknown';
+    return dateFormats[date.length > 10 ? seconds ? 'second' : 'minute' : 'day'].format(value).replace(', ', ' ');
 }
 
 export function formatAxisDate(date, { span, time, crossesYear } = {}) {
@@ -59,6 +61,7 @@ export function formatAxisDate(date, { span, time, crossesYear } = {}) {
 
 export function sumReadings(values) {
     if (!values.length || values.some((value) => !Number.isFinite(value))) return null;
+    if (values.length === 1) return values[0];
     // Avoid exposing binary floating-point tails in stacked demo totals.
     const decimals = Math.max(...values.map((value) => (String(value).split('.')[1] || '').length));
     return Number(values.reduce((sum, value) => sum + value, 0).toFixed(Math.min(decimals, 15)));
@@ -269,7 +272,9 @@ export class TimeChart {
         document.addEventListener('pointerdown', this.onOutside);
         this.update(config, dates);
         if (typeof ResizeObserver !== 'undefined') {
-            this.observer = new ResizeObserver(() => this.draw());
+            this.observer = new ResizeObserver(([entry]) => {
+                if (entry.contentRect.width > 0) this.draw();
+            });
             this.observer.observe(surface);
         } else {
             this.onResize = () => this.draw();
@@ -277,9 +282,9 @@ export class TimeChart {
         }
     }
 
-    update(config, dates) {
+    update(config, dates, rows) {
         this.config = config;
-        this.rows = buildRows(dates, config.series);
+        this.rows = rows ?? buildRows(dates, config.series);
         this.selectedIndex = this.rows.findLastIndex((row) => row.values.some(Number.isFinite));
         if (this.selectedIndex < 0) this.selectedIndex = this.rows.length - 1;
         this.surface.setAttribute(

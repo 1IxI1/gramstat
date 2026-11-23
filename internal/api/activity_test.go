@@ -134,3 +134,33 @@ func TestColumnDashboardUsesSelectedCoreRangeAndWholeActivityMonths(t *testing.T
 		t.Fatal(calls)
 	}
 }
+
+func TestSplitRoutesMatchDashboardWithoutReadingUnrelatedTables(t *testing.T) {
+	rows := map[string]string{
+		"daily_columns": `[{"metric":"swaps_total","day":"2024-02-01","value":"9007199254740993","is_partial":1}]`,
+		"stars_columns": `[]`, "chain_columns": `[]`, "rounds": `[{"utime_since":1707609600}]`,
+	}
+	var calls []string
+	s := New(readerFunc(func(_ context.Context, name string, _ url.Values) (json.RawMessage, error) {
+		calls = append(calls, name)
+		return json.RawMessage(rows[name]), nil
+	}), logger())
+	fetch := func(route string) map[string]json.RawMessage {
+		t.Helper()
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v2/"+route+"?from=2024-02-10&to=2024-02-20", nil))
+		var data map[string]json.RawMessage
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &data) != nil {
+			t.Fatal(route, w.Code, w.Body.String())
+		}
+		return data
+	}
+	full := fetch("dashboard")
+	for route, sources := range map[string]string{"activity": "daily_columns,stars_columns", "rounds": "rounds"} {
+		calls = nil
+		data := fetch(route)
+		if string(data[route]) != string(full[route]) || strings.Join(calls, ",") != sources || len(data) != 5 {
+			t.Fatalf("%s: sources %v, fields %v", route, calls, data)
+		}
+	}
+}

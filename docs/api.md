@@ -15,6 +15,10 @@ Gramstat dashboard.
   independently prepared unique-address counts. The UI slices Daily to the
   selected range and calculates Monthly from the prefetched months with the same
   adapters as v1, without a second request or summing daily distinct users.
+- `GET /api/v2/activity` and `GET /api/v2/rounds` take the same `from` and `to`.
+  Each returns just its named field from the v2 dashboard plus the common metadata,
+  querying only that field's sources. The UI uses `/api/v1/chain` independently
+  for daily chain charts, including Transactions.
 
 All data routes support `Accept: application/vnd.gramstat.columns.v1` for the
 lossless **GSC1** binary representation, and `Accept-Encoding: gzip`. Without the
@@ -417,9 +421,8 @@ coverage. Public GET responses can be cached for 60 seconds.
 Requests are GET/HEAD only, without bodies; API request URIs are limited to
 2048 bytes. The ClickHouse client ignores environment proxies and redirects.
 
-The UI runs up to seven range tasks concurrently and loads the independent
-Account types snapshot immediately, using the eighth reader slot without waiting
-for the historical charts to finish.
+The UI runs six range tasks concurrently, reserving the other two reader slots
+for the independent Account types snapshot and on-demand Tokenomics rounds.
 
 The default view is **Last 180 days**, with **Only complete daily periods** off.
 It follows the latest indexed supply block's second, like the other **Last …**

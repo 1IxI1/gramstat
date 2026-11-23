@@ -51,7 +51,9 @@ export function transferSplits(rows, metric, keys) {
 export function actionTypeReadings(rows, dates) {
     const types = [...ACTION_TYPES, 'total', 'ton_transfer'];
     const gramSplit = transferSplits(rows, 'action_gram_transfer_sizes_v1', ['small','ge_one','unknown']);
-    const series = types.map(id => ({ id, label: id, points: [], exact: {}, partial: {}, details: {} }));
+    // Every action type inherits coverage from the same daily source row.
+    const partial = {};
+    const series = types.map(id => ({ id, label: id, points: [], exact: {}, partial, details: {} }));
     const byDay = new Map();
     for (const row of rows.filter(row => row.metric === ACTION_METRIC)) {
         if (byDay.has(row.day)) throw Error('Duplicate total actions day.');
@@ -65,13 +67,13 @@ export function actionTypeReadings(rows, dates) {
         const row = byDay.get(date);
         const parent = row?.breakdown?.ton_transfer ?? '0';
         const split = row && gramSplit(row, parent);
+        partial[date] = Boolean(row?.is_partial);
         for (const s of series) {
             const exact = !row ? null : gramParts.includes(s.id)
                 ? split?.[s.id.slice(5)] ?? (parent === '0' ? '0' : null)
                 : s.id === 'total' ? row.value : row.breakdown?.[s.id] ?? '0';
             s.exact[date] = exact;
             s.points.push([date, exact === null ? null : Number(exact)]);
-            s.partial[date] = Boolean(row?.is_partial);
         }
     }
     return series;

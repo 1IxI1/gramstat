@@ -56,6 +56,7 @@ const pageFromURL = () => {
     return params.get('page') === 'tokenomics' ? 'tokenomics' : 'activity';
 };
 let currentPage;
+let requestPageRounds;
 let activeAnchorId = null;
 let highlightedCard = null;
 function syncChartAnchor(scroll = false, force = false) {
@@ -83,11 +84,16 @@ function syncPageLinks(page) {
     }
 }
 function showPage(page, scroll = false) {
+    const changed = currentPage && currentPage !== page;
     currentPage = page;
     for (const name of ['activity', 'tokenomics']) $(`page-${name}`).hidden = name !== page;
     document.querySelector('.skip-link').href = page === 'activity' ? '#accounts-section' : '#gram-and-ton';
     syncPageLinks(page);
     $('time-picker').open = false;
+    if (changed) {
+        if (page === 'tokenomics') requestPageRounds?.();
+        render();
+    }
     if (scroll) window.scrollTo({ top: 0, behavior: 'instant' });
 }
 showPage(pageFromURL());
@@ -105,6 +111,8 @@ for (const link of pageLinks) link.addEventListener('click', (event) => {
     syncChartAnchor();
 });
 let readings;
+let roundReadings;
+let chainError = '';
 let loading = true;
 const pendingCharts = new Set();
 let requestId = 0;
@@ -131,6 +139,7 @@ const sectionModeFromURL = () => new URLSearchParams(location.search).get('activ
 let sectionMode = sectionModeFromURL();
 let sectionReadings;
 let dailyActivityReadings;
+let monthlyActivityReadings;
 let activitySource;
 let sectionLoading = false;
 let sectionError = '';
@@ -163,10 +172,16 @@ for (const [i, tab] of sectionTabs.entries()) {
     };
 }
 
+function selectedActivityReadings() {
+    if (!dailyActivityReadings || sectionMode !== 'monthly') return dailyActivityReadings;
+    const { from, to } = dailyActivityReadings.period;
+    const fullMonths = activitySource.period.from === from && activitySource.period.to === to;
+    return monthlyActivityReadings ??= monthlyActivity(activitySource, fullMonths ? dailyActivityReadings : undefined);
+}
+
 function loadSectionActivity() {
-    sectionLoading = pendingCharts.has('observations');
-    sectionError = '';
-    sectionReadings = activitySource ? sectionMode === 'monthly' ? monthlyActivity(activitySource) : dailyActivityReadings : undefined;
+    sectionLoading = pendingCharts.has('activity');
+    sectionReadings = selectedActivityReadings();
     render('activity');
 }
 
@@ -563,7 +578,10 @@ window.addEventListener('popstate', () => {
 });
 
 function chartGroup(definition) {
-    return definition.section === 'wallet' ? 'wallets' : ['supply', 'inflation', 'accounts'].includes(definition.id) ? definition.id : 'observations';
+    if (definition.section === 'wallet') return 'wallets';
+    if (['supply', 'inflation', 'accounts'].includes(definition.id)) return definition.id;
+    if (definition.section === 'activity' || definition.activityAverage) return 'activity';
+    return definition.section === 'validator' ? 'rounds' : 'chain';
 }
 
 function render(group, roundsOnly = false, onlyID) {
@@ -573,21 +591,22 @@ function render(group, roundsOnly = false, onlyID) {
     for (const state of cards.values()) {
         const { definition } = state;
         if (onlyID && definition.id !== onlyID) continue;
+        if (chartPage(definition.id) !== currentPage) continue;
         const currentGroup = chartGroup(definition);
-        if (group === 'activity' ? definition.section !== 'activity' : group && group !== currentGroup) continue;
+        if (group && group !== currentGroup) continue;
         if (roundsOnly && !definition.round) continue;
         const isActivity = definition.id === 'active_wallets_daily';
         const isSection = definition.section === 'activity';
         const isDailyAction = definition.activityAverage;
         const monthly = isSection && sectionMode === 'monthly';
-        const loading = pendingCharts.has(currentGroup) || (isActivity && activityLoading) || ((isSection || isDailyAction) && sectionLoading);
+        const loading = pendingCharts.has(currentGroup) || (currentGroup === 'rounds' && !roundReadings && !validatorsError) || (isActivity && activityLoading) || ((isSection || isDailyAction) && sectionLoading);
         const isSupply = definition.id === 'supply';
         const isInflation = definition.id === 'inflation';
         const isAccounts = definition.id === 'accounts';
         const isWallet = definition.section === 'wallet';
         const isActivations = definition.id === 'activations';
         const temporal = isSupply || isInflation || isAccounts || isWallet || monthly || definition.time;
-        const observations = isDailyAction ? dailyActivityReadings : isSection ? sectionReadings : readings;
+        const observations = isDailyAction ? dailyActivityReadings : isSection ? sectionReadings : currentGroup === 'rounds' ? roundReadings : readings;
         let allSeries = isWallet ? (walletsData && !(isActivity && (activityError || walletsData.active.mode !== activityMode)) ? [walletSeries(walletsData, definition.id)] : []) : isSupply ? (supplyData ? [supplySeries(supplyData)] : []) : isInflation ? (inflationData ? [inflationSeries(inflationData)] : []) : isAccounts ? (accountsData ? accountsSeries(accountsData) : []) : observations?.metrics[definition.id]?.series || [];
         if (isActivations) allSeries = walletsData ? activationSeries(walletsData, selectedWallets) : [];
         if (definition.id === 'validator_geo' && activeRange) allSeries = allSeries.map(s => {
@@ -605,9 +624,10 @@ function render(group, roundsOnly = false, onlyID) {
         if (definition.id === 'jetton_transfers') allSeries = allSeries.filter(s => s.id !== 'unknown' || s.points.some(([,v]) => v > 0));
         const hiddenSeries = state.hiddenSeries ??= new Set(definition.defaultHiddenSeries || []);
         const series = allSeries.filter((s) => !hiddenSeries.has(s.id));
-        const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? readings.roundDates : readings.dates;
+        const dates = monthly ? observations?.dates || [] : temporal ? (allSeries[0]?.points.map((p) => p[0]) || []) : definition.round ? roundReadings?.roundDates || [] : readings.dates;
         const shownDates = dates.length ? dates : temporal && activeRange ? [new Date(activeRange.from).toISOString()] : readings.dates;
-        const rows = buildRows(shownDates, series.filter((s) => s.axis !== 'right'));
+        const primary = series.filter((s) => s.axis !== 'right');
+        const rows = buildRows(shownDates, primary);
         const latest = isWallet || monthly ? rows.findLast((r) => r.values.some(Number.isFinite)) : temporal ? (dates.length ? rows.at(-1) : undefined) : rows.findLast((r) =>
             definition.kind.startsWith('stacked') ? r.total !== null || r.values.some((v, i) => series[i].overlay && Number.isFinite(v)) : r.values.some(Number.isFinite),
         );
@@ -617,7 +637,7 @@ function render(group, roundsOnly = false, onlyID) {
                 : latest.values.find(Number.isFinite)
             : null;
         state.value.textContent = formatSummary(value, definition.unit);
-        const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, readings.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
+        const periodLabel = (date) => observationPeriodLabel(date, definition, isSection ? sectionMode : activityMode, roundReadings?.roundDetails[date]) + (series.some(s=>s.partial?.[date]) ? ' · partial' : '');
         state.detail.textContent = latest ? periodLabel(latest.date) : '';
         if (definition.id === 'validator_geo') {
             const date = dates.at(-1);
@@ -637,7 +657,7 @@ function render(group, roundsOnly = false, onlyID) {
         const latestDetail = (latest ? series.find(s => s.details?.[latest.date])?.details[latest.date] || '' : '')
             .replace(/^Partial day\.\s*/, '');
         state.status.textContent =
-            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : isDailyAction ? sectionError : definition.id === 'validator_count' ? validatorsError : '') ||
+            (isSupply ? supplyError : isInflation ? inflationError : isAccounts ? accountsError : currentGroup === 'activity' ? sectionError : currentGroup === 'rounds' ? validatorsError : currentGroup === 'chain' ? chainError : '') ||
             definition.unavailable ||
             definition.description ||
             (latest
@@ -744,7 +764,7 @@ function render(group, roundsOnly = false, onlyID) {
             rangeStart: monthly && dates.length ? Date.parse(`${dates[0]}T00:00:00Z`) : activeRange?.from,
             rangeEnd: lastMonth ? Date.UTC(lastMonth.getUTCFullYear(), lastMonth.getUTCMonth() + 1, 1) : activeRange?.to,
             onRange: (from, to) => setRange(from, to),
-        }, shownDates);
+        }, shownDates, primary.length === series.length ? rows : undefined);
     }
     const label = activeRange ? `${displayTime(activeRange.from)} — ${displayTime(activeRange.to - 1000)} UTC` : '';
     $('period-status').textContent = label;
@@ -787,6 +807,7 @@ function pointBudget(id) {
 function load() {
     sectionReadings = undefined;
     dailyActivityReadings = undefined;
+    monthlyActivityReadings = undefined;
     activitySource = undefined;
     sectionLoading = true;
     sectionError = '';
@@ -809,7 +830,7 @@ async function loadRange() {
     const timeout = setTimeout(() => request.abort(), 75000);
     loading = true;
     pendingCharts.clear();
-    for (const group of ['wallets', 'supply', 'inflation', 'accounts', 'observations']) pendingCharts.add(group);
+    for (const group of ['wallets', 'supply', 'inflation', 'accounts', 'chain', 'activity']) pendingCharts.add(group);
     supplyData = undefined;
     supplyError = '';
     inflationData = undefined;
@@ -819,23 +840,35 @@ async function loadRange() {
     walletsData = undefined;
     walletsError = '';
     validatorsError = '';
+    chainError = '';
+    roundReadings = undefined;
+    requestPageRounds = undefined;
     $('apply').disabled = true;
     warning('');
     validatorMap.status('Loading locations…', true);
     // Do not retain another date range behind a failed reload.
     try {
         const range = selection();
-        const dailyRange = range;
-        const empty = { schemaVersion: 2, network: 'mainnet', period: dailyRange, chain: [], daily: [], stars: [], rounds: [] };
-        readings = readObservedMetrics({
-            schemaVersion: 2,
-            network: 'mainnet',
-            period: dailyRange,
-            chain: [],
-            daily: [],
-            stars: [],
-            rounds: [],
-        });
+        const dailyParams = new URLSearchParams(range);
+        const empty = { schemaVersion: 2, network: 'mainnet', period: range, chain: [], daily: [], stars: [], rounds: [] };
+        readings = readObservedMetrics(empty, { includeActions: false });
+        // Rounds can also be requested after this range has finished loading.
+        // Keep their own deadline and reuse the range's cancellation and ID.
+        requestPageRounds = async () => {
+            if (id !== requestId) return;
+            requestPageRounds = undefined;
+            try {
+                const data = await getJSON(`/api/v2/rounds?${dailyParams}`, AbortSignal.any([request.signal, AbortSignal.timeout(25000)]));
+                if (id !== requestId) return;
+                if (data.schemaVersion !== 3) throw Error('Unsupported rounds response.');
+                roundReadings = readObservedMetrics({ ...empty, network: data.network, rounds: data.rounds }, { includeActions: false });
+            } catch (e) {
+                if (id !== requestId) return;
+                validatorsError = `Validator rounds unavailable: ${e.message}`;
+            }
+            render('rounds');
+        };
+        if (currentPage === 'tokenomics') requestPageRounds();
         render();
         const supplyParams = new URLSearchParams({ from: new Date(activeRange.from).toISOString().replace('.000Z','Z'), to: new Date(activeRange.to).toISOString().replace('.000Z','Z'), maxPoints: pointBudget('supply') });
         const inflationParams = new URLSearchParams(supplyParams);
@@ -852,9 +885,16 @@ async function loadRange() {
             pendingCharts.delete(group);
             render(group);
         };
-        // Seven range tasks leave one of the API's eight cold-reader slots for
-        // independent account types. Each group renders as soon as it finishes.
+        // Six workers leave slots for Account types and on-demand rounds.
         const tasks = [
+            chartTask('chain', `/api/v1/chain?${dailyParams}`, (data) => {
+                try {
+                    if (data.error) throw Error(data.error);
+                    readings = readObservedMetrics({ ...empty, ...data, chain: data.chain }, { includeActions: false });
+                } catch (e) {
+                    chainError = `Daily chain data unavailable: ${e.message}`;
+                }
+            }),
             chartTask('wallets', `/api/v1/wallets?${walletParams}`, (data) => {
                 if (data.error) walletsError = `Wallets unavailable: ${data.error}`;
                 else walletsData = data;
@@ -885,23 +925,21 @@ async function loadRange() {
             },
             async () => {
                 try {
-                    const data = await getJSON(`/api/v2/dashboard?${new URLSearchParams(range)}`, request.signal);
+                    const data = await getJSON(`/api/v2/activity?${dailyParams}`, request.signal);
                     if (id !== requestId) return;
-                    if (data.schemaVersion !== 3) throw Error('Unsupported dashboard response.');
-                    readings = readObservedMetrics({ ...empty, ...data, schemaVersion: 2 });
+                    if (data.schemaVersion !== 3 || data.network !== 'mainnet') throw Error('Unsupported Activity response.');
                     activitySource = expandActivityColumns(data.activity);
                     dailyActivityReadings = readObservedMetrics({ ...activitySource, period: range });
-                    sectionReadings = sectionMode === 'monthly' ? monthlyActivity(activitySource) : dailyActivityReadings;
+                    sectionReadings = selectedActivityReadings();
                     sectionLoading = false;
-                    pendingCharts.delete('observations');
-                    render('observations');
+                    pendingCharts.delete('activity');
+                    render('activity');
                 } catch (e) {
                     if (id !== requestId) return;
                     sectionLoading = false;
                     sectionError = `Activity unavailable: ${e.message}`;
-                    warning(`Data could not be loaded. ${e.message}`);
-                    pendingCharts.delete('observations');
-                    render('observations');
+                    pendingCharts.delete('activity');
+                    render('activity');
                 }
             },
             async () => {
@@ -912,7 +950,7 @@ async function loadRange() {
                 render('coverage');
             },
         ];
-        await Promise.all(Array.from({ length: 7 }, async () => {
+        await Promise.all(Array.from({ length: 6 }, async () => {
             while (tasks.length && id === requestId && !request.signal.aborted) await tasks.shift()();
         }));
     } catch (e) {

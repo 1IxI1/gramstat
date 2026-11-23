@@ -43,14 +43,20 @@ type activityColumns struct {
 
 // Both display modes share these prepared observations. Fetch full boundary
 // months once, so toggling Daily/Monthly needs neither another scan nor download.
-func (s *Server) loadColumns(ctx context.Context, q url.Values) ([]byte, error) {
+func (s *Server) loadColumns(ctx context.Context, name string, q url.Values) ([]byte, error) {
 	result := map[string]any{"schemaVersion": 3, "network": "mainnet", "period": map[string]string{"from": q.Get("from"), "to": q.Get("to")}, "servedAt": time.Now().UTC().Format(time.RFC3339)}
 	for key, query := range map[string]string{"chain": "chain_columns", "rounds": "rounds"} {
+		if name == "activity_columns" || (name == "round_columns" && key != "rounds") {
+			continue
+		}
 		rows, err := s.reader.Read(ctx, query, q)
 		if err != nil {
 			return nil, err
 		}
 		result[key] = rows
+	}
+	if name == "round_columns" {
+		return json.Marshal(result)
 	}
 	from, _ := time.Parse(time.DateOnly, q.Get("from"))
 	to, _ := time.Parse(time.DateOnly, q.Get("to"))

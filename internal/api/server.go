@@ -75,6 +75,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		name = "dashboard"
 	case "/api/v2/dashboard":
 		name = "columns"
+	case "/api/v2/activity":
+		name = "activity_columns"
+	case "/api/v2/rounds":
+		name = "round_columns"
 	case "/api/v1/activity":
 		name = "activity"
 	case "/api/v1/chain":
@@ -102,7 +106,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	validationName := name
-	if name == "columns" {
+	if name == "columns" || name == "activity_columns" || name == "round_columns" {
 		validationName = "dashboard"
 	}
 	if err = validate(validationName, q, time.Now().UTC()); err != nil {
@@ -342,8 +346,8 @@ func (s *Server) load(ctx context.Context, name string, q url.Values) ([]byte, e
 	if name == "code_hashes" {
 		return s.loadCodeHashes(ctx, q)
 	}
-	if name == "columns" {
-		return s.loadColumns(ctx, q)
+	if name == "columns" || name == "activity_columns" || name == "round_columns" {
+		return s.loadColumns(ctx, name, q)
 	}
 	if name == "wallets" {
 		return s.loadWallets(ctx, q)
