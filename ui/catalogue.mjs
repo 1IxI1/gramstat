@@ -210,7 +210,7 @@ export const CATALOGUE = [
         description: [
             'If you spend 100 GRAM to buy a token, that adds 100 GRAM to volume, even if the swap takes several steps. If it goes through both STON.fi and DeDust, the 100 GRAM appears once under Multiple DEXs.',
             'When GRAM is bought or sold, we use the actual GRAM amount. If you pay or receive USDT, we convert the amount exchanged to GRAM at the previous minute’s rate. If neither is at the start or end, we look for GRAM or USDT that passed through the entire swap and count it once.',
-            'If we can only estimate the value from the two tokens, we use the price of one of them in a pool with GRAM. We prefer a fresh price for the token received, then for the token spent. If neither has a usable price from the past 15 minutes, we try the last still-valid price. When we estimate volume from a token price, we use that estimate only if it is no more than 20% of the liquidity used to calculate the price.',
+            'If we can only estimate the value from the two tokens, we use the price of one of them in a pool with GRAM. We prefer a fresh price for the token received, then for the token spent. If neither has a usable price from the past 15 minutes, we try the last still-valid price. We use a token price to estimate volume only if the swap amount is no more than 20% of pool liquidity.',
             'Partial means some activity is missing: either neither token had a usable price, or we couldn’t tell whether several transfers were steps of one swap or separate swaps.',
             'Megaton Finance is not indexed yet, hence not included.',
         ].join('\n\n'),
