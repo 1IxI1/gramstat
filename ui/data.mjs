@@ -247,8 +247,8 @@ function lazyText(target, key, format) {
     } });
 }
 
-function volumeCoverage({ priced, missing, traces, upperBound }) {
-    return `Swaps included: ${priced.toLocaleString('en-US')}\nUnrecognized: ${missing.toLocaleString('en-US')} (swaps without a usable value)\nUnresolved swap traces: ${upperBound ? '≤ ' : ''}${traces.toLocaleString('en-US')}`;
+function volumeCoverage({ priced, missing, ambiguous }) {
+    return `Swaps included: ${priced.toLocaleString('en-US')}\nUnrecognized: ${missing.toLocaleString('en-US')} (swaps without a usable value)\nUnresolved instructions: ${ambiguous.toLocaleString('en-US')}`;
 }
 
 export function readObservedMetrics(data, { includeActions = true } = {}) {
@@ -343,7 +343,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             const series = metrics.dex_volume.series, b = r.breakdown || {};
             const get = key => BigInt(b[key] ?? '0');
             const keysValid = Object.entries(b).every(([k, v]) => typeof v === 'string' && /^\d+$/.test(v)
-                && (k === 'ambiguous' || (k === 'unresolved_traces' && version >= 3) || (k === 'carried' && version >= 1) || (k === 'intermediate' && version >= 2) || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
+                && (k === 'ambiguous' || (k === 'carried' && version >= 1) || (k === 'intermediate' && version >= 2) || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
             const amounts = keysValid ? series.map(s => get('gram:' + s.id) * 1000000000n + get('nano:' + s.id)) : [];
             const sum = values => values.reduce((a, v) => a + v, 0n);
             const priced = keysValid ? sum(series.map(s => get('priced:' + s.id))) : 0n;
@@ -355,11 +355,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
                 && sum(amounts) === BigInt(r.amount_nanoton) && priced === BigInt(r.value) && carried + intermediate <= priced
                 && series.every(s => get('nano:' + s.id) < 1000000000n)
                 && (priced > 0n || (missing === 0n && ambiguous === 0n));
-            // The columnar API zero-fills absent keys on older rows. With any
-            // ambiguity a genuine trace count is necessarily positive.
-            const reportedTraces = keysValid ? get('unresolved_traces') : 0n;
-            const hasTraces = reportedTraces > 0n && reportedTraces <= ambiguous;
-            const counts = { priced, missing, traces: hasTraces ? reportedTraces : ambiguous, upperBound: !hasTraces && ambiguous > 1n };
+            const counts = { priced, missing, ambiguous };
             const knownCounts = valid || (keysValid && r.amount_nanoton == null && r.value === '0' && priced + intermediate + carried === 0n && missing + ambiguous > 0n);
             if (knownCounts) metrics.dex_volume.coverage[r.day] = counts;
             const coverage = volumeCoverage(counts) + '\n' +
@@ -493,10 +489,9 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
         const counts = daily.metrics.dex_volume.coverage;
         const volumeDetail = closed.length && closed.every(d => counts?.[d])
             ? volumeCoverage(closed.reduce((sum, d) => {
-                for (const key of ['priced', 'missing', 'traces']) sum[key] += counts[d][key];
-                sum.upperBound ||= counts[d].upperBound;
+                for (const key of ['priced', 'missing', 'ambiguous']) sum[key] += counts[d][key];
                 return sum;
-            }, { priced: 0n, missing: 0n, traces: 0n, upperBound: false })) : null;
+            }, { priced: 0n, missing: 0n, ambiguous: 0n })) : null;
         return { month, end, days, volumeDetail };
     });
     const metrics = {};
