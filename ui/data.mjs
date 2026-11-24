@@ -247,6 +247,10 @@ function lazyText(target, key, format) {
     } });
 }
 
+function volumeCoverage({ priced, missing, ambiguous }) {
+    return `Swaps included: ${priced.toLocaleString('en-US')}\nUnrecognized: ${missing.toLocaleString('en-US')} (swaps without a usable value)\nUnresolved instructions: ${ambiguous.toLocaleString('en-US')}`;
+}
+
 export function readObservedMetrics(data, { includeActions = true } = {}) {
     if (data?.schemaVersion !== 2 || data.network !== 'mainnet' || !data.period)
         throw new Error('Unsupported API response.');
@@ -314,6 +318,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
     const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
     const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4'];
     const volumeByDay = new Map();
+    metrics.dex_volume.coverage = {};
     for (const r of data.daily) {
         const version = volumeVersions.indexOf(r.metric);
         if (version > (volumeByDay.get(r.day) ?? -1)) volumeByDay.set(r.day, version);
@@ -350,12 +355,15 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
                 && sum(amounts) === BigInt(r.amount_nanoton) && priced === BigInt(r.value) && carried + intermediate <= priced
                 && series.every(s => get('nano:' + s.id) < 1000000000n)
                 && (priced > 0n || (missing === 0n && ambiguous === 0n));
-            const coverage = `Swaps included: ${priced}. Swaps without a usable price: ${missing}. Cases where transfers could not be grouped into swaps: ${ambiguous}. ` +
+            const counts = { priced, missing, ambiguous };
+            const knownCounts = valid || (keysValid && r.amount_nanoton == null && r.value === '0' && priced + intermediate + carried === 0n && missing + ambiguous > 0n);
+            if (knownCounts) metrics.dex_volume.coverage[r.day] = counts;
+            const coverage = volumeCoverage(counts) + '\n' +
                 (version === 0 ? 'This day still uses the previous 15-minute price limit.' : `Included using an older price: ${carried}.`) +
                 (version >= 2 ? ` Valued from GRAM or USDT passed between swap steps: ${intermediate}.` : ' The execution-based recalculation is pending for this day.') +
                 (version === 2 ? ' This day still uses the previous 1% liquidity limit.' : '');
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
-                keysValid ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
+                knownCounts ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
         }
         if (r.metric === 'dex_tvl_gram_v1') {
             const obs = closingReserves(r);
@@ -476,13 +484,21 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
     const buckets = months.map(month => {
         const start = new Date(`${month}T00:00:00Z`);
         const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)).toISOString().slice(0, 10);
-        return { month, end, days: periodDates(month, end).filter(d => d < data.period.to) };
+        const days = periodDates(month, end).filter(d => d < data.period.to);
+        const closed = days.filter(d => d < todayUTC);
+        const counts = daily.metrics.dex_volume.coverage;
+        const volumeDetail = closed.length && closed.every(d => counts?.[d])
+            ? volumeCoverage(closed.reduce((sum, d) => {
+                for (const key of ['priced', 'missing', 'ambiguous']) sum[key] += counts[d][key];
+                return sum;
+            }, { priced: 0n, missing: 0n, ambiguous: 0n })) : null;
+        return { month, end, days, volumeDetail };
     });
     const metrics = {};
     for (const definition of CATALOGUE.filter((c) => c.section === 'activity')) {
         metrics[definition.id] = { series: daily.metrics[definition.id].series.map((source) => {
             const series = { ...source, points: [], exact: {}, details: {}, partial: {} };
-            for (const { month, end, days: requested } of buckets) {
+            for (const { month, end, days: requested, volumeDetail } of buckets) {
                 const days = definition.id === 'dex_volume' || definition.closingSnapshot
                     ? requested.filter(day => day < todayUTC)
                     : requested;
@@ -511,6 +527,7 @@ export function monthlyActivity(data, daily = readObservedMetrics(data)) {
                 series.points.push([month, exact === null ? null : Number(exact)]);
                 series.partial[month] = partial;
                 series.details[month] ??= exact === null ? 'Monthly history is being prepared.' : partial ? 'Partial calendar month.' : '';
+                if (definition.id === 'dex_volume' && volumeDetail) series.details[month] = [series.details[month], volumeDetail].filter(Boolean).join('\n');
             }
             return series;
         }) };
