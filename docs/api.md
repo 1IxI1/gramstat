@@ -345,7 +345,10 @@ midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
 coverage is incomplete). `breakdown` holds `priced:<venue>`, `unpriced:<venue>`,
 and `gram:<venue>` plus `nano:<venue>` (whole GRAM and a remainder below 1e9).
-`ambiguous` counts unresolved instructions or traces; `is_partial` includes
+`ambiguous` counts unresolved instructions or traces; `unresolved_traces`
+counts each trace with at least one unresolved instruction once, using its
+completion day. Before this field was published, `ambiguous` gives an upper
+bound on that count. `is_partial` includes
 missing quotes and ambiguous funding. Categories are `stonfi`, `dedust`,
 `tonco`, `coffee`, `multiple`, and `other`. Sums are for priced volume only;
 a missing daily publication is not a zero day. Monthly sums require every

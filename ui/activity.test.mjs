@@ -78,7 +78,7 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     let s = get();
     assert.equal(s.find(x => x.id === 'stonfi').exact[row.day], '100000000000.000000001');
     assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000001');
-    assert.match(s[0].details[row.day], /Swaps included: 2\nUnrecognized: 2 .*?\nUnresolved instructions: 3\n.*previous/);
+    assert.match(s[0].details[row.day], /Swaps included: 2\nUnrecognized: 2 .*?\nUnresolved swap traces: ≤ 3\n.*previous/);
     data.daily.unshift({...row, metric:'dex_volume_gram_v2', amount_nanoton:'100000000000000000003',
         value:'3', breakdown:{...row.breakdown,'nano:multiple':'2','priced:multiple':'2',carried:'1'}});
     s = get();
@@ -112,13 +112,15 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     assert.ok(get().every(x => x.exact[row.day] === '0.000000000'));
 });
 
-test('DEX volume monthly tooltip counts unpriced swaps and unresolved instructions separately', () => {
+test('DEX volume monthly tooltip distinguishes unpriced swaps from unique unresolved traces', () => {
     const data = fixture();
     const rows = periodDates(data.period.from, data.period.to).map(day => ({ day, metric:'dex_volume_gram_v4',
-        value:'1', amount_nanoton:'50', is_partial:1, breakdown:{'nano:stonfi':'50','priced:stonfi':'1','unpriced:stonfi':'2','unpriced:dedust':'1',ambiguous:'4'} }));
-    data.daily.push({...rows[0],metric:'dex_volume_gram_v3'}, ...rows);
+        value:'1', amount_nanoton:'50', is_partial:1, breakdown:{'nano:stonfi':'50','priced:stonfi':'1','unpriced:stonfi':'2','unpriced:dedust':'1',ambiguous:'4',unresolved_traces:'2'} }));
+    data.daily.push(...rows);
     const detail = () => monthlyActivity(data).metrics.dex_volume.series[0].details[rows[0].day];
-    assert.match(detail(), /Swaps included: 29\nUnrecognized: 87 .*?\nUnresolved instructions: 116/);
+    assert.match(detail(), /Swaps included: 29\nUnrecognized: 87 .*?\nUnresolved swap traces: 58/);
+    rows[0].breakdown.unresolved_traces = '0'; // older published row in a mixed API column
+    assert.match(detail(), /Unresolved swap traces: ≤ 60/);
     data.daily.pop();
     assert.doesNotMatch(detail(), /Unrecognized:/);
 });
