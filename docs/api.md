@@ -339,7 +339,7 @@ their missing prerequisites in the UI.
 
 ## DEX volume
 
-`dex_volume_gram_v2` is a prepared daily activity row. The UTC day is the
+`dex_volume_gram_v3` is a prepared daily activity row. The UTC day is the
 masterchain completion date of the trace, so one route cannot be split at
 midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
@@ -351,17 +351,22 @@ missing quotes and ambiguous funding. Categories are `stonfi`, `dedust`,
 a missing daily publication is not a zero day. Monthly sums require every
 closed day in the bucket. The current UTC day is not published.
 
-The aggregator reads indexed actions and finalized historical prices. It uses
-the actual exchanged GRAM or supported pTON amount first, otherwise a quote
-from a prior closed minute. A quote observed within 15 minutes on either
-side takes precedence over any older price. Otherwise use the last still-valid
-jetton quote, as recorded in GRAM, without applying later GRAM/USDT movement.
-Do not carry past an invalidation. `carried` in the breakdown counts the subset
-of priced swaps that used an older quote. Canonical USDT still uses the prior
-minute's GRAM/USDT anchor. Other jettons, including bridged stablecoins, need
-their own quote. Each route is rounded once to a nanogram. During the rebuild
-the UI uses v2 when published, otherwise the legacy v1 observation for that UTC
-day, never both. V1 excluded quotes older than 15 minutes.
+Use the actual GRAM (including supported pTON) or canonical USDT transferred
+at a route boundary, in that order; if both boundaries use the same unit,
+take the input. Otherwise use a confirmed GRAM or USDT transfer covering the
+whole route, including all successful branches, once. USDT uses the preceding
+closed minute's GRAM/USDT rate. `intermediate` counts routes valued this way
+between steps. As a last resort, estimate the output token, then the input
+token, using only quotes from closed minutes before execution. For either side
+the estimate must not exceed 1% of `liquidity_quote` recorded with that price.
+This is a size filter, not a simulation of an AMM's execution price. Prefer
+prices observed within 15 minutes over older quotes on either side. `carried`
+counts routes estimated using the latest still-valid older GRAM quote, without
+applying later GRAM/USDT movement or looking past an invalidation.
+Round the selected value once per route to a nanogram. During the rebuild use
+the highest available version (v3, v2, v1) per UTC day, never their sum.
+V1 and v2 did not check quote liquidity or intermediate transfers; v1 also
+excluded quotes older than 15 minutes.
 Internal pool hops are not additional user volume. Megaton Finance is excluded.
 
 ## DEX TVL observations

@@ -85,6 +85,15 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
     assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000002');
     assert.match(s[0].details[row.day], /Included using an older price: 1/);
+    assert.match(s[0].details[row.day], /recalculation is pending/);
+    data.daily.push({...row, metric:'dex_volume_gram_v3', breakdown:{...row.breakdown,intermediate:'1'}});
+    s = get();
+    assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
+    assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000001');
+    assert.match(s[0].details[row.day], /passed between swap steps: 1/);
+    data.daily.at(-1).breakdown.intermediate = '3';
+    assert.ok(get().every(x => x.exact[row.day] === null));
+    data.daily.pop();
     data.daily.shift();
     assert.equal(monthlyActivity(data).metrics.dex_volume.series[0].exact[row.day], null);
     row.amount_nanoton = '1';
