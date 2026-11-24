@@ -248,7 +248,7 @@ function lazyText(target, key, format) {
 }
 
 function volumeCoverage({ priced, missing, ambiguous }) {
-    return `Swaps included: ${priced.toLocaleString('en-US')}\nUnrecognized: ${missing.toLocaleString('en-US')} (swaps without a usable value)\nUnresolved instructions: ${ambiguous.toLocaleString('en-US')}`;
+    return `Swaps included: ${priced.toLocaleString('en-US')}\nUnrecognized: ${missing.toLocaleString('en-US')} (swaps without a usable value)\nUnresolved swap traces: ${ambiguous.toLocaleString('en-US')}`;
 }
 
 export function readObservedMetrics(data, { includeActions = true } = {}) {
