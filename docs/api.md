@@ -339,7 +339,7 @@ their missing prerequisites in the UI.
 
 ## DEX volume
 
-`dex_volume_gram_v3` is a prepared daily activity row. The UTC day is the
+`dex_volume_gram_v4` is a prepared daily activity row. The UTC day is the
 masterchain completion date of the trace, so one route cannot be split at
 midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
@@ -358,13 +358,14 @@ whole route, including all successful branches, once. USDT uses the preceding
 closed minute's GRAM/USDT rate. `intermediate` counts routes valued this way
 between steps. As a last resort, estimate the output token, then the input
 token, using only quotes from closed minutes before execution. For either side
-the estimate must not exceed 1% of `liquidity_quote` recorded with that price.
+the estimate must not exceed 20% of `liquidity_quote` recorded with that price.
 This is a size filter, not a simulation of an AMM's execution price. Prefer
 prices observed within 15 minutes over older quotes on either side. `carried`
 counts routes estimated using the latest still-valid older GRAM quote, without
 applying later GRAM/USDT movement or looking past an invalidation.
 Round the selected value once per route to a nanogram. During the rebuild use
-the highest available version (v3, v2, v1) per UTC day, never their sum.
+the highest available version (v4, v3, v2, v1) per UTC day, never their sum.
+V3 used a 1% liquidity limit.
 V1 and v2 did not check quote liquidity or intermediate transfers; v1 also
 excluded quotes older than 15 minutes.
 Internal pool hops are not additional user volume. Megaton Finance is excluded.

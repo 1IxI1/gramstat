@@ -312,7 +312,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
     }));
     const jettonKeys = ['usdt', 'others', 'unknown'];
     const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
-    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3'];
+    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4'];
     const volumeByDay = new Map();
     for (const r of data.daily) {
         const version = volumeVersions.indexOf(r.metric);
@@ -338,7 +338,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             const series = metrics.dex_volume.series, b = r.breakdown || {};
             const get = key => BigInt(b[key] ?? '0');
             const keysValid = Object.entries(b).every(([k, v]) => typeof v === 'string' && /^\d+$/.test(v)
-                && (k === 'ambiguous' || (k === 'carried' && version >= 1) || (k === 'intermediate' && version === 2) || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
+                && (k === 'ambiguous' || (k === 'carried' && version >= 1) || (k === 'intermediate' && version >= 2) || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
             const amounts = keysValid ? series.map(s => get('gram:' + s.id) * 1000000000n + get('nano:' + s.id)) : [];
             const sum = values => values.reduce((a, v) => a + v, 0n);
             const priced = keysValid ? sum(series.map(s => get('priced:' + s.id))) : 0n;
@@ -352,7 +352,8 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
                 && (priced > 0n || (missing === 0n && ambiguous === 0n));
             const coverage = `Swaps included: ${priced}. Swaps without a usable price: ${missing}. Cases where transfers could not be grouped into swaps: ${ambiguous}. ` +
                 (version === 0 ? 'This day still uses the previous 15-minute price limit.' : `Included using an older price: ${carried}.`) +
-                (version === 2 ? ` Valued from GRAM or USDT passed between swap steps: ${intermediate}.` : ' The execution-based recalculation is pending for this day.');
+                (version >= 2 ? ` Valued from GRAM or USDT passed between swap steps: ${intermediate}.` : ' The execution-based recalculation is pending for this day.') +
+                (version === 2 ? ' This day still uses the previous 1% liquidity limit.' : '');
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
                 keysValid ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
         }
