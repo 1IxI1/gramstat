@@ -78,7 +78,14 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     let s = get();
     assert.equal(s.find(x => x.id === 'stonfi').exact[row.day], '100000000000.000000001');
     assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000001');
-    assert.match(s[0].details[row.day], /2 priced routes; 2 without a price; 3 unresolved/);
+    assert.match(s[0].details[row.day], /Swaps included: 2\..*usable price: 2\..*grouped into swaps: 3\..*previous/);
+    data.daily.unshift({...row, metric:'dex_volume_gram_v2', amount_nanoton:'100000000000000000003',
+        value:'3', breakdown:{...row.breakdown,'nano:multiple':'2','priced:multiple':'2',carried:'1'}});
+    s = get();
+    assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
+    assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000002');
+    assert.match(s[0].details[row.day], /Included using an older price: 1/);
+    data.daily.shift();
     assert.equal(monthlyActivity(data).metrics.dex_volume.series[0].exact[row.day], null);
     row.amount_nanoton = '1';
     assert.ok(get().every(x => x.exact[row.day] === null));

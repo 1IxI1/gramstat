@@ -203,14 +203,19 @@ export const CATALOGUE = [
         row: 'dex-charts',
     }),
     chart('dex_volume', 'DEX volume', 'activity', 'GRAM', {
-        kind: 'stacked-bar', zero: true, row: 'dex-charts', tooltipSort: 'value-desc',
+        kind: 'stacked-bar', zero: true, row: 'dex-charts', tooltipSort: 'value-desc', showAverage: false,
         stackTotalLabel: 'Priced volume',
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1), series('tonco', 'TONCO', 2),
             series('coffee', 'swap.coffee', 3), series('multiple', 'Multiple DEXs', 4), series('other', 'Other DEXs', 5)],
-        description: 'Recognized user swaps, counted once per route. A route crossing venues is counted under Multiple DEXs. Direct GRAM amounts are used where available; other assets use historical on-chain quotes. Partial totals exclude unpriced swaps and unresolved routes. Volume excludes Megaton Finance.',
+        description: [
+            'If you spend 100 GRAM to buy a token, that adds 100 GRAM to volume, even if the swap takes several steps. If it goes through both STON.fi and DeDust, the 100 GRAM appears once under Multiple DEXs.',
+            'When GRAM is bought or sold, we use the actual GRAM amount. For swaps between two other tokens, we use the price of one of them in a pool with GRAM. We prefer a price observed in the 15 minutes before the swap. If neither token has one, we use the last price that was still valid at the time.',
+            'Partial means some activity is missing: either neither token had a usable price, or we couldn’t tell whether several transfers were steps of one swap or separate swaps.',
+            'Megaton Finance is not indexed yet, hence not included.',
+        ].join('\n\n'),
     }),
     chart('dex_tvl', 'DEX TVL · priced reserves', 'activity', 'GRAM', {
-        kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'Priced reserves',
+        kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'Priced reserves', showAverage: false,
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
         description: 'End-of-day pool reserves on STON.fi and DeDust, valued in GRAM. Unchanged pools retain their reserves. A side without a fresh price is excluded; the other side is never doubled. Coverage and the GRAM/pTON portion are shown in the tooltip.',
         monthlyDescription: 'Closing snapshot, not a sum of daily TVL. Open months use the last closed UTC day in the selected period. Includes priced reserves on STON.fi and DeDust only.',

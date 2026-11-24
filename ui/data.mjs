@@ -312,6 +312,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
     }));
     const jettonKeys = ['usdt', 'others', 'unknown'];
     const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
+    const repricedDays = new Set(data.daily.filter(r => r.metric === 'dex_volume_gram_v2').map(r => r.day));
     for (const r of data.daily) {
         if (!dailyIDs.has(r.day)) continue;
         const detail = r.is_partial ? 'Partial day.' : '';
@@ -327,21 +328,24 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             put('lst_amount', r.metric.slice('liquid_staking_deposits_'.length), r.day, r.amount_nanoton, 9, detail, Boolean(r.is_partial));
         if (r.metric === 'swaps_total')
             for (const dex of dexes) put('swaps_dex', dex, r.day, String(r.breakdown?.[dex] ?? '0'), 0, detail, Boolean(r.is_partial));
-        if (r.metric === 'dex_volume_gram_v1') {
+        const legacyVolume = r.metric === 'dex_volume_gram_v1' && !repricedDays.has(r.day);
+        if (r.metric === 'dex_volume_gram_v2' || legacyVolume) {
             const series = metrics.dex_volume.series, b = r.breakdown || {};
             const get = key => BigInt(b[key] ?? '0');
             const keysValid = Object.entries(b).every(([k, v]) => typeof v === 'string' && /^\d+$/.test(v)
-                && (k === 'ambiguous' || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
+                && (k === 'ambiguous' || (k === 'carried' && !legacyVolume) || series.some(s => ['gram:', 'nano:', 'priced:', 'unpriced:'].some(p => k === p + s.id))));
             const amounts = keysValid ? series.map(s => get('gram:' + s.id) * 1000000000n + get('nano:' + s.id)) : [];
             const sum = values => values.reduce((a, v) => a + v, 0n);
             const priced = keysValid ? sum(series.map(s => get('priced:' + s.id))) : 0n;
             const missing = keysValid ? sum(series.map(s => get('unpriced:' + s.id))) : 0n;
             const ambiguous = keysValid ? get('ambiguous') : 0n;
+            const carried = keysValid ? get('carried') : 0n;
             const valid = keysValid && decimal(r.amount_nanoton) !== null && decimal(r.value) !== null
-                && sum(amounts) === BigInt(r.amount_nanoton) && priced === BigInt(r.value)
+                && sum(amounts) === BigInt(r.amount_nanoton) && priced === BigInt(r.value) && carried <= priced
                 && series.every(s => get('nano:' + s.id) < 1000000000n)
                 && (priced > 0n || (missing === 0n && ambiguous === 0n));
-            const coverage = `${priced} priced routes; ${missing} without a price; ${ambiguous} unresolved instructions.`;
+            const coverage = `Swaps included: ${priced}. Swaps without a usable price: ${missing}. Cases where transfers could not be grouped into swaps: ${ambiguous}. ` +
+                (legacyVolume ? 'This day still uses the previous 15-minute price limit.' : `Included using an older price: ${carried}.`);
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
                 keysValid ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
         }

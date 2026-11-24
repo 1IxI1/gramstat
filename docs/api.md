@@ -339,7 +339,7 @@ their missing prerequisites in the UI.
 
 ## DEX volume
 
-`dex_volume_gram_v1` is a prepared daily activity row. The UTC day is the
+`dex_volume_gram_v2` is a prepared daily activity row. The UTC day is the
 masterchain completion date of the trace, so one route cannot be split at
 midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
@@ -353,9 +353,15 @@ closed day in the bucket. The current UTC day is not published.
 
 The aggregator reads indexed actions and finalized historical prices. It uses
 the actual exchanged GRAM or supported pTON amount first, otherwise a quote
-from a prior closed minute (at most 15 minutes since observation). Canonical
-USDT uses the prior minute's GRAM/USDT anchor. Other jettons, including bridged
-stablecoins, need their own quote. Each route is rounded once to a nanogram.
+from a prior closed minute. A quote observed within 15 minutes on either
+side takes precedence over any older price. Otherwise use the last still-valid
+jetton quote, as recorded in GRAM, without applying later GRAM/USDT movement.
+Do not carry past an invalidation. `carried` in the breakdown counts the subset
+of priced swaps that used an older quote. Canonical USDT still uses the prior
+minute's GRAM/USDT anchor. Other jettons, including bridged stablecoins, need
+their own quote. Each route is rounded once to a nanogram. During the rebuild
+the UI uses v2 when published, otherwise the legacy v1 observation for that UTC
+day, never both. V1 excluded quotes older than 15 minutes.
 Internal pool hops are not additional user volume. Megaton Finance is excluded.
 
 ## DEX TVL observations

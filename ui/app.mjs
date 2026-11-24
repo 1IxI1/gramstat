@@ -465,7 +465,7 @@ for (const definition of visibleCharts) {
     surface.append(expand);
     let average;
     let averageValue;
-    if (definition.averageUnit || definition.section === 'activity' || definition.activityAverage) {
+    if (definition.showAverage !== false && (definition.averageUnit || definition.section === 'activity' || definition.activityAverage)) {
         average = element('div', 'chart-average');
         if (definition.section === 'activity' || definition.activityAverage) average.classList.add('activity-average');
         const dot = element('span', 'average-dot');
@@ -694,8 +694,8 @@ function render(group, roundsOnly = false, onlyID) {
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
         if (!isTotalActions && !isActivations) state.legend.replaceChildren();
-        if (isSection || isDailyAction) {
-            if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
+        if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
+        if (state.average && (isSection || isDailyAction)) {
             const period = monthly ? `${dates.length} ${dates.length === 1 ? 'month' : 'months'}`
                 : activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
             const unit = definition.closingSnapshot ? definition.unit : `${definition.unit ? definition.unit + '/' : '/'}${monthly ? 'month' : 'day'}`;
