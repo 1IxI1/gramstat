@@ -197,6 +197,7 @@ export const CATALOGUE = [
         monthlyDescription: 'Unique addresses initiating successful swaps recognized by Toncenter actions. Includes wallets and smart contracts.\nEach address is counted once per UTC calendar month.',
     }),
     chart('swaps_dex', 'Swaps by DEX', 'activity', '', {
+        description: 'No Megaton Finance yet.',
         kind: 'stacked-bar',
         zero: true,
         dynamic: true,
