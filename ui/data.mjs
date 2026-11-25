@@ -325,7 +325,7 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
     }));
     const jettonKeys = ['usdt', 'others', 'unknown'];
     const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
-    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4'];
+    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4', 'dex_volume_gram_v5'];
     const volumeByDay = new Map();
     metrics.dex_volume.coverage = {};
     for (const r of data.daily) {
@@ -370,7 +370,8 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
             const coverage = volumeCoverage(counts) + '\n' +
                 (version === 0 ? 'This day still uses the previous 15-minute price limit.' : `Included using an older price: ${carried}.`) +
                 (version >= 2 ? ` Valued from GRAM or USDT passed between swap steps: ${intermediate}.` : ' The execution-based recalculation is pending for this day.') +
-                (version === 2 ? ' This day still uses the previous 1% liquidity limit.' : '');
+                (version === 2 ? ' This day still uses the previous 1% liquidity limit.' : '') +
+                (version === 3 ? ' This day still uses the previous swap routing rules.' : '');
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
                 knownCounts ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
         }

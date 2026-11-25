@@ -339,7 +339,7 @@ their missing prerequisites in the UI.
 
 ## DEX volume
 
-`dex_volume_gram_v4` is a prepared daily activity row. The UTC day is the
+`dex_volume_gram_v5` is a prepared daily activity row. The UTC day is the
 masterchain completion date of the trace, so one route cannot be split at
 midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
@@ -364,7 +364,12 @@ prices observed within 15 minutes over older quotes on either side. `carried`
 counts routes estimated using the latest still-valid older GRAM quote, without
 applying later GRAM/USDT movement or looking past an invalidation.
 Round the selected value once per route to a nanogram. During the rebuild use
-the highest available version (v4, v3, v2, v1) per UTC day, never their sum.
+the highest available version (v5, v4, v3, v2, v1) per UTC day, never their sum.
+V5 sums disjoint native inputs of a confirmed cross-venue split from the same
+payer. For serial steps it checks the asset and funding path, allowing the
+next input (or sum of child inputs) to differ by up to 20% of the preceding
+output. A direct pTON transfer can link the two holders at opposite ends of
+the same message. This tolerance is separate from the 20% quote liquidity limit.
 V3 used a 1% liquidity limit.
 V1 and v2 did not check quote liquidity or intermediate transfers; v1 also
 excluded quotes older than 15 minutes.
