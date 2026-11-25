@@ -670,6 +670,7 @@ function render(group, roundsOnly = false, onlyID) {
             (latest
                 ? latestDetail
                 : 'No covered observations in this interval.');
+        if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
         if ((definition.descriptionStrong || definition.descriptionEmphasis) && state.status.textContent === definition.description) {
             let parts = [definition.description];
             for (const [terms, tag] of [[definition.descriptionStrong, 'strong'], [definition.descriptionEmphasis, 'em']]) {
@@ -694,7 +695,6 @@ function render(group, roundsOnly = false, onlyID) {
             state.status.textContent = (isActivity ? activityError || (walletsData?.active.mode === activityMode ? '' : walletsError) : walletsError) || (loading ? 'Loading wallet data…' : monthly ? '' : `${interval}${available ? available < totalPeriods ? `${available} of ${totalPeriods} UTC ${hourly ? 'hours' : 'days'} available. ${missing}` : '' : missing}`);
         }
         if (!isTotalActions && !isActivations) state.legend.replaceChildren();
-        if (monthly) state.status.textContent = sectionError || (loading ? 'Loading monthly Activity…' : definition.monthlyDescription || definition.description || (latest ? latestDetail : 'Monthly history is being prepared.'));
         if (state.average && (isSection || isDailyAction)) {
             const period = monthly ? `${dates.length} ${dates.length === 1 ? 'month' : 'months'}`
                 : activeRange ? rangeDurationLabel(activeRange.from, activeRange.to) : '';
