@@ -62,6 +62,14 @@ test('TVL reconciles known sides and uses the closing observation, never their s
     const close=() => monthlyActivity(data).metrics.dex_tvl.series[0];
     assert.equal(close().exact['2024-02-01'],'9007199254740993.000000009');
     assert.match(close().details['2024-02-01'],/2024-02-29/);
+    assert.match(close().details['2024-02-01'],/Previous method/);
+    const row=data.daily.at(-1);
+    Object.assign(row.breakdown,{method:'2','stonfi:estimated':'1','stonfi:estimated_gram':'200','stonfi:estimated_nano':'0',
+        'dedust:estimated':'0','dedust:estimated_gram':'0','dedust:estimated_nano':'0'});
+    row.value='6'; row.amount_nanoton=String(BigInt(row.amount_nanoton)+200000000000n);
+    assert.equal(close().exact['2024-02-01'],'9007199254741193.000000009');
+    assert.match(close().details['2024-02-01'],/1 estimated at 2×/);
+    assert.doesNotMatch(close().details['2024-02-01'],/Previous method/);
     data.daily.at(-1).amount_nanoton='0';
     assert.equal(close().exact['2024-02-01'],null);
     data.daily.pop();

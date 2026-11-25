@@ -372,18 +372,27 @@ Internal pool hops are not additional user volume. Megaton Finance is excluded.
 
 ## DEX TVL observations
 
-`dex_tvl_gram_v1` is a closing stock of priced STON.fi and DeDust reserves,
+`dex_tvl_gram_v1` values closing STON.fi and DeDust reserves,
 in **GRAM**. Each pool uses its last state before the next UTC midnight with
 the pair and venue from that same version. Idle reserves carry forward and
-are revalued every day. Removed or empty pools are excluded. There is no
-substitution of `2 × known side` for a pool with a missing quote.
+are revalued every day. Removed or empty pools are excluded. With
+`breakdown.method = 2`, a pool with two funded reserves and exactly one
+core asset with a closing quote contributes **twice the value of the core
+reserve** instead of the sum of both reserves. This follows the one-core
+rule in DefiLlama’s STON.fi/DeDust adapters; our closing prices remain
+independent. Membership uses the TON core list at DefiLlama-Adapters
+`f36c8ba1` with our native GRAM/pTON aliases. Bridged or staked tokens
+require their own prices. If the rule does not apply we sum priced
+balances only. Older publications without this method marker never double.
 
-`value` counts funded pools in scope. `amount_nanoton` is the exact sum of
-rounded known sides, null if there were funded pools but none could be priced.
-The breakdown uses `<venue>:full`, `:partial`, `:none` (pool counts); each
-of `full`, `partial`, `native` has a `<kind>_gram` whole part and a
-`<kind>_nano` remainder. Add `full` and `partial` amounts; `native` (GRAM and
-the recognized STON.fi pTON wrappers) is **already included**. Closing quotes
+`value` counts funded pools in scope. `amount_nanoton` is the sum of
+valuations, null if there were funded pools but none could be valued.
+The breakdown uses `<venue>:full`, `:estimated`, `:partial`, `:none` (disjoint
+pool counts). Each of `full`, `estimated`, `partial`, `native` has a
+`<kind>_gram` whole part and a `<kind>_nano` remainder. `estimated` is the
+whole doubled pool valuation, not an add-on. Add `full`, `estimated` and
+`partial`; `native` is the actual GRAM/pTON held, **never doubled or added
+again**. Estimates alone do not mark a day partial. Closing quotes
 must have positive finite prices and a non-stale observation in the final
 15 minutes; canonical USDT uses the final minute's anchor. Multiply raw
 jetton reserves by the raw GRAM quote, then round each side to the nearest

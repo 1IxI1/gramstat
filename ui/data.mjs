@@ -212,6 +212,9 @@ function lockedPoolBreakdown(round) {
 // Missing publication, no priced reserves, and zero funded pools are distinct.
 function closingReserves(row) {
     const b = row.breakdown ?? {};
+    const method = b.method ?? '0'; // Older days have no estimate fields.
+    if (method !== '0' && method !== '2') return null;
+    const doubled = method === '2';
     const venues = ['stonfi', 'dedust'];
     const amount = (v, kind) => {
         const g = b[`${v}:${kind}_gram`], n = b[`${v}:${kind}_nano`];
@@ -223,17 +226,23 @@ function closingReserves(row) {
     for (const v of venues) {
         const fields = ['full','partial','none'].map(k => b[`${v}:${k}`]);
         if (fields.some(s => decimal(s) === null)) return null;
+        if (doubled && decimal(b[`${v}:estimated`]) === null) return null;
+        const estimatedCount = doubled ? BigInt(b[`${v}:estimated`]) : 0n;
         const [f,p,u] = fields.map(s => BigInt(s));
         const [both,one,native] = ['full','partial','native'].map(k => amount(v,k));
-        if ([both,one,native].some(n => n === null) || native > both + one || (!f && both) || (!p && one)) return null;
-        total += both + one; count += f+p+u; fully += f; partly += p; missing += u;
-        values[v] = u && !f && !p ? null : String(both + one);
+        const estimate = doubled ? amount(v,'estimated') : 0n;
+        if ([both,one,native,estimate].some(n => n === null) || estimate % 2n ||
+            native > both + estimate/2n + one || (!f && both) || (!p && one) || (!estimatedCount && estimate)) return null;
+        total += both + estimate + one; count += f+estimatedCount+p+u; fully += f+estimatedCount; partly += p; missing += u;
+        values[v] = u && !f && !estimatedCount && !p ? null : String(both + estimate + one);
         const gram = n => formatTooltipExact(decimal(String(n),9));
-        notes.push(`${v === 'stonfi' ? 'STON.fi' : 'DeDust'}: ${f} fully priced pools (${gram(both)} GRAM); ${p} partly priced (${gram(one)} GRAM known); ${u} unpriced. GRAM/pTON included: ${gram(native)} GRAM.`);
+        const estimates = doubled ? ` ${estimatedCount} estimated at 2× (${gram(estimate)} GRAM);` : '';
+        notes.push(`${v === 'stonfi' ? 'STON.fi' : 'DeDust'}: ${f} fully priced pools (${gram(both)} GRAM);${estimates} ${p} partly priced (${gram(one)} GRAM known); ${u} unpriced. Actual GRAM/pTON reserves: ${gram(native)} GRAM.`);
     }
     const partial = partly+missing > 0n;
     if (String(count) !== row.value || Boolean(row.is_partial) !== partial ||
         (fully+partly > 0n || !count ? String(total) !== row.amount_nanoton : row.amount_nanoton !== null)) return null;
+    if (!doubled) notes.push('Previous method: only priced balances are included; no reserve was doubled.');
     return { values, partial, detail: notes.join('\n') };
 }
 

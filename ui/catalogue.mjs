@@ -215,15 +215,16 @@ export const CATALOGUE = [
             'Megaton Finance is not indexed yet, hence not included.',
         ].join('\n\n'),
     }),
-    chart('dex_tvl', 'DEX TVL · priced reserves', 'activity', 'GRAM', {
-        kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'Priced reserves', showAverage: false,
+    chart('dex_tvl', 'DEX TVL', 'activity', 'GRAM', {
+        kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'TVL', showAverage: false,
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
         description: [
-            '• Fully priced — we know the GRAM value of every non-zero balance in the pool. The full amount is included in TVL.',
-            '• Partly priced — we can value one asset but not the other. If a pool holds 100 GRAM and 500 ABC, and we have no closing price for ABC, only the 100 GRAM is included. We don’t double it to estimate the missing value.',
+            '• Fully priced — each non-zero balance is valued separately in GRAM. Their sum is included in TVL.',
+            '• Estimated at 2× — if both balances are non-zero and only one token is on our core asset list (such as GRAM or USDT), we use twice its closing value when available. For example, 100 GRAM and 500 ABC count as 200 GRAM if ABC is not a core asset. Only 100 GRAM is actually held as GRAM.',
+            '• Partly priced — if the doubling rule doesn’t apply and only one token has a closing price, we include only that token’s value.',
             '• Unpriced — the pool holds tokens, but we have no closing price for any of them. The pool is counted in the tooltip, but its value is left out of TVL. That doesn’t mean the pool is empty or its tokens are worth zero.',
         ].join('\n\n'),
-        descriptionEmphasis: ['Fully priced', 'Partly priced', 'Unpriced'],
+        descriptionEmphasis: ['Fully priced', 'Estimated at 2×', 'Partly priced', 'Unpriced'],
     }),
     chart('ton_dns_mints', '.ton DNS mints', 'activity', '', {
         kind: 'bar', zero: true,
