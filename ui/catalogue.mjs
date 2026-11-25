@@ -210,11 +210,12 @@ export const CATALOGUE = [
             series('coffee', 'swap.coffee', 3), series('multiple', 'Multiple DEXs', 4), series('other', 'Other DEXs', 5)],
         description: [
             'If you spend 100 GRAM to buy a token, that adds 100 GRAM to volume, even if the swap takes several steps. If it goes through both STON.fi and DeDust, the 100 GRAM appears once under Multiple DEXs.',
-            'When GRAM is bought or sold, we use the actual GRAM amount. If you pay or receive USDT, we convert the amount exchanged to GRAM at the previous minute’s rate. If neither is at the start or end, we look for GRAM or USDT that passed through the entire swap and count it once.',
-            'If we can only estimate the value from the two tokens, we use the price of one of them in a pool with GRAM. We prefer a fresh price for the token received, then for the token spent. If neither has a usable price from the past 15 minutes, we try the last still-valid price. We use a token price to estimate volume only if the swap amount is no more than 20% of pool liquidity.',
-            'Partial means some activity is missing: either neither token had a usable price, or we couldn’t tell whether several transfers were steps of one swap or separate swaps.',
+            'When GRAM is bought or sold, we use the actual GRAM amount. For USDT-ANY swaps (where ANY is not GRAM), we convert USDT to GRAM at the previous minute’s rate.',
+            'For ANY1-ANY2 swaps, we look for GRAM or USDT in the swap’s route (hops). If there is no such hop, we use the price of either token (e.g. ANY1) in its GRAM pool (e.g. GRAM-ANY1). If neither ANY1 nor ANY2 has a usable price from the past 15 minutes, we try the last still-valid price.',
+            'If the swap amount is more than 20% of pool liquidity, we skip that estimate. If neither token gives us a usable estimate, the swap stays unrecognized (~0.065%). Some multi-pool and multi-DEX swaps are too complicated to resolve and are listed under Unresolved swap traces.',
             'Megaton Finance is not indexed yet, hence not included.',
         ].join('\n\n'),
+        descriptionStrong: 'Unresolved swap traces',
     }),
     chart('dex_tvl', 'DEX TVL', 'activity', 'GRAM', {
         kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'TVL', showAverage: false,
