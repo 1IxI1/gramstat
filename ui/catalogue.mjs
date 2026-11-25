@@ -38,6 +38,12 @@ const SUBSECOND_START = Object.freeze({
     id: 'subsecond-start', utime: 1775718744, mc: 59238081,
     label: '2.5 → 0.4s blocks', color: '#9063b5',
 });
+const DEX_RESERVES = [
+    'A pool holds two assets. At the end of each UTC day, we add up the value of the tokens held in each STON.fi and DeDust pool. If a pool’s balances haven’t changed, we keep the same token amounts and value them again at that day’s closing prices.',
+    'GRAM and its wrapped form, pTON, count directly. For other tokens, we use a price in GRAM observed in the last 15 minutes before midnight UTC. For USDT, we use the GRAM/USDT rate from the final minute.',
+    'For example, if a pool holds 100 GRAM and 500 ABC tokens but ABC has no closing price, the pool contributes only 100 GRAM. The 500 ABC are still in the pool; we don’t assume they’re worth another 100 GRAM.',
+    'The tooltip shows how many pools we could value in full, in part, or not at all, and how much of the total is held in GRAM or pTON.',
+].join('\n\n');
 export const CATALOGUE = [
     chart('supply', 'Total supply', 'gram', 'GRAM', {
         description: 'Total supply is the sum of account balances and funds in transit, including collected fees not yet credited to validators. Protocol-burned funds are excluded (e.g. the 50% of transaction fees burned by the protocol). Transfers to 0:00…00 remain included (though they’re inaccessible); funds burned at −1:ff…ff are excluded.',
@@ -218,8 +224,8 @@ export const CATALOGUE = [
     chart('dex_tvl', 'DEX TVL · priced reserves', 'activity', 'GRAM', {
         kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'Priced reserves', showAverage: false,
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
-        description: 'End-of-day pool reserves on STON.fi and DeDust, valued in GRAM. Unchanged pools retain their reserves. A side without a fresh price is excluded; the other side is never doubled. Coverage and the GRAM/pTON portion are shown in the tooltip.',
-        monthlyDescription: 'Closing snapshot, not a sum of daily TVL. Open months use the last closed UTC day in the selected period. Includes priced reserves on STON.fi and DeDust only.',
+        description: DEX_RESERVES,
+        monthlyDescription: `Each month shows the closing value on its last completed UTC day in the selected period. Daily balances are not added together.\n\n${DEX_RESERVES}`,
     }),
     chart('ton_dns_mints', '.ton DNS mints', 'activity', '', {
         kind: 'bar', zero: true,
