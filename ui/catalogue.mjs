@@ -212,7 +212,7 @@ export const CATALOGUE = [
             'If you spend 100 GRAM to buy a token, that adds 100 GRAM to volume, even if the swap takes several steps. If it goes through both STON.fi and DeDust, the 100 GRAM appears once under Multiple DEXs.',
             'When GRAM is bought or sold, we use the actual GRAM amount. For USDT-ANY swaps (where ANY is not GRAM), we convert USDT to GRAM at the previous minute’s rate.',
             'For ANY1-ANY2 swaps, we look for GRAM or USDT in the swap’s route (hops). If there is no such hop, we use the price of either token (e.g. ANY1) in its GRAM pool (e.g. GRAM-ANY1). If neither ANY1 nor ANY2 has a usable price from the past 15 minutes, we try the last still-valid price.',
-            'If the swap amount is more than 20% of pool liquidity, we skip that estimate. If neither token gives us a usable estimate, the swap stays unrecognized (~0.065%). Some multi-pool and multi-DEX swaps are too complicated to resolve and are listed under Unresolved swap traces.',
+            'We skip a token-price estimate if it exceeds 20% of the total value of both reserves in the pools used for that price. If neither token gives us a usable estimate, the swap stays unrecognized (~0.065% under the v4 method). Some multi-pool and multi-DEX swaps are too complicated to resolve and are listed under Unresolved swap traces.',
             'Megaton Finance is not indexed yet, hence not included.',
         ].join('\n\n'),
         descriptionStrong: 'Unresolved swap traces',

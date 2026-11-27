@@ -113,6 +113,14 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000007');
     assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
     assert.doesNotMatch(s[0].details[row.day], /previous swap routing/);
+    assert.match(s[0].details[row.day], /previous liquidity measure/);
+    data.daily.unshift({...row, metric:'dex_volume_gram_v6', amount_nanoton:'100000000000000000010',
+        breakdown:{...row.breakdown,'nano:multiple':'9'}});
+    s = get();
+    assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000009');
+    assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
+    assert.doesNotMatch(s[0].details[row.day], /previous liquidity measure/);
+    data.daily.shift();
     data.daily.pop();
     data.daily.shift();
     data.daily.at(-1).breakdown.intermediate = '3';
