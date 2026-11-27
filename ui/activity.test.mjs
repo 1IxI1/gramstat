@@ -70,6 +70,12 @@ test('TVL reconciles known sides and uses the closing observation, never their s
     assert.equal(close().exact['2024-02-01'],'9007199254741193.000000009');
     assert.match(close().details['2024-02-01'],/1 estimated at 2×/);
     assert.doesNotMatch(close().details['2024-02-01'],/Previous method/);
+    data.daily.unshift({...row,metric:'dex_tvl_gram_v2',breakdown:{...row.breakdown,method:'3','stonfi:weighted_full':'1','dedust:weighted_full':'0'}});
+    assert.match(close().details['2024-02-01'],/including 1 weighted/);
+    assert.equal(close().exact['2024-02-01'],'9007199254741193.000000009');
+    data.daily[0].breakdown['stonfi:weighted_full']='2';
+    assert.equal(close().exact['2024-02-01'],null);
+    data.daily.shift();
     data.daily.at(-1).amount_nanoton='0';
     assert.equal(close().exact['2024-02-01'],null);
     data.daily.pop();
@@ -120,6 +126,12 @@ test('DEX volume reconciles the exact priced stack and keeps missing histories u
     assert.equal(s.find(x => x.id === 'multiple').exact[row.day], '0.000000009');
     assert.equal(s[0].points.filter(([day]) => day === row.day).length, 1);
     assert.doesNotMatch(s[0].details[row.day], /previous liquidity measure/);
+    assert.match(s[0].details[row.day], /earlier STON.fi split/);
+    data.daily.push({...row,metric:'dex_volume_gram_v7'});
+    assert.equal(get()[0].points.filter(([day]) => day === row.day).length,1);
+    assert.equal(get().find(x => x.id === 'multiple').exact[row.day],'0.000000001');
+    assert.doesNotMatch(get()[0].details[row.day], /earlier STON.fi split/);
+    data.daily.pop();
     data.daily.shift();
     data.daily.pop();
     data.daily.shift();

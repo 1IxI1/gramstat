@@ -213,8 +213,9 @@ function lockedPoolBreakdown(round) {
 function closingReserves(row) {
     const b = row.breakdown ?? {};
     const method = b.method ?? '0'; // Older days have no estimate fields.
-    if (method !== '0' && method !== '2') return null;
-    const doubled = method === '2';
+    const weighted = row.metric === 'dex_tvl_gram_v2';
+    if (weighted ? method !== '3' : method !== '0' && method !== '2') return null;
+    const doubled = method !== '0';
     const venues = ['stonfi', 'dedust'];
     const amount = (v, kind) => {
         const g = b[`${v}:${kind}_gram`], n = b[`${v}:${kind}_nano`];
@@ -229,6 +230,8 @@ function closingReserves(row) {
         if (doubled && decimal(b[`${v}:estimated`]) === null) return null;
         const estimatedCount = doubled ? BigInt(b[`${v}:estimated`]) : 0n;
         const [f,p,u] = fields.map(s => BigInt(s));
+        const w = b[`${v}:weighted_full`];
+        if (weighted && (decimal(w) === null || BigInt(w)>f)) return null;
         const [both,one,native] = ['full','partial','native'].map(k => amount(v,k));
         const estimate = doubled ? amount(v,'estimated') : 0n;
         if ([both,one,native,estimate].some(n => n === null) || estimate % 2n ||
@@ -237,12 +240,14 @@ function closingReserves(row) {
         values[v] = u && !f && !estimatedCount && !p ? null : String(both + estimate + one);
         const gram = n => formatTooltipExact(decimal(String(n),9));
         const estimates = doubled ? ` ${estimatedCount} estimated at 2× (${gram(estimate)} GRAM);` : '';
-        notes.push(`${v === 'stonfi' ? 'STON.fi' : 'DeDust'}: ${f} fully priced pools (${gram(both)} GRAM);${estimates} ${p} partly priced (${gram(one)} GRAM known); ${u} unpriced. Actual GRAM/pTON reserves: ${gram(native)} GRAM.`);
+        const checked = weighted && BigInt(w) ? `, including ${w} weighted with a corroborated price` : '';
+        notes.push(`${v === 'stonfi' ? 'STON.fi' : 'DeDust'}: ${f} fully priced pools (${gram(both)} GRAM${checked});${estimates} ${p} partly priced (${gram(one)} GRAM known); ${u} unpriced. Actual GRAM/pTON reserves: ${gram(native)} GRAM.`);
     }
     const partial = partly+missing > 0n;
     if (String(count) !== row.value || Boolean(row.is_partial) !== partial ||
         (fully+partly > 0n || !count ? String(total) !== row.amount_nanoton : row.amount_nanoton !== null)) return null;
     if (!doubled) notes.push('Previous method: only priced balances are included; no reserve was doubled.');
+    else if (!weighted) notes.push('This close uses the earlier weighted-pool valuation.');
     return { values, partial, detail: notes.join('\n') };
 }
 
@@ -325,8 +330,9 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
     }));
     const jettonKeys = ['usdt', 'others', 'unknown'];
     const jettonSplit = transferSplits(data.daily, 'jetton_transfer_assets_v1', jettonKeys);
-    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4', 'dex_volume_gram_v5', 'dex_volume_gram_v6'];
+    const volumeVersions = ['dex_volume_gram_v1', 'dex_volume_gram_v2', 'dex_volume_gram_v3', 'dex_volume_gram_v4', 'dex_volume_gram_v5', 'dex_volume_gram_v6', 'dex_volume_gram_v7'];
     const volumeByDay = new Map();
+    const weightedCloses = new Set(data.daily.filter(r => r.metric === 'dex_tvl_gram_v2').map(r => r.day));
     metrics.dex_volume.coverage = {};
     for (const r of data.daily) {
         const version = volumeVersions.indexOf(r.metric);
@@ -372,11 +378,12 @@ export function readObservedMetrics(data, { includeActions = true } = {}) {
                 (version >= 2 ? ` Valued from GRAM or USDT passed between swap steps: ${intermediate}.` : ' The execution-based recalculation is pending for this day.') +
                 (version === 2 ? ' This day still uses the previous 1% liquidity limit.' : '') +
                 (version === 3 ? ' This day still uses the previous swap routing rules.' : '') +
-                (version === 3 || version === 4 ? ' The 20% size limit for this day uses the previous liquidity measure.' : '');
+                (version === 3 || version === 4 ? ' The 20% size limit for this day uses the previous liquidity measure.' : '') +
+                (version === 5 ? ' This day uses the earlier STON.fi split and swap.coffee payout rules.' : '');
             series.forEach((s, i) => put('dex_volume', s.id, r.day, valid ? String(amounts[i]) : null, 9,
                 knownCounts ? coverage : 'Coverage unavailable.', !valid || Boolean(r.is_partial) || missing > 0n || ambiguous > 0n));
         }
-        if (r.metric === 'dex_tvl_gram_v1') {
+        if (r.metric === 'dex_tvl_gram_v2' || (r.metric === 'dex_tvl_gram_v1' && !weightedCloses.has(r.day))) {
             const obs = closingReserves(r);
             for (const s of metrics.dex_tvl.series) put('dex_tvl', s.id, r.day, obs?.values[s.id] ?? null, 9,
                 obs?.detail ?? 'Reserve coverage unavailable.', !obs || obs.partial);

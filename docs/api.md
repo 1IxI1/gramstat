@@ -339,7 +339,7 @@ their missing prerequisites in the UI.
 
 ## DEX volume
 
-`dex_volume_gram_v6` is a prepared daily activity row. The UTC day is the
+`dex_volume_gram_v7` is a prepared daily activity row. The UTC day is the
 masterchain completion date of the trace, so one route cannot be split at
 midnight. `value` is the number of priced recognized routes, `amount_nanoton`
 their total in integer nanograms (null if nothing could be valued and
@@ -366,7 +366,11 @@ prices observed within 15 minutes over older quotes on either side. `carried`
 counts routes estimated using the latest still-valid older GRAM quote, without
 applying later GRAM/USDT movement or looking past an invalidation.
 Round the selected value once per route to a nanogram. During the rebuild use
-the highest available version (v6 through v1) per UTC day, never their sum.
+the highest available version (v7 through v1) per UTC day, never their sum.
+V7 also sums proven parallel STON.fi v1/v2 payments once under STON.fi.
+For a swap.coffee payout funding STON.fi v2 via a native notification, the
+net amount paid by the vault must match the downstream pTON swap input;
+the notification's attached gas is not turnover.
 Since v5, the aggregator sums disjoint native inputs of a confirmed cross-venue split from the same
 payer. For serial steps it checks the asset and funding path, allowing the
 next input (or sum of child inputs) to differ by up to 20% of the preceding
@@ -379,7 +383,7 @@ Internal pool hops are not additional user volume. Megaton Finance is excluded.
 
 ## DEX TVL observations
 
-`dex_tvl_gram_v1` values closing STON.fi and DeDust reserves,
+`dex_tvl_gram_v2` values closing STON.fi and DeDust reserves,
 in **GRAM**. Each pool uses its last state before the next UTC midnight with
 the pair and venue from that same version. Idle reserves carry forward and
 are revalued every day. Removed or empty pools are excluded. With
@@ -391,6 +395,16 @@ independent. Membership uses the TON core list at DefiLlama-Adapters
 `f36c8ba1` with our native GRAM/pTON aliases. Bridged or staked tokens
 require their own prices. If the rule does not apply we sum priced
 balances only. Older publications without this method marker never double.
+
+V2 (`breakdown.method = 3`) retains method 2 except for unevenly weighted
+constant-product and stable pools. With both sides priced, use their sum
+if the non-core closing quote used at least two pools and is corroborated
+within 1% by a separate ordinary constant-product pool against GRAM or
+canonical USDT. That pool must be unlocked, have an indexed positive spot,
+a fee of at most 1%, a snapshot in the last 15 minutes, and each reserve
+worth at least the target's core reserve. `<venue>:weighted_full` is the
+subset moved from `estimated` to `full`, not an extra value. Otherwise the
+existing estimate remains. Pick v2 before v1 per day, including monthly closes.
 
 `value` counts funded pools in scope. `amount_nanoton` is the sum of
 valuations, null if there were funded pools but none could be valued.

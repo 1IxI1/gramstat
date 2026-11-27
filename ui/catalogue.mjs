@@ -221,7 +221,7 @@ export const CATALOGUE = [
         kind: 'stacked-bar', zero: true, row: 'dex-charts', closingSnapshot: true, stackTotalLabel: 'TVL', showAverage: false,
         series: [series('stonfi', 'STON.fi'), series('dedust', 'DeDust', 1)],
         description: [
-            'Fully priced — each non-zero balance is valued separately in GRAM. Their sum is included in TVL.',
+            'Fully priced — each non-zero balance is valued separately in GRAM. For an unevenly weighted pool, we use both balances instead of 2× when another pool confirms the token price at the close.',
             'Estimated at 2× — if both balances are non-zero and only one token is on our core asset list (such as GRAM or USDT), we use twice its closing value when available. For example, 100 GRAM and 500 ANY count as 200 GRAM if ANY is not a core asset. Only 100 GRAM is actually held as GRAM.',
             'Partly priced — if the doubling rule doesn’t apply and only one token has a closing price, we include only that token’s value.',
             'Unpriced — the pool holds tokens, but we have no closing price for any of them. The pool is counted in the tooltip, but its value is left out of TVL. That doesn’t mean the pool is empty or its tokens are worth zero.',
